@@ -85,6 +85,6 @@ export async function scheduleAutoDeductionCheck(): Promise<void> {
       body: 'Checking your pantry levels...',
       data: { type: 'auto-check' },
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 9, minute: 0 } as any,
+    trigger: { hour: 9, minute: 0, repeats: true } as any,
   });
 }
