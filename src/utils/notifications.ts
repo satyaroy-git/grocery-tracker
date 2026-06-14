@@ -7,9 +7,7 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  } as any),
 });
 
 export async function requestNotificationPermissions(): Promise<boolean> {
@@ -87,6 +85,6 @@ export async function scheduleAutoDeductionCheck(): Promise<void> {
       body: 'Checking your pantry levels...',
       data: { type: 'auto-check' },
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 9, minute: 0 },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 9, minute: 0 } as any,
   });
 }
