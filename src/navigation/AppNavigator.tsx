@@ -1,0 +1,122 @@
+import React, { useEffect, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, View } from 'react-native';
+
+import { RootStackParamList, MainTabParamList, DashboardStackParamList, InventoryStackParamList, ShoppingStackParamList } from './types';
+import { COLORS } from '../constants/theme';
+import { isOnboardingCompleted } from '../database';
+
+import DashboardScreen from '../screens/DashboardScreen';
+import ItemListScreen from '../screens/ItemListScreen';
+import ItemDetailScreen from '../screens/ItemDetailScreen';
+import AddItemScreen from '../screens/AddItemScreen';
+import EditItemScreen from '../screens/EditItemScreen';
+import LogUsageScreen from '../screens/LogUsageScreen';
+import RestockScreen from '../screens/RestockScreen';
+import ShoppingListScreen from '../screens/ShoppingListScreen';
+import AddShoppingItemScreen from '../screens/AddShoppingItemScreen';
+import PurchaseConfirmScreen from '../screens/PurchaseConfirmScreen';
+import InsightsScreen from '../screens/InsightsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
+
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
+const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
+const InventoryStack = createNativeStackNavigator<InventoryStackParamList>();
+const ShoppingStack = createNativeStackNavigator<ShoppingStackParamList>();
+
+function DashboardStackNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600' } }}>
+      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Grocery Tracker' }} />
+      <DashboardStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
+      <DashboardStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
+    </DashboardStack.Navigator>
+  );
+}
+
+function InventoryStackNavigator() {
+  return (
+    <InventoryStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600' } }}>
+      <InventoryStack.Screen name="ItemList" component={ItemListScreen} options={{ title: 'My Pantry' }} />
+      <InventoryStack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item Details' }} />
+      <InventoryStack.Screen name="AddItem" component={AddItemScreen} options={{ title: 'Add Item' }} />
+      <InventoryStack.Screen name="EditItem" component={EditItemScreen} options={{ title: 'Edit Item' }} />
+      <InventoryStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
+      <InventoryStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
+    </InventoryStack.Navigator>
+  );
+}
+
+function ShoppingStackNavigator() {
+  return (
+    <ShoppingStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600' } }}>
+      <ShoppingStack.Screen name="ShoppingList" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
+      <ShoppingStack.Screen name="AddShoppingItem" component={AddShoppingItemScreen} options={{ title: 'Add to List' }} />
+      <ShoppingStack.Screen name="PurchaseConfirm" component={PurchaseConfirmScreen} options={{ title: 'Confirm Purchase' }} />
+    </ShoppingStack.Navigator>
+  );
+}
+
+function MainTabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.disabled,
+        tabBarStyle: { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, paddingBottom: 4, height: 60 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'home';
+          switch (route.name) {
+            case 'DashboardTab': iconName = focused ? 'home' : 'home-outline'; break;
+            case 'InventoryTab': iconName = focused ? 'list' : 'list-outline'; break;
+            case 'ShoppingTab': iconName = focused ? 'cart' : 'cart-outline'; break;
+            case 'InsightsTab': iconName = focused ? 'stats-chart' : 'stats-chart-outline'; break;
+            case 'SettingsTab': iconName = focused ? 'settings' : 'settings-outline'; break;
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="DashboardTab" component={DashboardStackNavigator} options={{ title: 'Home' }} />
+      <Tab.Screen name="InventoryTab" component={InventoryStackNavigator} options={{ title: 'Pantry' }} />
+      <Tab.Screen name="ShoppingTab" component={ShoppingStackNavigator} options={{ title: 'Shop' }} />
+      <Tab.Screen name="InsightsTab" component={InsightsScreen} options={{ title: 'Insights', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff' }} />
+      <Tab.Screen name="SettingsTab" component={SettingsScreen} options={{ title: 'Settings', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff' }} />
+    </Tab.Navigator>
+  );
+}
+
+export default function AppNavigator() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => { checkOnboarding(); }, []);
+
+  async function checkOnboarding() {
+    try {
+      const completed = await isOnboardingCompleted();
+      setShowOnboarding(!completed);
+    } catch (error) { setShowOnboarding(true); }
+    finally { setIsLoading(false); }
+  }
+
+  if (isLoading) {
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
+  }
+
+  return (
+    <NavigationContainer>
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        {showOnboarding ? <RootStack.Screen name="Onboarding" component={OnboardingScreen} /> : null}
+        <RootStack.Screen name="MainTabs" component={MainTabNavigator} />
+      </RootStack.Navigator>
+    </NavigationContainer>
+  );
+}
