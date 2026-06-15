@@ -97,6 +97,10 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
   } catch (e) { /* column already exists */ }
 
   try {
+    await database.execAsync(`ALTER TABLE consumption_logs ADD COLUMN price REAL;`);
+  } catch (e) { /* column already exists */ }
+
+  try {
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS shopping_templates (
         id TEXT PRIMARY KEY,
@@ -104,6 +108,16 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
         items TEXT NOT NULL DEFAULT '[]',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         last_used TEXT
+      );
+    `);
+  } catch (e) { /* table already exists */ }
+
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS family_sharing (
+        id TEXT PRIMARY KEY,
+        family_code TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
   } catch (e) { /* table already exists */ }

@@ -29,6 +29,7 @@ export default function RestockScreen() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'add' | 'set'>('add');
   const [quantity, setQuantity] = useState('');
+  const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -85,7 +86,8 @@ export default function RestockScreen() {
       const addedAmount = finalAmount - item!.currentQuantity;
       await restockItem(item!.id, finalAmount);
       if (addedAmount > 0) {
-        await logConsumption(item!.id, addedAmount, 'restock');
+        const priceVal = price.trim() ? parseFloat(price) : undefined;
+        await logConsumption(item!.id, addedAmount, 'restock', undefined, priceVal);
       }
       Alert.alert(
         'Success',
@@ -173,6 +175,20 @@ export default function RestockScreen() {
             placeholderTextColor={COLORS.textLight}
             keyboardType="decimal-pad"
           />
+        </View>
+
+        {/* Price Input */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Price Paid (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={price}
+            onChangeText={setPrice}
+            placeholder="e.g., 45"
+            placeholderTextColor={COLORS.textLight}
+            keyboardType="decimal-pad"
+          />
+          <Text style={{ fontSize: 11, color: COLORS.textSecondary, marginTop: 4 }}>Track your grocery spending over time</Text>
         </View>
 
         {/* Preview */}

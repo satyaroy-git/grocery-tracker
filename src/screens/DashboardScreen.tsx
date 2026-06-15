@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { GroceryItemWithStatus, getItemCount, getAllItems, getExpiringItems } from '../database';
+import { GroceryItemWithStatus, getItemCount, getAllItems, getExpiringItems, getTotalSpendThisMonth } from '../database';
 import { DashboardStackParamList } from '../navigation/types';
 
 type NavProp = NativeStackNavigationProp<DashboardStackParamList>;
@@ -15,14 +15,16 @@ export default function DashboardScreen() {
   const [counts, setCounts] = useState({ total: 0, low: 0, outOfStock: 0 });
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [expiringItems, setExpiringItems] = useState<GroceryItemWithStatus[]>([]);
+  const [monthlySpend, setMonthlySpend] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async () => {
     try {
-      const [countData, allItems, expiring] = await Promise.all([getItemCount(), getAllItems(), getExpiringItems()]);
+      const [countData, allItems, expiring, spend] = await Promise.all([getItemCount(), getAllItems(), getExpiringItems(), getTotalSpendThisMonth()]);
       setCounts(countData);
       setItems(allItems);
       setExpiringItems(expiring);
+      setMonthlySpend(spend);
     } catch (error) { console.error('Failed to load dashboard data:', error); }
   }, []);
 
@@ -61,6 +63,19 @@ export default function DashboardScreen() {
           <Text style={styles.cardLabel}>Out of Stock</Text>
         </View>
       </View>
+
+      {/* Monthly Spend */}
+      {monthlySpend > 0 && (
+        <View style={styles.section}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.lg, ...SHADOWS.sm }}>
+            <Ionicons name="wallet-outline" size={24} color={COLORS.primary} />
+            <View style={{ marginLeft: SPACING.md }}>
+              <Text style={{ fontSize: FONT_SIZES.xs, color: COLORS.textSecondary }}>This Month's Grocery Spend</Text>
+              <Text style={{ fontSize: FONT_SIZES.xxl, fontWeight: '700', color: COLORS.primary }}>Rs. {monthlySpend.toFixed(0)}</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>

@@ -25,6 +25,7 @@ export interface ConsumptionLog {
   quantity: number;
   type: 'manual' | 'auto' | 'restock';
   note: string | null;
+  price: number | null;
   createdAt: string;
 }
 

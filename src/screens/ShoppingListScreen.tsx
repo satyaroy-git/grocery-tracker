@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -89,6 +90,23 @@ export default function ShoppingListScreen() {
       await Share.share({ message: text });
     } catch (error) {
       // User cancelled or share failed
+    }
+  };
+
+  const handleShareWhatsApp = async () => {
+    try {
+      const text = await getShoppingListAsText();
+      const encoded = encodeURIComponent(text);
+      const url = `whatsapp://send?text=${encoded}`;
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback to regular share
+        await Share.share({ message: text });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not open WhatsApp. Make sure it is installed.');
     }
   };
 
@@ -180,6 +198,10 @@ export default function ShoppingListScreen() {
         <TouchableOpacity style={styles.actionChip} onPress={handleShare}>
           <Ionicons name="share-outline" size={16} color={COLORS.primary} />
           <Text style={styles.actionChipText}>Share</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionChip, { borderColor: '#25D366' }]} onPress={handleShareWhatsApp}>
+          <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+          <Text style={[styles.actionChipText, { color: '#25D366' }]}>WhatsApp</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionChip} onPress={handleClearDone}>
           <Ionicons name="trash-outline" size={16} color={COLORS.primary} />
