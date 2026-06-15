@@ -14,6 +14,7 @@ function mapRowToItem(row: any): GroceryItem {
     autoConsumptionRate: row.auto_consumption_rate,
     autoConsumptionFrequency: row.auto_consumption_frequency as ConsumptionFrequency | null,
     lastAutoDeduction: row.last_auto_deduction,
+    expiryDate: row.expiry_date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -41,7 +42,14 @@ function calculateDaysUntilEmpty(item: GroceryItem): number | null {
 }
 
 function enrichItemWithStatus(item: GroceryItem): GroceryItemWithStatus {
-  return { ...item, status: getItemStatus(item), daysUntilEmpty: calculateDaysUntilEmpty(item) };
+  const daysUntilExpiry = item.expiryDate ? Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+  let expiryStatus: 'fresh' | 'expiring_soon' | 'expired' | null = null;
+  if (daysUntilExpiry !== null) {
+    if (daysUntilExpiry < 0) expiryStatus = 'expired';
+    else if (daysUntilExpiry <= 3) expiryStatus = 'expiring_soon';
+    else expiryStatus = 'fresh';
+  }
+  return { ...item, status: getItemStatus(item), daysUntilEmpty: calculateDaysUntilEmpty(item), daysUntilExpiry, expiryStatus };
 }
 
 export async function getAllItems(): Promise<GroceryItemWithStatus[]> {
@@ -84,6 +92,7 @@ export interface CreateItemInput {
   consumptionMode: ConsumptionMode;
   autoConsumptionRate?: number | null;
   autoConsumptionFrequency?: ConsumptionFrequency | null;
+  expiryDate?: string | null;
 }
 
 export async function createItem(input: CreateItemInput): Promise<GroceryItemWithStatus> {
@@ -91,8 +100,8 @@ export async function createItem(input: CreateItemInput): Promise<GroceryItemWit
   const id = generateId();
   const now = new Date().toISOString();
   await db.runAsync(
-    `INSERT INTO grocery_items (id, name, category, unit, current_quantity, threshold, consumption_mode, auto_consumption_rate, auto_consumption_frequency, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, input.name, input.category, input.unit, input.currentQuantity, input.threshold, input.consumptionMode, input.autoConsumptionRate ?? null, input.autoConsumptionFrequency ?? null, now, now]
+    `INSERT INTO grocery_items (id, name, category, unit, current_quantity, threshold, consumption_mode, auto_consumption_rate, auto_consumption_frequency, expiry_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.name, input.category, input.unit, input.currentQuantity, input.threshold, input.consumptionMode, input.autoConsumptionRate ?? null, input.autoConsumptionFrequency ?? null, input.expiryDate ?? null, now, now]
   );
   return (await getItemById(id))!;
 }
@@ -110,6 +119,7 @@ export async function updateItem(id: string, input: Partial<CreateItemInput>): P
   if (input.consumptionMode !== undefined) { sets.push('consumption_mode = ?'); values.push(input.consumptionMode); }
   if (input.autoConsumptionRate !== undefined) { sets.push('auto_consumption_rate = ?'); values.push(input.autoConsumptionRate); }
   if (input.autoConsumptionFrequency !== undefined) { sets.push('auto_consumption_frequency = ?'); values.push(input.autoConsumptionFrequency); }
+  if ((input as any).expiryDate !== undefined) { sets.push('expiry_date = ?'); values.push((input as any).expiryDate); }
   values.push(id);
   await db.runAsync(`UPDATE grocery_items SET ${sets.join(', ')} WHERE id = ?`, values);
   return getItemById(id);
@@ -151,4 +161,14 @@ export async function getAutoConsumptionItems(): Promise<GroceryItem[]> {
 export async function updateLastAutoDeduction(id: string, date: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('UPDATE grocery_items SET last_auto_deduction = ?, updated_at = ? WHERE id = ?', [date, date, id]);
+}
+
+export async function getExpiringItems(daysAhead: number = 3): Promise<GroceryItemWithStatus[]> {
+  const allItems = await getAllItems();
+  return allItems.filter((item) => item.expiryStatus === 'expiring_soon' || item.expiryStatus === 'expired');
+}
+
+export async function getExpiredItems(): Promise<GroceryItemWithStatus[]> {
+  const allItems = await getAllItems();
+  return allItems.filter((item) => item.expiryStatus === 'expired');
 }

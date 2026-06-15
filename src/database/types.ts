@@ -14,6 +14,7 @@ export interface GroceryItem {
   autoConsumptionRate: number | null;
   autoConsumptionFrequency: ConsumptionFrequency | null;
   lastAutoDeduction: string | null;
+  expiryDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,4 +57,21 @@ export interface Category {
 export interface GroceryItemWithStatus extends GroceryItem {
   status: ItemStatus;
   daysUntilEmpty: number | null;
+  daysUntilExpiry: number | null;
+  expiryStatus: 'fresh' | 'expiring_soon' | 'expired' | null;
+}
+
+export interface ShoppingTemplate {
+  id: string;
+  name: string;
+  items: ShoppingTemplateItem[];
+  createdAt: string;
+  lastUsed: string | null;
+}
+
+export interface ShoppingTemplateItem {
+  name: string;
+  category: string;
+  unit: string;
+  quantity: number;
 }

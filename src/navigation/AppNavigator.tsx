@@ -25,6 +25,8 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 
 import BulkImportScreen from '../screens/BulkImportScreen';
 
+import ShoppingTemplatesScreen from '../screens/ShoppingTemplatesScreen';
+
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
@@ -61,6 +63,7 @@ function ShoppingStackNavigator() {
       <ShoppingStack.Screen name="ShoppingList" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
       <ShoppingStack.Screen name="AddShoppingItem" component={AddShoppingItemScreen} options={{ title: 'Add to List' }} />
       <ShoppingStack.Screen name="PurchaseConfirm" component={PurchaseConfirmScreen} options={{ title: 'Confirm Purchase' }} />
+      <ShoppingStack.Screen name="ShoppingTemplates" component={ShoppingTemplatesScreen} options={{ title: 'Templates' }} />
     </ShoppingStack.Navigator>
   );
 }

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { GroceryItemWithStatus, getItemCount, getAllItems } from '../database';
+import { GroceryItemWithStatus, getItemCount, getAllItems, getExpiringItems } from '../database';
 import { DashboardStackParamList } from '../navigation/types';
 
 type NavProp = NativeStackNavigationProp<DashboardStackParamList>;
@@ -14,13 +14,15 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [counts, setCounts] = useState({ total: 0, low: 0, outOfStock: 0 });
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
+  const [expiringItems, setExpiringItems] = useState<GroceryItemWithStatus[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async () => {
     try {
-      const [countData, allItems] = await Promise.all([getItemCount(), getAllItems()]);
+      const [countData, allItems, expiring] = await Promise.all([getItemCount(), getAllItems(), getExpiringItems()]);
       setCounts(countData);
       setItems(allItems);
+      setExpiringItems(expiring);
     } catch (error) { console.error('Failed to load dashboard data:', error); }
   }, []);
 
@@ -81,6 +83,24 @@ export default function DashboardScreen() {
           {searchQuery.length > 0 && <TouchableOpacity onPress={() => setSearchQuery('')}><Ionicons name="close-circle" size={18} color={COLORS.textSecondary} /></TouchableOpacity>}
         </View>
       </View>
+
+      {/* Expiry Alerts */}
+      {expiringItems.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Expiry Alerts</Text>
+          {expiringItems.map((item) => (
+            <View key={item.id} style={[styles.itemRow, { borderLeftWidth: 3, borderLeftColor: item.expiryStatus === 'expired' ? COLORS.danger : COLORS.warning }]}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={[styles.itemDetail, { color: item.expiryStatus === 'expired' ? COLORS.danger : COLORS.warning }]}>
+                  {item.expiryStatus === 'expired' ? 'EXPIRED' : `Expires in ${item.daysUntilExpiry} day${item.daysUntilExpiry !== 1 ? 's' : ''}`}
+                </Text>
+              </View>
+              <Ionicons name={item.expiryStatus === 'expired' ? 'warning' : 'time-outline'} size={20} color={item.expiryStatus === 'expired' ? COLORS.danger : COLORS.warning} />
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Inventory Status</Text>

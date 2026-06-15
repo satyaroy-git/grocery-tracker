@@ -4,3 +4,4 @@ export * from './itemsRepository';
 export * from './consumptionRepository';
 export * from './shoppingListRepository';
 export * from './settingsRepository';
+export * from './templatesRepository';

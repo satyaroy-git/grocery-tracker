@@ -33,6 +33,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
       auto_consumption_rate REAL,
       auto_consumption_frequency TEXT,
       last_auto_deduction TEXT,
+      expiry_date TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -72,6 +73,14 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
     CREATE INDEX IF NOT EXISTS idx_consumption_logs_item ON consumption_logs(item_id);
     CREATE INDEX IF NOT EXISTS idx_consumption_logs_date ON consumption_logs(created_at);
     CREATE INDEX IF NOT EXISTS idx_shopping_list_purchased ON shopping_list(is_purchased);
+
+    CREATE TABLE IF NOT EXISTS shopping_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      items TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_used TEXT
+    );
   `);
 
   const settings = await database.getFirstAsync('SELECT id FROM app_settings LIMIT 1');

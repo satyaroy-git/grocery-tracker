@@ -173,6 +173,10 @@ export default function ShoppingListScreen() {
           <Ionicons name="flash-outline" size={16} color={COLORS.primary} />
           <Text style={styles.actionChipText}>Auto-Generate</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.actionChip} onPress={() => (navigation as any).navigate('ShoppingTemplates')}>
+          <Ionicons name="bookmark-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.actionChipText}>Templates</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.actionChip} onPress={handleShare}>
           <Ionicons name="share-outline" size={16} color={COLORS.primary} />
           <Text style={styles.actionChipText}>Share</Text>

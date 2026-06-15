@@ -33,4 +33,5 @@ export type ShoppingStackParamList = {
   ShoppingList: undefined;
   AddShoppingItem: undefined;
   PurchaseConfirm: { shoppingItemId: string };
+  ShoppingTemplates: undefined;
 };
