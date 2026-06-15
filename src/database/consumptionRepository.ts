@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { generateId } from '../utils/uuid';
 import { getDatabase } from './database';
 import { ConsumptionLog } from './types';
 
@@ -8,7 +8,7 @@ function mapRowToLog(row: any): ConsumptionLog {
 
 export async function logConsumption(itemId: string, quantity: number, type: 'manual' | 'auto' | 'restock', note?: string): Promise<ConsumptionLog> {
   const db = await getDatabase();
-  const id = uuidv4();
+  const id = generateId();
   const now = new Date().toISOString();
   await db.runAsync('INSERT INTO consumption_logs (id, item_id, quantity, type, note, created_at) VALUES (?, ?, ?, ?, ?, ?)', [id, itemId, quantity, type, note ?? null, now]);
   return { id, itemId, quantity, type, note: note ?? null, createdAt: now };

@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { generateId } from '../utils/uuid';
 import { getDatabase } from './database';
 import { ShoppingListItem } from './types';
 
@@ -20,7 +20,7 @@ export async function getActiveShoppingList(): Promise<ShoppingListItem[]> {
 
 export async function addToShoppingList(name: string, category: string, unit: string, quantityNeeded: number, itemId?: string): Promise<ShoppingListItem> {
   const db = await getDatabase();
-  const id = uuidv4();
+  const id = generateId();
   const now = new Date().toISOString();
   const isManuallyAdded = !itemId;
   await db.runAsync(`INSERT INTO shopping_list (id, item_id, name, category, unit, quantity_needed, is_purchased, is_manually_added, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`, [id, itemId ?? null, name, category, unit, quantityNeeded, isManuallyAdded ? 1 : 0, now]);

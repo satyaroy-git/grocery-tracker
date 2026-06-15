@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { generateId } from '../utils/uuid';
 import { getDatabase } from './database';
 import { GroceryItem, GroceryItemWithStatus, ItemStatus, ConsumptionMode, ConsumptionFrequency } from './types';
 
@@ -88,7 +88,7 @@ export interface CreateItemInput {
 
 export async function createItem(input: CreateItemInput): Promise<GroceryItemWithStatus> {
   const db = await getDatabase();
-  const id = uuidv4();
+  const id = generateId();
   const now = new Date().toISOString();
   await db.runAsync(
     `INSERT INTO grocery_items (id, name, category, unit, current_quantity, threshold, consumption_mode, auto_consumption_rate, auto_consumption_frequency, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
