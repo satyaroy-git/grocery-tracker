@@ -1,6 +1,10 @@
 /**
- * Barcode product lookup using Open Food Facts API (free, no API key needed)
- * Covers most grocery products worldwide including Indian brands.
+ * Barcode product lookup using multiple free APIs:
+ * 1. Open Food Facts (global, best coverage)
+ * 2. UPC ItemDB (fallback)
+ * 
+ * If product not found in any database, returns null.
+ * User can then add manually.
  */
 
 export interface ProductInfo {
@@ -13,9 +17,21 @@ export interface ProductInfo {
 }
 
 /**
- * Look up a product by its barcode using Open Food Facts
+ * Look up a product by barcode — tries multiple databases
  */
 export async function lookupBarcode(barcode: string): Promise<ProductInfo | null> {
+  // Try Open Food Facts first
+  const offResult = await lookupOpenFoodFacts(barcode);
+  if (offResult) return offResult;
+
+  // Try UPC ItemDB as fallback
+  const upcResult = await lookupUpcItemDb(barcode);
+  if (upcResult) return upcResult;
+
+  return null;
+}
+
+async function lookupOpenFoodFacts(barcode: string): Promise<ProductInfo | null> {
   try {
     const response = await fetch(
       `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`,
@@ -23,23 +39,18 @@ export async function lookupBarcode(barcode: string): Promise<ProductInfo | null
     );
 
     if (!response.ok) return null;
-
     const data = await response.json();
     if (data.status !== 1 || !data.product) return null;
 
     const product = data.product;
-
-    // Extract quantity and unit from product
     const { qty, unit } = parseProductQuantity(product.quantity || product.product_quantity || '');
+    const category = mapToAppCategory(product.categories_tags || [], product.categories || '');
 
-    // Determine category
-    const category = mapToAppCategory(
-      product.categories_tags || [],
-      product.categories || ''
-    );
+    const name = product.product_name || product.product_name_en || product.generic_name || '';
+    if (!name) return null;
 
     return {
-      name: product.product_name || product.generic_name || 'Unknown Product',
+      name,
       brand: product.brands || '',
       category,
       quantity: qty,
@@ -47,7 +58,31 @@ export async function lookupBarcode(barcode: string): Promise<ProductInfo | null
       imageUrl: product.image_front_small_url || product.image_url || null,
     };
   } catch (error) {
-    console.error('Barcode lookup failed:', error);
+    return null;
+  }
+}
+
+async function lookupUpcItemDb(barcode: string): Promise<ProductInfo | null> {
+  try {
+    const response = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (!data.items || data.items.length === 0) return null;
+
+    const item = data.items[0];
+    const name = item.title || item.description || '';
+    if (!name) return null;
+
+    return {
+      name,
+      brand: item.brand || '',
+      category: mapToAppCategory([], item.category || ''),
+      quantity: '1',
+      unit: 'pieces',
+      imageUrl: item.images && item.images.length > 0 ? item.images[0] : null,
+    };
+  } catch (error) {
     return null;
   }
 }
@@ -72,8 +107,8 @@ function parseProductQuantity(quantityStr: string): { qty: string; unit: string 
 function mapToAppCategory(tags: string[], categoriesStr: string): string {
   const all = [...tags, ...categoriesStr.toLowerCase().split(',')].join(' ').toLowerCase();
 
-  if (/dairy|milk|cheese|butter|yogurt|curd/i.test(all)) return 'Dairy';
-  if (/cereal|grain|rice|wheat|flour|pasta|noodle|bread/i.test(all)) return 'Grains & Cereals';
+  if (/dairy|milk|cheese|butter|yogurt|curd|paneer/i.test(all)) return 'Dairy';
+  if (/cereal|grain|rice|wheat|flour|pasta|noodle|bread|atta/i.test(all)) return 'Grains & Cereals';
   if (/vegetable|onion|potato|tomato/i.test(all)) return 'Vegetables';
   if (/fruit|apple|banana|mango|orange/i.test(all)) return 'Fruits';
   if (/spice|condiment|sauce|salt|sugar|masala/i.test(all)) return 'Spices & Condiments';
