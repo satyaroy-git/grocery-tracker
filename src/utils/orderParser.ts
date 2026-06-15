@@ -98,24 +98,51 @@ export function parseOrderText(text: string): ParsedItem[] {
     lines = lines[0].split(',').map((l) => l.trim()).filter((l) => l.length > 0);
   }
 
-  for (let line of lines) {
+  // Blinkit/Zepto format: item name on one line, "Qty: 1 x ₹price" on next
+  // Merge lines where next line starts with "Qty" or is just a number
+  const mergedLines: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+
+    if (/^Qty\s*[:=]/i.test(nextLine) || /^\d+\s*[x×]\s*[₹$]/i.test(nextLine)) {
+      // Merge current item name with quantity info from next line
+      mergedLines.push(`${line} ${nextLine}`);
+      i++; // Skip next line
+    } else {
+      mergedLines.push(line);
+    }
+  }
+
+  for (let line of mergedLines) {
     // Skip common non-item lines
     if (isNonItemLine(line)) continue;
 
     // Remove list markers: "1.", "1)", "-", "•", "*"
     line = line.replace(/^[\d]+[.)]\s*/, '').replace(/^[-•*]\s*/, '').trim();
 
-    // Remove price patterns: "₹123", "Rs 45.00", "$5.99"
+    // Remove price patterns: "₹123", "Rs 45.00", "$5.99", "1 x ₹45"
+    line = line.replace(/\d+\s*[x×]\s*[₹$]\s*\d+\.?\d*/g, '').trim();
     line = line.replace(/[₹$]\s*\d+\.?\d*/g, '').replace(/Rs\.?\s*\d+\.?\d*/gi, '').trim();
 
+    // Extract quantity from "Qty: 2" or "Qty: 2 x" patterns before removing
+    let blinktQty = 1;
+    const qtyLineMatch = line.match(/Qty\s*[:=]\s*(\d+)/i);
+    if (qtyLineMatch) {
+      blinktQty = parseInt(qtyLineMatch[1]);
+    }
+
     // Remove "Qty:" patterns
-    line = line.replace(/Qty\s*[:=]\s*/gi, '').trim();
+    line = line.replace(/Qty\s*[:=]\s*\d*\s*[x×]?\s*/gi, '').trim();
 
     if (line.length < 2) continue;
 
     const { quantity, unit, cleanName } = extractQuantityAndUnit(line);
 
     if (!cleanName || cleanName.length < 2) continue;
+
+    // Use Blinkit qty if no quantity was found in the item name itself
+    const finalQuantity = quantity === 1 && blinktQty > 1 ? blinktQty : quantity;
 
     // Capitalize first letter
     const name = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
@@ -128,7 +155,7 @@ export function parseOrderText(text: string): ParsedItem[] {
     items.push({
       id: generateSimpleId(),
       name,
-      quantity,
+      quantity: finalQuantity,
       unit,
       category: detectCategory(name),
       selected: true,
@@ -157,7 +184,22 @@ function isNonItemLine(line: string): boolean {
  */
 export const PASTE_EXAMPLES = [
   {
-    label: 'Instamart / Blinkit style',
+    label: 'Blinkit receipt style',
+    text: `Tata Salt Iodised
+Qty: 1 x ₹24
+Amul Taaza Toned Milk 500ml
+Qty: 2 x ₹30
+Fortune Sunlite Oil 1L
+Qty: 1 x ₹155
+Onion 1kg
+Qty: 2 x ₹35
+Maggi 2-Minute Noodles
+Qty: 4 x ₹14
+Britannia 100% Whole Wheat Bread
+Qty: 1 x ₹45`,
+  },
+  {
+    label: 'Instamart / simple list',
     text: `Tata Salt 1kg
 Amul Butter 500g
 Mother Dairy Milk 1 ltr
@@ -167,7 +209,7 @@ Maggi Noodles x4
 Britannia Bread`,
   },
   {
-    label: 'Simple comma list',
+    label: 'Comma-separated list',
     text: 'Rice 5kg, Milk 2 liters, Eggs 12 pcs, Onions 2kg, Oil 1 liter, Sugar 1kg',
   },
 ];

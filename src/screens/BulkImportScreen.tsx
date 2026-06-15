@@ -14,10 +14,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { parseOrderText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
-import { extractTextFromImage, cleanReceiptText } from '../utils/receiptOcr';
+import { extractTextFromImage, extractTextFromFile, cleanReceiptText } from '../utils/receiptOcr';
 import { createItem } from '../database';
 
 type Step = 'choose' | 'paste' | 'review';
@@ -104,6 +105,46 @@ export default function BulkImportScreen() {
       setScanning(false);
       setStep('paste');
       Alert.alert('Error', 'Failed to process the image. Please try again or paste text manually.');
+    }
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      setScanning(true);
+      setReceiptImage(asset.uri);
+
+      // Read the file as base64
+      const FileSystem = require('expo-file-system');
+      const fileContent = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const mimeType = asset.mimeType || 'application/pdf';
+      const ocrResult = await extractTextFromFile(fileContent, mimeType);
+
+      if (ocrResult.success && ocrResult.text) {
+        const cleanedText = cleanReceiptText(ocrResult.text);
+        setInputText(cleanedText);
+        setScanning(false);
+        setStep('paste');
+        Alert.alert('Text Extracted!', 'We extracted text from your document. Review it below, then tap "Parse Items".');
+      } else {
+        setScanning(false);
+        setStep('paste');
+        Alert.alert('Extraction Failed', ocrResult.error || 'Could not read text from this file. Try a clearer image or paste manually.');
+      }
+    } catch (error: any) {
+      setScanning(false);
+      setStep('paste');
+      Alert.alert('Error', 'Failed to process the document. Please try again or paste text manually.');
     }
   };
 
@@ -196,6 +237,17 @@ export default function BulkImportScreen() {
           <View style={styles.optionContent}>
             <Text style={styles.optionTitle}>Upload from Gallery</Text>
             <Text style={styles.optionDesc}>Pick a screenshot or photo of your order from gallery</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.optionCard} onPress={handlePickDocument}>
+          <View style={[styles.optionIcon, { backgroundColor: '#9C27B0' + '20' }]}>
+            <Ionicons name="document-outline" size={28} color="#9C27B0" />
+          </View>
+          <View style={styles.optionContent}>
+            <Text style={styles.optionTitle}>Upload PDF / Document</Text>
+            <Text style={styles.optionDesc}>Upload PDF invoice, receipt, or any document file</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
         </TouchableOpacity>
