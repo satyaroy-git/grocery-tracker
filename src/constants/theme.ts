@@ -38,6 +38,13 @@ export const FONT_SIZES = {
   xxxl: 32,
 };
 
+export const FONTS = {
+  regular: 'Poppins_400Regular',
+  medium: 'Poppins_500Medium',
+  semiBold: 'Poppins_600SemiBold',
+  bold: 'Poppins_700Bold',
+};
+
 export const BORDER_RADIUS = {
   sm: 4,
   md: 8,

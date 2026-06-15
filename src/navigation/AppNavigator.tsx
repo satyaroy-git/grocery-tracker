@@ -38,8 +38,8 @@ const ShoppingStack = createNativeStackNavigator<ShoppingStackParamList>();
 
 function DashboardStackNavigator() {
   return (
-    <DashboardStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600' } }}>
-      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'PantryPal' }} />
+    <DashboardStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
+      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'PantryPal', headerTitleStyle: { fontFamily: 'Poppins_700Bold', fontSize: 20, color: '#fff' } }} />
       <DashboardStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
       <DashboardStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
     </DashboardStack.Navigator>
@@ -48,7 +48,7 @@ function DashboardStackNavigator() {
 
 function InventoryStackNavigator() {
   return (
-    <InventoryStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600' } }}>
+    <InventoryStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
       <InventoryStack.Screen name="ItemList" component={ItemListScreen} options={{ title: 'My Pantry' }} />
       <InventoryStack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item Details' }} />
       <InventoryStack.Screen name="AddItem" component={AddItemScreen} options={{ title: 'Add Item' }} />
@@ -64,7 +64,7 @@ function InventoryStackNavigator() {
 
 function ShoppingStackNavigator() {
   return (
-    <ShoppingStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600' } }}>
+    <ShoppingStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
       <ShoppingStack.Screen name="ShoppingList" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
       <ShoppingStack.Screen name="AddShoppingItem" component={AddShoppingItemScreen} options={{ title: 'Add to List' }} />
       <ShoppingStack.Screen name="PurchaseConfirm" component={PurchaseConfirmScreen} options={{ title: 'Confirm Purchase' }} />
@@ -81,7 +81,7 @@ function MainTabNavigator() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.disabled,
         tabBarStyle: { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, paddingBottom: 4, height: 60 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500', fontFamily: 'Poppins_500Medium' },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
           switch (route.name) {
