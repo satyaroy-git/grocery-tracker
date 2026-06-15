@@ -10,6 +10,7 @@ export type MainTabParamList = {
   InventoryTab: NavigatorScreenParams<InventoryStackParamList>;
   ShoppingTab: NavigatorScreenParams<ShoppingStackParamList>;
   InsightsTab: undefined;
+  FamilyTab: undefined;
   SettingsTab: undefined;
 };
 

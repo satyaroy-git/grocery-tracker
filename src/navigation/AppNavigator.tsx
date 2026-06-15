@@ -28,6 +28,7 @@ import BarcodeScannerScreen from '../screens/BarcodeScannerScreen';
 import RecipeSuggestionsScreen from '../screens/RecipeSuggestionsScreen';
 
 import ShoppingTemplatesScreen from '../screens/ShoppingTemplatesScreen';
+import FamilySharingScreen from '../screens/FamilySharingScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -88,6 +89,7 @@ function MainTabNavigator() {
             case 'InventoryTab': iconName = focused ? 'list' : 'list-outline'; break;
             case 'ShoppingTab': iconName = focused ? 'cart' : 'cart-outline'; break;
             case 'InsightsTab': iconName = focused ? 'stats-chart' : 'stats-chart-outline'; break;
+            case 'FamilyTab': iconName = focused ? 'people' : 'people-outline'; break;
             case 'SettingsTab': iconName = focused ? 'settings' : 'settings-outline'; break;
           }
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -98,6 +100,7 @@ function MainTabNavigator() {
       <Tab.Screen name="InventoryTab" component={InventoryStackNavigator} options={{ title: 'Pantry' }} />
       <Tab.Screen name="ShoppingTab" component={ShoppingStackNavigator} options={{ title: 'Shop' }} />
       <Tab.Screen name="InsightsTab" component={InsightsScreen} options={{ title: 'Insights', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff' }} />
+      <Tab.Screen name="FamilyTab" component={FamilySharingScreen} options={{ title: 'Family', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitle: 'Family Sharing' }} />
       <Tab.Screen name="SettingsTab" component={SettingsScreen} options={{ title: 'Settings', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff' }} />
     </Tab.Navigator>
   );
