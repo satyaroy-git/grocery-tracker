@@ -8,148 +8,31 @@ import {
   TouchableOpacity,
   Alert,
   FlatList,
-  Image,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { parseOrderText, parseReceiptOcrText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
-import { extractTextFromImage, extractTextFromFile, cleanReceiptText } from '../utils/receiptOcr';
+import { parseOrderText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
 import { createItem } from '../database';
 
-type Step = 'choose' | 'paste' | 'review';
+type Step = 'paste' | 'review';
 
 export default function BulkImportScreen() {
   const navigation = useNavigation();
-  const [step, setStep] = useState<Step>('choose');
+  const [step, setStep] = useState<Step>('paste');
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
   const [importing, setImporting] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  const [fromOcr, setFromOcr] = useState(false);
 
   const handleParse = () => {
-    // Use lenient parsing for OCR text, strict for manual paste
-    const items = fromOcr ? parseReceiptOcrText(inputText) : parseOrderText(inputText);
+    const items = parseOrderText(inputText);
     if (items.length === 0) {
       Alert.alert('No Items Found', 'Could not detect any grocery items from the text. Try pasting your order details or a list of items.');
       return;
     }
     setParsedItems(items);
     setStep('review');
-  };
-
-  const handlePickImage = async (useCamera: boolean) => {
-    try {
-      // Request permissions
-      if (useCamera) {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Camera access is needed to scan receipts.');
-          return;
-        }
-      } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Photo library access is needed to upload receipts.');
-          return;
-        }
-      }
-
-      const result = useCamera
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            quality: 0.8,
-            base64: true,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            quality: 0.8,
-            base64: true,
-          });
-
-      if (result.canceled || !result.assets || result.assets.length === 0) return;
-
-      const asset = result.assets[0];
-      setReceiptImage(asset.uri);
-      setScanning(true);
-
-      if (asset.base64) {
-        const ocrResult = await extractTextFromImage(asset.base64);
-        if (ocrResult.success && ocrResult.text) {
-          const cleanedText = cleanReceiptText(ocrResult.text);
-          setInputText(cleanedText);
-          setFromOcr(true);
-          setScanning(false);
-          setStep('paste'); // Go to paste step so user can review/edit extracted text
-          Alert.alert(
-            'Text Extracted!',
-            'We extracted text from your receipt. Review it below, then tap "Parse Items" to continue.',
-          );
-        } else {
-          setScanning(false);
-          setStep('paste');
-          Alert.alert(
-            'OCR Failed',
-            ocrResult.error || 'Could not read text from the image. You can manually type or paste the items below.',
-          );
-        }
-      } else {
-        setScanning(false);
-        setStep('paste');
-        Alert.alert('Note', 'Could not process image. Please manually type the items from your receipt.');
-      }
-    } catch (error: any) {
-      setScanning(false);
-      setStep('paste');
-      Alert.alert('Error', 'Failed to process the image. Please try again or paste text manually.');
-    }
-  };
-
-  const handlePickDocument = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*'],
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled || !result.assets || result.assets.length === 0) return;
-
-      const asset = result.assets[0];
-      setScanning(true);
-      setReceiptImage(asset.uri);
-
-      // Read the file as base64
-      const fileContent = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: 'base64' as any,
-      });
-
-      const mimeType = asset.mimeType || (asset.uri.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-      const ocrResult = await extractTextFromFile(fileContent, mimeType);
-
-      if (ocrResult.success && ocrResult.text) {
-        const cleanedText = cleanReceiptText(ocrResult.text);
-        setInputText(cleanedText);
-        setFromOcr(true);
-        setScanning(false);
-        setStep('paste');
-        Alert.alert('Text Extracted!', 'We extracted text from your document. Review it below, then tap "Parse Items".');
-      } else {
-        setScanning(false);
-        setStep('paste');
-        Alert.alert('Extraction Failed', ocrResult.error || 'Could not read text from this file. Try a clearer image or paste manually.');
-      }
-    } catch (error: any) {
-      setScanning(false);
-      setStep('paste');
-      Alert.alert('Error', 'Failed to process the document: ' + (error.message || 'Unknown error. Please try a different file format.'));
-    }
   };
 
   const toggleItem = (id: string) => {
@@ -202,111 +85,24 @@ export default function BulkImportScreen() {
     }
   };
 
-  // CHOOSE METHOD STEP
-  if (step === 'choose') {
-    return (
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: SPACING.xxl }}>
-        <View style={styles.headerCard}>
-          <Ionicons name="receipt-outline" size={36} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Import Groceries</Text>
-          <Text style={styles.headerSubtitle}>
-            Import items from your Blinkit, Instamart, Flipkart, or Zepto orders
-          </Text>
-        </View>
-
-        {scanning && (
-          <View style={styles.scanningCard}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.scanningText}>Scanning receipt...</Text>
-          </View>
-        )}
-
-        {/* Upload Receipt */}
-        <Text style={styles.sectionLabel}>SCAN RECEIPT</Text>
-        <TouchableOpacity style={styles.optionCard} onPress={() => handlePickImage(true)}>
-          <View style={[styles.optionIcon, { backgroundColor: COLORS.primaryLight + '20' }]}>
-            <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
-          </View>
-          <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Take Photo of Receipt</Text>
-            <Text style={styles.optionDesc}>Snap a photo of your grocery bill or order receipt</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.optionCard} onPress={() => handlePickImage(false)}>
-          <View style={[styles.optionIcon, { backgroundColor: COLORS.secondary + '20' }]}>
-            <Ionicons name="image-outline" size={28} color={COLORS.secondary} />
-          </View>
-          <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Upload from Gallery</Text>
-            <Text style={styles.optionDesc}>Pick a screenshot or photo of your order from gallery</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.optionCard} onPress={handlePickDocument}>
-          <View style={[styles.optionIcon, { backgroundColor: '#9C27B0' + '20' }]}>
-            <Ionicons name="document-outline" size={28} color="#9C27B0" />
-          </View>
-          <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Upload PDF / Document</Text>
-            <Text style={styles.optionDesc}>Upload PDF invoice, receipt, or any document file</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-        </TouchableOpacity>
-
-        {/* Paste Text */}
-        <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>OR PASTE TEXT</Text>
-        <TouchableOpacity style={styles.optionCard} onPress={() => { setFromOcr(false); setStep('paste'); }}>
-          <View style={[styles.optionIcon, { backgroundColor: COLORS.success + '20' }]}>
-            <Ionicons name="clipboard-outline" size={28} color={COLORS.success} />
-          </View>
-          <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Paste Order Text</Text>
-            <Text style={styles.optionDesc}>Copy-paste from order email, SMS, or app notification</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-        </TouchableOpacity>
-
-        {/* Supported apps */}
-        <View style={styles.supportedCard}>
-          <Text style={styles.supportedTitle}>Supported Apps</Text>
-          <View style={styles.appsRow}>
-            {['Blinkit', 'Instamart', 'Flipkart', 'Zepto', 'BigBasket', 'JioMart'].map((app) => (
-              <View key={app} style={styles.appBadge}>
-                <Text style={styles.appBadgeText}>{app}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-    );
-  }
-
   // PASTE STEP
   if (step === 'paste') {
     return (
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity onPress={() => setStep('choose')} style={styles.backRow}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-
-        {receiptImage && (
-          <View style={styles.receiptPreview}>
-            <Image source={{ uri: receiptImage }} style={styles.receiptImage} resizeMode="contain" />
-            <Text style={styles.receiptHint}>Extracted text shown below. Edit if needed.</Text>
-          </View>
-        )}
+        <View style={styles.headerCard}>
+          <Ionicons name="clipboard-outline" size={32} color={COLORS.primary} />
+          <Text style={styles.headerTitle}>Quick Import</Text>
+          <Text style={styles.headerSubtitle}>
+            Paste your order details from Blinkit, Instamart, Flipkart, Zepto, or any grocery app.
+            Copy from your order emails, SMS, or app notifications.
+          </Text>
+        </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>
-            {receiptImage ? 'Extracted Text (edit if needed)' : 'Paste Order Text'}
-          </Text>
+          <Text style={styles.label}>Paste Order Text</Text>
           <TextInput
             style={styles.textArea}
-            placeholder={"Paste your order here...\n\nExamples:\n- Tata Salt 1kg\n- Amul Butter 500g\n- Onion 2 kg"}
+            placeholder={"Paste your order here...\n\nExamples:\n- Tata Salt 1kg\n- Amul Butter 500g\n- Onion 2 kg\n- Milk 1 ltr"}
             placeholderTextColor={COLORS.textLight}
             multiline
             numberOfLines={10}
@@ -317,21 +113,28 @@ export default function BulkImportScreen() {
         </View>
 
         {/* Sample buttons */}
-        {!receiptImage && (
-          <View style={styles.samplesSection}>
-            <Text style={styles.samplesTitle}>Try a sample:</Text>
-            {PASTE_EXAMPLES.map((sample, idx) => (
-              <TouchableOpacity
-                key={idx}
-                style={styles.sampleChip}
-                onPress={() => setInputText(sample.text)}
-              >
-                <Ionicons name="document-text-outline" size={14} color={COLORS.primary} />
-                <Text style={styles.sampleChipText}>{sample.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        <View style={styles.samplesSection}>
+          <Text style={styles.samplesTitle}>Try a sample:</Text>
+          {PASTE_EXAMPLES.map((sample, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.sampleChip}
+              onPress={() => setInputText(sample.text)}
+            >
+              <Ionicons name="document-text-outline" size={14} color={COLORS.primary} />
+              <Text style={styles.sampleChipText}>{sample.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Tips */}
+        <View style={styles.tipsCard}>
+          <Text style={styles.tipsTitle}>Tips for best results:</Text>
+          <Text style={styles.tipItem}>  Copy order details from your email/SMS confirmations</Text>
+          <Text style={styles.tipItem}>  Supports: "Item 500g", "2 x Item", "Item, Item"</Text>
+          <Text style={styles.tipItem}>  Works with Blinkit, Instamart, Zepto, BigBasket, Flipkart</Text>
+          <Text style={styles.tipItem}>  Prices and order IDs are automatically ignored</Text>
+        </View>
 
         <TouchableOpacity
           style={[styles.parseButton, !inputText.trim() && styles.buttonDisabled]}
@@ -420,319 +223,40 @@ export default function BulkImportScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  headerCard: {
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    margin: SPACING.md,
-    padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOWS.sm,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: SPACING.sm,
-  },
-  headerSubtitle: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.xs,
-    lineHeight: 20,
-  },
-  sectionLabel: {
-    fontSize: FONT_SIZES.xs,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.sm,
-    letterSpacing: 1,
-  },
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOWS.sm,
-  },
-  optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  optionContent: {
-    flex: 1,
-    marginLeft: SPACING.md,
-  },
-  optionTitle: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  optionDesc: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  supportedCard: {
-    margin: SPACING.md,
-    marginTop: SPACING.lg,
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOWS.sm,
-  },
-  supportedTitle: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-  },
-  appsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  appBadge: {
-    backgroundColor: COLORS.background,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  appBadgeText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  scanningCard: {
-    alignItems: 'center',
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-    padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-  },
-  scanningText: {
-    marginTop: SPACING.sm,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-  },
-  // Paste step
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    gap: SPACING.xs,
-  },
-  backText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  receiptPreview: {
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    overflow: 'hidden',
-    backgroundColor: COLORS.surface,
-    ...SHADOWS.sm,
-  },
-  receiptImage: {
-    width: '100%',
-    height: 150,
-    backgroundColor: COLORS.background,
-  },
-  receiptHint: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    paddingVertical: SPACING.sm,
-  },
-  field: {
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  label: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-    textTransform: 'uppercase',
-  },
-  textArea: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    minHeight: 180,
-  },
-  samplesSection: {
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  samplesTitle: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-  },
-  sampleChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    gap: SPACING.xs,
-    marginBottom: SPACING.xs,
-  },
-  sampleChipText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  parseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    marginHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    gap: SPACING.sm,
-    ...SHADOWS.md,
-  },
-  parseButtonText: {
-    color: '#fff',
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  // Review step
-  reviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: SPACING.md,
-  },
-  reviewTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginLeft: SPACING.sm,
-  },
-  selectActions: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    gap: SPACING.lg,
-  },
-  selectLink: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  itemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.sm,
-    ...SHADOWS.sm,
-  },
-  itemCardDeselected: {
-    opacity: 0.5,
-  },
-  checkbox: {
-    marginRight: SPACING.sm,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemNameInput: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
-    color: COLORS.text,
-    padding: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    paddingBottom: 2,
-  },
-  itemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.xs,
-    gap: SPACING.sm,
-  },
-  itemQtyInput: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.text,
-    fontWeight: '600',
-    backgroundColor: COLORS.background,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-    minWidth: 40,
-    textAlign: 'center',
-  },
-  itemUnit: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-  },
-  categoryBadge: {
-    backgroundColor: COLORS.primaryLight + '20',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
-    marginLeft: 'auto',
-  },
-  categoryText: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  importButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    gap: SPACING.sm,
-    ...SHADOWS.md,
-  },
-  importButtonText: {
-    color: '#fff',
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  headerCard: { alignItems: 'center', backgroundColor: COLORS.surface, margin: SPACING.md, padding: SPACING.lg, borderRadius: BORDER_RADIUS.lg, ...SHADOWS.sm },
+  headerTitle: { fontSize: FONT_SIZES.xxl, fontWeight: '700', color: COLORS.text, marginTop: SPACING.sm },
+  headerSubtitle: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.xs, lineHeight: 20 },
+  field: { paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
+  label: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.xs, textTransform: 'uppercase' },
+  textArea: { backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, fontSize: FONT_SIZES.md, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, minHeight: 200 },
+  samplesSection: { paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
+  samplesTitle: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, marginBottom: SPACING.xs },
+  sampleChip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: COLORS.surface, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.full, borderWidth: 1, borderColor: COLORS.primary, gap: SPACING.xs, marginBottom: SPACING.xs },
+  sampleChipText: { fontSize: FONT_SIZES.sm, color: COLORS.primary, fontWeight: '500' },
+  tipsCard: { backgroundColor: COLORS.warningBg, marginHorizontal: SPACING.md, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.lg },
+  tipsTitle: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs },
+  tipItem: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, lineHeight: 20 },
+  parseButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, marginHorizontal: SPACING.md, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.md },
+  parseButtonText: { color: '#fff', fontSize: FONT_SIZES.lg, fontWeight: '600' },
+  buttonDisabled: { opacity: 0.5 },
+  reviewHeader: { flexDirection: 'row', alignItems: 'center', paddingRight: SPACING.md },
+  backRow: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, gap: SPACING.xs },
+  backText: { fontSize: FONT_SIZES.md, color: COLORS.primary, fontWeight: '500' },
+  reviewTitle: { fontSize: FONT_SIZES.lg, fontWeight: '600', color: COLORS.text, marginLeft: SPACING.sm },
+  selectActions: { flexDirection: 'row', paddingHorizontal: SPACING.md, marginBottom: SPACING.sm, gap: SPACING.lg },
+  selectLink: { fontSize: FONT_SIZES.md, color: COLORS.primary, fontWeight: '500' },
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
+  itemCardDeselected: { opacity: 0.5 },
+  checkbox: { marginRight: SPACING.sm },
+  itemContent: { flex: 1 },
+  itemNameInput: { fontSize: FONT_SIZES.md, fontWeight: '500', color: COLORS.text, padding: 0, borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingBottom: 2 },
+  itemMeta: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.xs, gap: SPACING.sm },
+  itemQtyInput: { fontSize: FONT_SIZES.sm, color: COLORS.text, fontWeight: '600', backgroundColor: COLORS.background, paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.sm, minWidth: 40, textAlign: 'center' },
+  itemUnit: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
+  categoryBadge: { backgroundColor: COLORS.primaryLight + '20', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.full, marginLeft: 'auto' },
+  categoryText: { fontSize: FONT_SIZES.xs, color: COLORS.primary, fontWeight: '500' },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: SPACING.md, backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border },
+  importButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.md },
+  importButtonText: { color: '#fff', fontSize: FONT_SIZES.md, fontWeight: '600' },
 });
