@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { parseOrderText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
@@ -122,12 +123,11 @@ export default function BulkImportScreen() {
       setReceiptImage(asset.uri);
 
       // Read the file as base64
-      const FileSystem = require('expo-file-system');
       const fileContent = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64' as any,
       });
 
-      const mimeType = asset.mimeType || 'application/pdf';
+      const mimeType = asset.mimeType || (asset.uri.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
       const ocrResult = await extractTextFromFile(fileContent, mimeType);
 
       if (ocrResult.success && ocrResult.text) {
@@ -144,7 +144,7 @@ export default function BulkImportScreen() {
     } catch (error: any) {
       setScanning(false);
       setStep('paste');
-      Alert.alert('Error', 'Failed to process the document. Please try again or paste text manually.');
+      Alert.alert('Error', 'Failed to process the document: ' + (error.message || 'Unknown error. Please try a different file format.'));
     }
   };
 
