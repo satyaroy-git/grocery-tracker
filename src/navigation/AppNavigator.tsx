@@ -23,6 +23,8 @@ import InsightsScreen from '../screens/InsightsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 
+import BulkImportScreen from '../screens/BulkImportScreen';
+
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
@@ -48,6 +50,7 @@ function InventoryStackNavigator() {
       <InventoryStack.Screen name="EditItem" component={EditItemScreen} options={{ title: 'Edit Item' }} />
       <InventoryStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
       <InventoryStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
+      <InventoryStack.Screen name="BulkImport" component={BulkImportScreen} options={{ title: 'Quick Import' }} />
     </InventoryStack.Navigator>
   );
 }

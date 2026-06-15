@@ -64,6 +64,7 @@ export default function ItemListScreen() {
       <FlatList data={filteredItems} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={styles.listContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
         ListEmptyComponent={<View style={styles.emptyState}><Ionicons name="basket-outline" size={48} color={COLORS.textLight} /><Text style={styles.emptyText}>{items.length === 0 ? 'Your pantry is empty.\nTap + to add items!' : 'No items match your filters.'}</Text></View>}
       />
+      <TouchableOpacity style={styles.importFab} onPress={() => navigation.navigate('BulkImport')}><Ionicons name="clipboard-outline" size={22} color="#fff" /></TouchableOpacity>
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddItem')}><Ionicons name="add" size={28} color="#fff" /></TouchableOpacity>
     </View>
   );
@@ -93,4 +94,5 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxl * 2 },
   emptyText: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, marginTop: SPACING.sm, textAlign: 'center' },
   fab: { position: 'absolute', bottom: SPACING.lg, right: SPACING.lg, width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', ...SHADOWS.lg },
+  importFab: { position: 'absolute', bottom: SPACING.lg + 64, right: SPACING.lg, width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.secondary, justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
 });

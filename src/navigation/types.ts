@@ -26,6 +26,7 @@ export type InventoryStackParamList = {
   EditItem: { itemId: string };
   LogUsage: { itemId?: string };
   Restock: { itemId: string };
+  BulkImport: undefined;
 };
 
 export type ShoppingStackParamList = {
