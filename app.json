@@ -21,8 +21,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "sdkVersion": "52.0.0",
-    "newArchEnabled": false,
+    "sdkVersion": "54.0.0",
     "plugins": [
       "expo-sqlite"
     ]
