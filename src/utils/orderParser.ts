@@ -273,6 +273,77 @@ function isNonItemLine(line: string): boolean {
 }
 
 /**
+ * LENIENT parser for OCR-extracted text from receipts.
+ * Since we know the source is a receipt, we accept more lines as items.
+ * Only skips lines that are clearly NOT items (noise lines).
+ */
+export function parseReceiptOcrText(text: string): ParsedItem[] {
+  if (!text || !text.trim()) return [];
+
+  const items: ParsedItem[] = [];
+  const seen = new Set<string>();
+
+  let lines = text.split(/\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+
+  // Merge Blinkit "Qty:" lines with previous item line
+  const mergedLines: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+    if (/^Qty\s*[:=]/i.test(nextLine) || /^\d+\s*[x×]\s*[₹$]/i.test(nextLine)) {
+      mergedLines.push(`${line} ${nextLine}`);
+      i++;
+    } else {
+      mergedLines.push(line);
+    }
+  }
+
+  for (let line of mergedLines) {
+    if (isNonItemLine(line)) continue;
+
+    // Remove list markers
+    line = line.replace(/^[\d]+[.)]\s*/, '').replace(/^[-•*]\s*/, '').trim();
+
+    // Remove prices
+    line = line.replace(/\d+\s*[x×]\s*[₹$]\s*\d+\.?\d*/g, '').trim();
+    line = line.replace(/[₹$]\s*\d+\.?\d*/g, '').replace(/Rs\.?\s*\d+\.?\d*/gi, '').trim();
+    line = line.replace(/MRP\s*[:\-]?\s*[₹$]?\s*\d+[\.,]?\d*/gi, '').trim();
+
+    // Extract Blinkit qty
+    let blinktQty = 1;
+    const qtyLineMatch = line.match(/Qty\s*[:=]\s*(\d+)/i);
+    if (qtyLineMatch) blinktQty = parseInt(qtyLineMatch[1]);
+    line = line.replace(/Qty\s*[:=]\s*\d*\s*[x×]?\s*/gi, '').trim();
+
+    // Skip very short lines or lines that are just numbers
+    if (line.length < 3) continue;
+    if (/^\d+\.?\d*$/.test(line)) continue;
+    if (/^\d+[\-\/]\d+[\-\/]\d+$/.test(line)) continue; // dates
+
+    const { quantity, unit, cleanName } = extractQuantityAndUnit(line);
+    if (!cleanName || cleanName.length < 2) continue;
+
+    const finalQuantity = quantity === 1 && blinktQty > 1 ? blinktQty : quantity;
+    const name = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    items.push({
+      id: generateSimpleId(),
+      name,
+      quantity: finalQuantity,
+      unit,
+      category: detectCategory(name),
+      selected: true,
+    });
+  }
+
+  return items;
+}
+
+/**
  * Sample order text templates for user guidance
  */
 export const PASTE_EXAMPLES = [

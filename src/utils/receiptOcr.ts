@@ -167,67 +167,105 @@ function processOcrResponse(data: any): OcrResult {
 export function cleanReceiptText(rawText: string): string {
   let lines = rawText.split('\n');
 
-  // Process each line
+  // Detect Blinkit table format
+  const hasTableHeader = lines.some((l) =>
+    /description|particulars/i.test(l) && (/qty|quantity|rate|amount/i.test(l))
+  );
+
+  if (hasTableHeader) {
+    lines = extractTableItems(lines);
+  }
+
   lines = lines
     .map((line) => line.trim())
     .filter((line) => {
       if (line.length < 2) return false;
-
       const lower = line.toLowerCase();
 
-      // Remove common receipt noise lines
       const skipPatterns = [
         'order id', 'order #', 'order no', 'order number',
-        'invoice', 'receipt', 'bill no',
-        'delivered', 'delivery by', 'delivery to', 'delivery partner',
-        'total', 'sub total', 'subtotal', 'grand total', 'amount',
+        'invoice', 'receipt', 'bill no', 'tax invoice',
+        'delivered', 'delivery by', 'delivery to',
+        'total', 'sub total', 'subtotal', 'grand total', 'net amount',
         'discount', 'coupon', 'promo', 'offer',
         'payment', 'paid via', 'paid by', 'upi', 'card ending',
         'thank you', 'thanks for',
         'address', 'pin code', 'pincode',
         'phone', 'mobile', 'email',
-        'otp', 'verification',
         'free delivery', 'handling charge', 'platform fee',
-        'delivery fee', 'delivery charge', 'convenience fee',
-        'packaging', 'surge',
+        'delivery fee', 'delivery charge', 'convenience',
         'bill details', 'order summary', 'item total',
-        'gst', 'cgst', 'sgst', 'tax',
+        'gst', 'cgst', 'sgst', 'igst', 'tax',
         'savings', 'you saved', 'cashback',
         'blinkit', 'instamart', 'swiggy', 'zomato', 'flipkart',
         'zepto', 'bigbasket', 'jiomart', 'dunzo',
         'customer care', 'helpline', 'support',
-        'fssai', 'license', 'gstin',
-        'date:', 'time:', 'placed on',
-        'items in this order', 'your order',
+        'fssai', 'license', 'gstin', 'cin', 'pan',
+        'date:', 'time:', 'placed on', 'delivered on',
+        'items in this order', 'your order', 'order details',
+        'description', 'hsn', 'particulars', 'sac code',
+        'seller', 'sold by', 'marketed by', 'manufactured',
+        'warehouse', 'store name', 'hub',
+        'signature', 'authorized',
       ];
 
       if (skipPatterns.some((p) => lower.includes(p))) return false;
-
-      // Skip lines that are just numbers or prices
-      if (/^[₹$]?\s*\d+[\.,]?\d*\s*$/.test(line)) return false;
-      if (/^\d+[\-\/]\d+[\-\/]\d+$/.test(line)) return false; // dates
+      if (/^[₹$]?\s*[\d,]+\.?\d*\s*$/.test(line)) return false;
+      if (/^\d+[\-\/]\d+[\-\/]\d+$/.test(line)) return false;
+      if (/^\d{4,8}$/.test(line.replace(/\s/g, ''))) return false;
 
       return true;
     })
     .map((line) => {
-      // Clean up each remaining line
       let cleaned = line;
-
-      // Remove prices: ₹123, Rs 45.00, $5.99
-      cleaned = cleaned.replace(/[₹$]\s*\d+[\.,]?\d*/g, '');
-      cleaned = cleaned.replace(/Rs\.?\s*\d+[\.,]?\d*/gi, '');
-      cleaned = cleaned.replace(/MRP\s*[:\-]?\s*[₹$]?\s*\d+[\.,]?\d*/gi, '');
-      cleaned = cleaned.replace(/Price\s*[:\-]?\s*[₹$]?\s*\d+[\.,]?\d*/gi, '');
-
-      // Remove "Qty:" prefix but keep the number
+      cleaned = cleaned.replace(/[₹$]\s*[\d,]+\.?\d*/g, '');
+      cleaned = cleaned.replace(/Rs\.?\s*[\d,]+\.?\d*/gi, '');
+      cleaned = cleaned.replace(/MRP\s*[:\-]?\s*[₹$]?\s*[\d,]+[\.,]?\d*/gi, '');
+      cleaned = cleaned.replace(/\b\d{4,8}\b/g, ''); // HSN codes
       cleaned = cleaned.replace(/Qty\s*[:\-=]\s*/gi, '');
-
-      // Remove trailing/leading special chars
-      cleaned = cleaned.replace(/^[\-\|:;]+/, '').replace(/[\-\|:;]+$/, '');
-
+      cleaned = cleaned.replace(/^[\-\|:;,]+/, '').replace(/[\-\|:;,]+$/, '');
+      cleaned = cleaned.replace(/\s{2,}/g, ' ');
       return cleaned.trim();
     })
-    .filter((line) => line.length > 1);
+    .filter((line) => line.length > 2);
 
   return lines.join('\n');
+}
+
+/**
+ * Extract items from table-format receipts (Blinkit Tax Invoice)
+ */
+function extractTableItems(lines: string[]): string[] {
+  const results: string[] = [];
+  let inTable = false;
+
+  for (const line of lines) {
+    if (/description|particulars|item\s*name/i.test(line) && /qty|quantity|rate|amount/i.test(line)) {
+      inTable = true;
+      continue;
+    }
+    if (inTable && (/total|sub\s*total|grand/i.test(line.toLowerCase()) || /^[\-=]+$/.test(line.trim()))) {
+      inTable = false;
+      continue;
+    }
+    if (inTable && line.trim().length > 2) {
+      const parts = line.split(/\s{2,}|\t/).map((p) => p.trim()).filter((p) => p.length > 0);
+      if (parts.length >= 2) {
+        const description = parts[0];
+        let qty = '1';
+        for (let i = 1; i < parts.length; i++) {
+          if (/^\d+$/.test(parts[i]) && parseInt(parts[i]) < 100) {
+            qty = parts[i];
+            break;
+          }
+        }
+        results.push(parseInt(qty) > 1 ? `${description} x${qty}` : description);
+      } else {
+        results.push(line);
+      }
+    } else if (!inTable) {
+      results.push(line);
+    }
+  }
+  return results;
 }

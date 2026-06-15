@@ -15,10 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { parseOrderText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
+import { parseOrderText, parseReceiptOcrText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
 import { extractTextFromImage, extractTextFromFile, cleanReceiptText } from '../utils/receiptOcr';
 import { createItem } from '../database';
 
@@ -32,9 +32,11 @@ export default function BulkImportScreen() {
   const [importing, setImporting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [fromOcr, setFromOcr] = useState(false);
 
   const handleParse = () => {
-    const items = parseOrderText(inputText);
+    // Use lenient parsing for OCR text, strict for manual paste
+    const items = fromOcr ? parseReceiptOcrText(inputText) : parseOrderText(inputText);
     if (items.length === 0) {
       Alert.alert('No Items Found', 'Could not detect any grocery items from the text. Try pasting your order details or a list of items.');
       return;
@@ -83,6 +85,7 @@ export default function BulkImportScreen() {
         if (ocrResult.success && ocrResult.text) {
           const cleanedText = cleanReceiptText(ocrResult.text);
           setInputText(cleanedText);
+          setFromOcr(true);
           setScanning(false);
           setStep('paste'); // Go to paste step so user can review/edit extracted text
           Alert.alert(
@@ -133,6 +136,7 @@ export default function BulkImportScreen() {
       if (ocrResult.success && ocrResult.text) {
         const cleanedText = cleanReceiptText(ocrResult.text);
         setInputText(cleanedText);
+        setFromOcr(true);
         setScanning(false);
         setStep('paste');
         Alert.alert('Text Extracted!', 'We extracted text from your document. Review it below, then tap "Parse Items".');
@@ -254,7 +258,7 @@ export default function BulkImportScreen() {
 
         {/* Paste Text */}
         <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>OR PASTE TEXT</Text>
-        <TouchableOpacity style={styles.optionCard} onPress={() => setStep('paste')}>
+        <TouchableOpacity style={styles.optionCard} onPress={() => { setFromOcr(false); setStep('paste'); }}>
           <View style={[styles.optionIcon, { backgroundColor: COLORS.success + '20' }]}>
             <Ionicons name="clipboard-outline" size={28} color={COLORS.success} />
           </View>
