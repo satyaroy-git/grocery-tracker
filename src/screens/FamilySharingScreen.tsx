@@ -144,7 +144,7 @@ export default function FamilySharingScreen() {
 
   const handleShareCode = async () => {
     if (!familyState) return;
-    await Share.share({ message: `Join our family pantry on Grocery Tracker! Use code: ${familyState.familyCode}` });
+    await Share.share({ message: `Join our family pantry on PantryPal! Use code: ${familyState.familyCode}` });
   };
 
   const handleAddSharedItem = async () => {

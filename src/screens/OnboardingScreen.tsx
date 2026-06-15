@@ -91,7 +91,7 @@ export default function OnboardingScreen() {
           <View style={styles.iconCircle}>
             <Ionicons name="leaf" size={48} color={COLORS.primary} />
           </View>
-          <Text style={styles.welcomeTitle}>Grocery Tracker</Text>
+          <Text style={styles.welcomeTitle}>PantryPal</Text>
           <Text style={styles.welcomeSubtitle}>
             Never run out of essentials again
           </Text>

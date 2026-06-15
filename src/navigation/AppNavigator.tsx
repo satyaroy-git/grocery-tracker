@@ -39,7 +39,7 @@ const ShoppingStack = createNativeStackNavigator<ShoppingStackParamList>();
 function DashboardStackNavigator() {
   return (
     <DashboardStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600' } }}>
-      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Grocery Tracker' }} />
+      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'PantryPal' }} />
       <DashboardStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
       <DashboardStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
     </DashboardStack.Navigator>

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Grocery Tracker",
-    "slug": "grocery-tracker",
+    "name": "PantryPal",
+    "slug": "pantry-pal",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

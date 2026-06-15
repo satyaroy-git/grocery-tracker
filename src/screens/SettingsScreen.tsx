@@ -198,7 +198,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.aboutCard}>
           <Ionicons name="leaf-outline" size={32} color={COLORS.primary} />
-          <Text style={styles.appName}>Grocery Tracker</Text>
+          <Text style={styles.appName}>PantryPal</Text>
           <Text style={styles.appVersion}>Version 1.0.0</Text>
           <Text style={styles.appDescription}>
             Track your grocery inventory, monitor consumption patterns, and never run out of essentials.
