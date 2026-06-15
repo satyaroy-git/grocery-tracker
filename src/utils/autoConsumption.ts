@@ -1,5 +1,18 @@
 import { getAutoConsumptionItems, deductQuantity, logConsumption, updateLastAutoDeduction } from '../database';
-import { differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns';
+
+function differenceInDays(dateA: Date, dateB: Date): number {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  return Math.floor((dateA.getTime() - dateB.getTime()) / msPerDay);
+}
+
+function differenceInWeeks(dateA: Date, dateB: Date): number {
+  return Math.floor(differenceInDays(dateA, dateB) / 7);
+}
+
+function differenceInMonths(dateA: Date, dateB: Date): number {
+  const months = (dateA.getFullYear() - dateB.getFullYear()) * 12 + (dateA.getMonth() - dateB.getMonth());
+  return Math.max(0, months);
+}
 
 export async function processAutoDeductions(): Promise<void> {
   try {
