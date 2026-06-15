@@ -69,8 +69,8 @@ async function callOcrApi(base64DataOrUrl: string, isPdf: boolean): Promise<OcrR
     formData.append('isOverlayRequired', 'false');
     formData.append('detectOrientation', 'true');
     formData.append('scale', 'true');
-    formData.append('isTable', 'true'); // Better for receipt tables
-    formData.append('OCREngine', '2'); // Engine 2 is better for receipts/tables
+    formData.append('isTable', 'true');
+    formData.append('OCREngine', '2');
 
     if (isPdf) {
       formData.append('filetype', 'PDF');
@@ -85,7 +85,6 @@ async function callOcrApi(base64DataOrUrl: string, isPdf: boolean): Promise<OcrR
     });
 
     if (!response.ok) {
-      // Try Engine 1 as fallback
       return callOcrApiFallback(base64DataOrUrl, isPdf);
     }
 
