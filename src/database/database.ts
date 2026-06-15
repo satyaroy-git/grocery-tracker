@@ -90,6 +90,23 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
       ['default', 'manual', 'instant', 0]
     );
   }
+
+  // Migrations for existing databases
+  try {
+    await database.execAsync(`ALTER TABLE grocery_items ADD COLUMN expiry_date TEXT;`);
+  } catch (e) { /* column already exists */ }
+
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS shopping_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        items TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_used TEXT
+      );
+    `);
+  } catch (e) { /* table already exists */ }
 }
 
 export async function resetDatabase(): Promise<void> {

@@ -38,6 +38,7 @@ export default function AddItemScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [expiryDate, setExpiryDate] = useState('');
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -69,6 +70,7 @@ export default function AddItemScreen() {
         consumptionMode,
         autoConsumptionRate: consumptionMode === 'auto' ? parseFloat(autoRate) : null,
         autoConsumptionFrequency: consumptionMode === 'auto' ? autoFrequency : null,
+        expiryDate: expiryDate.trim() || null,
       });
       navigation.goBack();
     } catch (error) {
@@ -315,6 +317,20 @@ export default function AddItemScreen() {
             </View>
           </View>
         )}
+
+        {/* Expiry Date */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Expiry Date (Optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="YYYY-MM-DD (e.g., 2026-07-15)"
+            placeholderTextColor={COLORS.textLight}
+            value={expiryDate}
+            onChangeText={setExpiryDate}
+            keyboardType="numbers-and-punctuation"
+          />
+          <Text style={{ fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginTop: SPACING.xs }}>Get alerts when items are about to expire</Text>
+        </View>
 
         {/* Save Button */}
         <TouchableOpacity
