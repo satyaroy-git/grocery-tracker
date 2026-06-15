@@ -27,6 +27,8 @@ export type InventoryStackParamList = {
   LogUsage: { itemId?: string };
   Restock: { itemId: string };
   BulkImport: undefined;
+  BarcodeScanner: undefined;
+  RecipeSuggestions: undefined;
 };
 
 export type ShoppingStackParamList = {

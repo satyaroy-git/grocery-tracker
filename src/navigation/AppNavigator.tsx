@@ -24,6 +24,8 @@ import SettingsScreen from '../screens/SettingsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 
 import BulkImportScreen from '../screens/BulkImportScreen';
+import BarcodeScannerScreen from '../screens/BarcodeScannerScreen';
+import RecipeSuggestionsScreen from '../screens/RecipeSuggestionsScreen';
 
 import ShoppingTemplatesScreen from '../screens/ShoppingTemplatesScreen';
 
@@ -53,6 +55,8 @@ function InventoryStackNavigator() {
       <InventoryStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
       <InventoryStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
       <InventoryStack.Screen name="BulkImport" component={BulkImportScreen} options={{ title: 'Quick Import' }} />
+      <InventoryStack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ title: 'Scan Barcode', headerShown: false }} />
+      <InventoryStack.Screen name="RecipeSuggestions" component={RecipeSuggestionsScreen} options={{ title: 'Recipes', headerShown: false }} />
     </InventoryStack.Navigator>
   );
 }

@@ -202,6 +202,8 @@ export default function ItemListScreen() {
       {/* FABs (only in normal mode) */}
       {!selectMode && (
         <>
+          <TouchableOpacity style={styles.recipeFab} onPress={() => navigation.navigate('RecipeSuggestions')}><Ionicons name="nutrition-outline" size={20} color="#fff" /></TouchableOpacity>
+          <TouchableOpacity style={styles.barcodeFab} onPress={() => navigation.navigate('BarcodeScanner')}><Ionicons name="barcode-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity style={styles.importFab} onPress={() => navigation.navigate('BulkImport')}><Ionicons name="clipboard-outline" size={22} color="#fff" /></TouchableOpacity>
           <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddItem')}><Ionicons name="add" size={28} color="#fff" /></TouchableOpacity>
         </>
@@ -256,4 +258,6 @@ const styles = StyleSheet.create({
   // FABs
   fab: { position: 'absolute', bottom: SPACING.lg, right: SPACING.lg, width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', ...SHADOWS.lg },
   importFab: { position: 'absolute', bottom: SPACING.lg + 64, right: SPACING.lg, width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.secondary, justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
+  barcodeFab: { position: 'absolute', bottom: SPACING.lg + 64 + 56, right: SPACING.lg, width: 48, height: 48, borderRadius: 24, backgroundColor: '#9C27B0', justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
+  recipeFab: { position: 'absolute', bottom: SPACING.lg + 64 + 56 + 56, right: SPACING.lg, width: 48, height: 48, borderRadius: 24, backgroundColor: '#E91E63', justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
 });
