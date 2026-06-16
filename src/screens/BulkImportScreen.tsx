@@ -1,75 +1,31 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, Image, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { parseOrderText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
-import { extractTextFromImage, cleanReceiptText } from '../utils/receiptOcr';
 import { createItem } from '../database';
 
-type Step = 'choose' | 'paste' | 'review';
+type Step = 'guide' | 'paste' | 'review';
 
 export default function BulkImportScreen() {
   const navigation = useNavigation();
-  const [step, setStep] = useState<Step>('choose');
+  const [step, setStep] = useState<Step>('guide');
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
   const [importing, setImporting] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [receiptImage, setReceiptImage] = useState<string | null>(null);
 
   const handleParse = () => {
     const items = parseOrderText(inputText);
     if (items.length === 0) {
-      Alert.alert('No Items Found', 'Could not detect any grocery items. Try editing the text to have one item per line.');
+      Alert.alert('No Items Found', 'Could not detect grocery items. Make sure you have one item per line.');
       return;
     }
     setParsedItems(items);
     setStep('review');
-  };
-
-  const handlePickImage = async (useCamera: boolean) => {
-    try {
-      if (useCamera) {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') { Alert.alert('Permission Required', 'Camera access is needed.'); return; }
-      }
-
-      const result = useCamera
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, base64: true })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
-
-      if (result.canceled || !result.assets?.length) return;
-
-      const asset = result.assets[0];
-      setReceiptImage(asset.uri);
-      setScanning(true);
-
-      if (asset.base64) {
-        const ocrResult = await extractTextFromImage(asset.base64);
-        setScanning(false);
-        if (ocrResult.success && ocrResult.text) {
-          const cleaned = cleanReceiptText(ocrResult.text);
-          setInputText(cleaned);
-          setStep('paste');
-          Alert.alert('Text Extracted', 'Review the extracted text below. Edit if needed, then tap "Parse Items".');
-        } else {
-          setStep('paste');
-          Alert.alert('OCR Issue', ocrResult.error || 'Could not read text clearly. Please type the items manually.');
-        }
-      } else {
-        setScanning(false);
-        setStep('paste');
-      }
-    } catch (e) {
-      setScanning(false);
-      setStep('paste');
-      Alert.alert('Error', 'Failed to process image. Please paste items manually.');
-    }
   };
 
   const toggleItem = (id: string) => {
@@ -86,76 +42,80 @@ export default function BulkImportScreen() {
 
   const handleImport = async () => {
     const itemsToImport = parsedItems.filter((i) => i.selected);
-    if (itemsToImport.length === 0) { Alert.alert('No Items Selected', 'Select at least one item.'); return; }
+    if (itemsToImport.length === 0) { Alert.alert('No Items', 'Select at least one item.'); return; }
     setImporting(true);
     try {
       for (const item of itemsToImport) {
         await createItem({ name: item.name, category: item.category, unit: item.unit, currentQuantity: item.quantity, threshold: Math.max(1, Math.round(item.quantity * 0.2)), consumptionMode: 'manual' });
       }
-      Alert.alert('Import Complete!', `Added ${itemsToImport.length} items to your pantry.`, [{ text: 'Great!', onPress: () => navigation.goBack() }]);
-    } catch (e) { Alert.alert('Error', 'Some items failed to import.'); }
+      Alert.alert('Done!', `Added ${itemsToImport.length} items to pantry.`, [{ text: 'OK', onPress: () => navigation.goBack() }]);
+    } catch (e) { Alert.alert('Error', 'Some items failed.'); }
     finally { setImporting(false); }
   };
 
-  // ===== CHOOSE STEP =====
-  if (step === 'choose') {
+  // ===== GUIDE STEP =====
+  if (step === 'guide') {
     return (
       <ScrollView style={styles.container} contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
         <View style={styles.headerCard}>
           <Ionicons name="receipt-outline" size={36} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Import Groceries</Text>
-          <Text style={styles.headerSubtitle}>
-            Add items from your Blinkit, Instamart, or Flipkart orders
-          </Text>
+          <Text style={styles.headerTitle}>Import from Order</Text>
+          <Text style={styles.headerSubtitle}>Add items from your recent grocery orders in seconds</Text>
         </View>
 
-        {scanning && (
-          <View style={styles.scanningCard}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.scanningText}>Reading receipt...</Text>
-          </View>
-        )}
+        {/* How to get text */}
+        <Text style={styles.sectionLabel}>HOW TO COPY YOUR ORDER</Text>
 
-        {/* Scan Receipt */}
-        <Text style={styles.sectionLabel}>SCAN RECEIPT (Beta)</Text>
+        <View style={styles.guideCard}>
+          <View style={styles.guideRow}>
+            <View style={styles.guideStep}><Text style={styles.guideStepNum}>1</Text></View>
+            <View style={styles.guideContent}>
+              <Text style={styles.guideTitle}>From Blinkit</Text>
+              <Text style={styles.guideDesc}>Open Blinkit app → My Orders → tap an order → "View Invoice" → long press on item list → Copy</Text>
+            </View>
+          </View>
 
-        <TouchableOpacity style={styles.optionCard} onPress={() => handlePickImage(true)}>
-          <View style={[styles.optionIcon, { backgroundColor: COLORS.primaryLight + '20' }]}>
-            <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
-          </View>
-          <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Take Photo</Text>
-            <Text style={styles.optionDesc}>Snap a photo of your receipt/invoice</Text>
-          </View>
-        </TouchableOpacity>
+          <View style={styles.guideDivider} />
 
-        <TouchableOpacity style={styles.optionCard} onPress={() => handlePickImage(false)}>
-          <View style={[styles.optionIcon, { backgroundColor: COLORS.secondary + '20' }]}>
-            <Ionicons name="image-outline" size={28} color={COLORS.secondary} />
+          <View style={styles.guideRow}>
+            <View style={styles.guideStep}><Text style={styles.guideStepNum}>2</Text></View>
+            <View style={styles.guideContent}>
+              <Text style={styles.guideTitle}>From Instamart/Swiggy</Text>
+              <Text style={styles.guideDesc}>Check your email for "Order Delivered" → open email → copy the item list</Text>
+            </View>
           </View>
-          <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Upload from Gallery</Text>
-            <Text style={styles.optionDesc}>Pick a screenshot of your order</Text>
-          </View>
-        </TouchableOpacity>
 
-        <View style={styles.betaNote}>
-          <Ionicons name="information-circle-outline" size={16} color={COLORS.textSecondary} />
-          <Text style={styles.betaNoteText}>OCR may not be 100% accurate. You can edit the extracted text before importing.</Text>
+          <View style={styles.guideDivider} />
+
+          <View style={styles.guideRow}>
+            <View style={styles.guideStep}><Text style={styles.guideStepNum}>3</Text></View>
+            <View style={styles.guideContent}>
+              <Text style={styles.guideTitle}>From Zepto/BigBasket</Text>
+              <Text style={styles.guideDesc}>Check SMS or email → copy the order details with item names</Text>
+            </View>
+          </View>
+
+          <View style={styles.guideDivider} />
+
+          <View style={styles.guideRow}>
+            <View style={styles.guideStep}><Text style={styles.guideStepNum}>4</Text></View>
+            <View style={styles.guideContent}>
+              <Text style={styles.guideTitle}>Type manually</Text>
+              <Text style={styles.guideDesc}>Just type item names, one per line. Add quantity like "Rice 5kg" or "Eggs 12"</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Paste Text */}
-        <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>PASTE TEXT (Recommended)</Text>
-
-        <TouchableOpacity style={styles.optionCard} onPress={() => { setReceiptImage(null); setStep('paste'); }}>
-          <View style={[styles.optionIcon, { backgroundColor: COLORS.success + '20' }]}>
-            <Ionicons name="clipboard-outline" size={28} color={COLORS.success} />
-          </View>
-          <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Paste Order Text</Text>
-            <Text style={styles.optionDesc}>Copy from email, SMS, or app — most reliable!</Text>
-          </View>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep('paste')}>
+          <Ionicons name="clipboard-outline" size={20} color="#fff" />
+          <Text style={styles.primaryBtnText}>Paste or Type Items</Text>
         </TouchableOpacity>
+
+        {/* Quick tip */}
+        <View style={styles.tipCard}>
+          <Ionicons name="bulb-outline" size={18} color={COLORS.warning} />
+          <Text style={styles.tipText}>Tip: You can also just type "Milk, Eggs, Rice, Oil" — the app will detect items, quantities, and categories automatically!</Text>
+        </View>
       </ScrollView>
     );
   }
@@ -164,46 +124,40 @@ export default function BulkImportScreen() {
   if (step === 'paste') {
     return (
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
-        <TouchableOpacity onPress={() => setStep('choose')} style={styles.backRow}>
+        <TouchableOpacity onPress={() => setStep('guide')} style={styles.backRow}>
           <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
 
-        {receiptImage && (
-          <View style={styles.receiptPreview}>
-            <Image source={{ uri: receiptImage }} style={styles.receiptImage} resizeMode="contain" />
-          </View>
-        )}
-
         <View style={styles.field}>
-          <Text style={styles.label}>{receiptImage ? 'Extracted Text (edit if needed)' : 'Paste Order Text'}</Text>
+          <Text style={styles.label}>Paste or type items (one per line)</Text>
           <TextInput
             style={styles.textArea}
-            placeholder={"Paste items here, one per line:\n\nMaggi Noodles\nToor Dal 1kg\nAmul Butter 500g\nEggs 12\nHarpic"}
+            placeholder={"Tata Salt 1kg\nAmul Butter 500g\nEggs 12\nMilk 1 liter\nHarpic\nVim Dishwash\nSurf Detergent 1kg"}
             placeholderTextColor={COLORS.textLight}
             multiline
             numberOfLines={12}
             textAlignVertical="top"
             value={inputText}
             onChangeText={setInputText}
+            autoFocus
           />
         </View>
 
-        {!receiptImage && (
-          <View style={styles.samplesSection}>
-            <Text style={styles.samplesTitle}>Try a sample:</Text>
+        <View style={styles.samplesSection}>
+          <Text style={styles.samplesTitle}>Or try a sample:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {PASTE_EXAMPLES.map((sample, idx) => (
               <TouchableOpacity key={idx} style={styles.sampleChip} onPress={() => setInputText(sample.text)}>
-                <Ionicons name="document-text-outline" size={14} color={COLORS.primary} />
                 <Text style={styles.sampleChipText}>{sample.label}</Text>
               </TouchableOpacity>
             ))}
-          </View>
-        )}
+          </ScrollView>
+        </View>
 
         <TouchableOpacity style={[styles.primaryBtn, !inputText.trim() && styles.btnDisabled]} onPress={handleParse} disabled={!inputText.trim()}>
-          <Ionicons name="scan-outline" size={20} color="#fff" />
-          <Text style={styles.primaryBtnText}>Parse Items</Text>
+          <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+          <Text style={styles.primaryBtnText}>Parse Items ({inputText.split('\n').filter((l) => l.trim().length > 2).length} lines)</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -215,9 +169,9 @@ export default function BulkImportScreen() {
       <View style={styles.reviewHeader}>
         <TouchableOpacity onPress={() => setStep('paste')} style={styles.backRow}>
           <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
-          <Text style={styles.backText}>Edit Text</Text>
+          <Text style={styles.backText}>Edit</Text>
         </TouchableOpacity>
-        <Text style={styles.reviewTitle}>Review ({selectedCount}/{parsedItems.length})</Text>
+        <Text style={styles.reviewTitle}>{selectedCount} of {parsedItems.length} selected</Text>
       </View>
 
       <View style={styles.selectActions}>
@@ -249,7 +203,7 @@ export default function BulkImportScreen() {
       <View style={styles.bottomBar}>
         <TouchableOpacity style={[styles.primaryBtn, (selectedCount === 0 || importing) && styles.btnDisabled]} onPress={handleImport} disabled={selectedCount === 0 || importing}>
           <Ionicons name="download-outline" size={20} color="#fff" />
-          <Text style={styles.primaryBtnText}>{importing ? 'Importing...' : `Import ${selectedCount} Items to Pantry`}</Text>
+          <Text style={styles.primaryBtnText}>{importing ? 'Importing...' : `Import ${selectedCount} Items`}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -262,34 +216,34 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: FONT_SIZES.xxl, fontWeight: '700', color: COLORS.text, marginTop: SPACING.sm },
   headerSubtitle: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.xs },
   sectionLabel: { fontSize: FONT_SIZES.xs, fontWeight: '700', color: COLORS.textSecondary, marginBottom: SPACING.sm, letterSpacing: 1 },
-  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.lg, marginBottom: SPACING.sm, ...SHADOWS.sm },
-  optionIcon: { width: 48, height: 48, borderRadius: BORDER_RADIUS.md, justifyContent: 'center', alignItems: 'center' },
-  optionContent: { flex: 1, marginLeft: SPACING.md },
-  optionTitle: { fontSize: FONT_SIZES.md, fontWeight: '600', color: COLORS.text },
-  optionDesc: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, marginTop: 2 },
-  betaNote: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.xs, paddingHorizontal: SPACING.sm },
-  betaNoteText: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, flex: 1 },
-  scanningCard: { alignItems: 'center', padding: SPACING.lg, backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.lg, marginBottom: SPACING.md },
-  scanningText: { marginTop: SPACING.sm, fontSize: FONT_SIZES.md, color: COLORS.textSecondary },
-  // Paste step
+  // Guide
+  guideCard: { backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg, ...SHADOWS.sm },
+  guideRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: SPACING.sm },
+  guideStep: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  guideStepNum: { color: '#fff', fontSize: FONT_SIZES.sm, fontWeight: '700' },
+  guideContent: { flex: 1 },
+  guideTitle: { fontSize: FONT_SIZES.md, fontWeight: '600', color: COLORS.text },
+  guideDesc: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, marginTop: 2, lineHeight: 18 },
+  guideDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: SPACING.xs },
+  tipCard: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm, backgroundColor: COLORS.warningBg, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginTop: SPACING.md },
+  tipText: { flex: 1, fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, lineHeight: 18 },
+  // Paste
   backRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: SPACING.md },
   backText: { fontSize: FONT_SIZES.md, color: COLORS.primary, fontWeight: '500' },
-  receiptPreview: { marginBottom: SPACING.md, borderRadius: BORDER_RADIUS.md, overflow: 'hidden', backgroundColor: COLORS.surface, ...SHADOWS.sm },
-  receiptImage: { width: '100%', height: 150, backgroundColor: COLORS.background },
   field: { marginBottom: SPACING.md },
   label: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.xs, textTransform: 'uppercase' },
-  textArea: { backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, fontSize: FONT_SIZES.md, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, minHeight: 220 },
-  samplesSection: { marginBottom: SPACING.md },
-  samplesTitle: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, marginBottom: SPACING.xs },
-  sampleChip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: COLORS.surface, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.full, borderWidth: 1, borderColor: COLORS.primary, gap: SPACING.xs, marginBottom: SPACING.xs },
+  textArea: { backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, fontSize: FONT_SIZES.md, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, minHeight: 250 },
+  samplesSection: { marginBottom: SPACING.lg },
+  samplesTitle: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, marginBottom: SPACING.sm },
+  sampleChip: { backgroundColor: COLORS.surface, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.full, borderWidth: 1, borderColor: COLORS.primary, marginRight: SPACING.sm },
   sampleChipText: { fontSize: FONT_SIZES.sm, color: COLORS.primary, fontWeight: '500' },
   primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.md },
   primaryBtnText: { color: '#fff', fontSize: FONT_SIZES.md, fontWeight: '600' },
   btnDisabled: { opacity: 0.5 },
-  // Review step
+  // Review
   reviewHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingTop: SPACING.md },
   reviewTitle: { fontSize: FONT_SIZES.lg, fontWeight: '600', color: COLORS.text, marginLeft: SPACING.sm },
-  selectActions: { flexDirection: 'row', paddingHorizontal: SPACING.md, marginBottom: SPACING.sm, gap: SPACING.lg },
+  selectActions: { flexDirection: 'row', paddingHorizontal: SPACING.md, marginVertical: SPACING.sm, gap: SPACING.lg },
   selectLink: { fontSize: FONT_SIZES.md, color: COLORS.primary, fontWeight: '500' },
   itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
   itemCardDeselected: { opacity: 0.5 },
