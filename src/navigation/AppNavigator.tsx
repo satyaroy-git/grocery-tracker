@@ -8,6 +8,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { RootStackParamList, MainTabParamList, DashboardStackParamList, InventoryStackParamList, ShoppingStackParamList } from './types';
 import { COLORS } from '../constants/theme';
 import { isOnboardingCompleted } from '../database';
+import { useTheme } from '../hooks/useTheme';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import ItemListScreen from '../screens/ItemListScreen';
@@ -37,8 +38,9 @@ const InventoryStack = createNativeStackNavigator<InventoryStackParamList>();
 const ShoppingStack = createNativeStackNavigator<ShoppingStackParamList>();
 
 function DashboardStackNavigator() {
+  const { colors } = useTheme();
   return (
-    <DashboardStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
+    <DashboardStack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
       <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'PantryPal', headerTitleStyle: { fontFamily: 'Poppins_700Bold', fontSize: 20, color: '#fff' } }} />
       <DashboardStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
       <DashboardStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
@@ -47,8 +49,9 @@ function DashboardStackNavigator() {
 }
 
 function InventoryStackNavigator() {
+  const { colors } = useTheme();
   return (
-    <InventoryStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
+    <InventoryStack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
       <InventoryStack.Screen name="ItemList" component={ItemListScreen} options={{ title: 'My Pantry' }} />
       <InventoryStack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item Details' }} />
       <InventoryStack.Screen name="AddItem" component={AddItemScreen} options={{ title: 'Add Item' }} />
@@ -63,8 +66,9 @@ function InventoryStackNavigator() {
 }
 
 function ShoppingStackNavigator() {
+  const { colors } = useTheme();
   return (
-    <ShoppingStack.Navigator screenOptions={{ headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
+    <ShoppingStack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '600', fontFamily: 'Poppins_600SemiBold' } }}>
       <ShoppingStack.Screen name="ShoppingList" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
       <ShoppingStack.Screen name="AddShoppingItem" component={AddShoppingItemScreen} options={{ title: 'Add to List' }} />
       <ShoppingStack.Screen name="PurchaseConfirm" component={PurchaseConfirmScreen} options={{ title: 'Confirm Purchase' }} />
@@ -74,13 +78,14 @@ function ShoppingStackNavigator() {
 }
 
 function MainTabNavigator() {
+  const { colors, isDark } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.disabled,
-        tabBarStyle: { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, paddingBottom: 4, height: 60 },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.disabled,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: 4, height: 60 },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500', fontFamily: 'Poppins_500Medium' },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
@@ -99,9 +104,9 @@ function MainTabNavigator() {
       <Tab.Screen name="DashboardTab" component={DashboardStackNavigator} options={{ title: 'Home' }} />
       <Tab.Screen name="InventoryTab" component={InventoryStackNavigator} options={{ title: 'Pantry' }} />
       <Tab.Screen name="ShoppingTab" component={ShoppingStackNavigator} options={{ title: 'Shop' }} />
-      <Tab.Screen name="InsightsTab" component={InsightsScreen} options={{ title: 'Insights', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff' }} />
-      <Tab.Screen name="FamilyTab" component={FamilySharingScreen} options={{ title: 'Family', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff', headerTitle: 'Family Sharing' }} />
-      <Tab.Screen name="SettingsTab" component={SettingsScreen} options={{ title: 'Settings', headerShown: true, headerStyle: { backgroundColor: COLORS.primary }, headerTintColor: '#fff' }} />
+      <Tab.Screen name="InsightsTab" component={InsightsScreen} options={{ title: 'Insights', headerShown: true, headerStyle: { backgroundColor: colors.primary }, headerTintColor: '#fff' }} />
+      <Tab.Screen name="FamilyTab" component={FamilySharingScreen} options={{ title: 'Family', headerShown: true, headerStyle: { backgroundColor: colors.primary }, headerTintColor: '#fff', headerTitle: 'Family Sharing' }} />
+      <Tab.Screen name="SettingsTab" component={SettingsScreen} options={{ title: 'Settings', headerShown: true, headerStyle: { backgroundColor: colors.primary }, headerTintColor: '#fff' }} />
     </Tab.Navigator>
   );
 }
@@ -109,6 +114,7 @@ function MainTabNavigator() {
 export default function AppNavigator() {
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const { colors, isDark } = useTheme();
 
   useEffect(() => { checkOnboarding(); }, []);
 
@@ -121,11 +127,11 @@ export default function AppNavigator() {
   }
 
   if (isLoading) {
-    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={{ dark: isDark, fonts: { regular: { fontFamily: 'Poppins_400Regular', fontWeight: '400' }, medium: { fontFamily: 'Poppins_500Medium', fontWeight: '500' }, bold: { fontFamily: 'Poppins_700Bold', fontWeight: '700' }, heavy: { fontFamily: 'Poppins_700Bold', fontWeight: '700' } }, colors: { primary: colors.primary, background: colors.background, card: colors.surface, text: colors.text, border: colors.border, notification: colors.danger } }}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {showOnboarding ? <RootStack.Screen name="Onboarding" component={OnboardingScreen} /> : null}
         <RootStack.Screen name="MainTabs" component={MainTabNavigator} />
