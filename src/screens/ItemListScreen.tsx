@@ -6,11 +6,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { GroceryItemWithStatus, getAllItems, deleteItem } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
+import { useTheme } from '../hooks/useTheme';
 
 type NavProp = NativeStackNavigationProp<InventoryStackParamList>;
 
 export default function ItemListScreen() {
   const navigation = useNavigation<NavProp>();
+  const { colors } = useTheme();
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,7 +135,7 @@ export default function ItemListScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Select mode header */}
       {selectMode && (
         <View style={styles.selectBar}>

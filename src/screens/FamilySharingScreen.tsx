@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 import {
   createFamily, joinFamily, getFamilyMembers, getSharedShoppingList,
   addToSharedList, toggleSharedItemPurchased, removeFromSharedList,
@@ -27,6 +28,7 @@ const STORAGE_KEY = '@grocery_tracker_family';
 const DEVICE_ID_KEY = '@grocery_tracker_device_id';
 
 export default function FamilySharingScreen() {
+  const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>('setup');
   const [familyState, setFamilyState] = useState<FamilyState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -197,7 +199,7 @@ export default function FamilySharingScreen() {
   // ============ SETUP VIEW ============
   if (viewMode === 'setup') {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: SPACING.md }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ padding: SPACING.md }} keyboardShouldPersistTaps="handled">
         <View style={styles.headerCard}>
           <Ionicons name="people-outline" size={40} color={COLORS.primary} />
           <Text style={styles.headerTitle}>Family Sharing</Text>
@@ -235,7 +237,7 @@ export default function FamilySharingScreen() {
 
   // ============ FAMILY VIEW ============
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}>
         {/* Family Info */}
         <View style={styles.familyCard}>

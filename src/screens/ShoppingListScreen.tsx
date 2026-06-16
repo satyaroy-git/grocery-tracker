@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 import {
   getShoppingList,
   markAsPurchased,
@@ -30,6 +31,7 @@ type ShoppingNavProp = NativeStackNavigationProp<ShoppingStackParamList, 'Shoppi
 
 export default function ShoppingListScreen() {
   const navigation = useNavigation<ShoppingNavProp>();
+  const { colors } = useTheme();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -184,7 +186,7 @@ export default function ShoppingListScreen() {
   const purchasedCount = items.filter((i) => i.isPurchased).length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Action Bar */}
       <View style={styles.actionBar}>
         <TouchableOpacity style={styles.actionChip} onPress={handleAutoGenerate}>

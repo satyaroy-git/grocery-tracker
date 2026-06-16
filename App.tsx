@@ -5,15 +5,10 @@ import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, P
 import AppNavigator from './src/navigation/AppNavigator';
 import { processAutoDeductions } from './src/utils/autoConsumption';
 import { COLORS } from './src/constants/theme';
-import { ThemeProvider } from './src/hooks/useTheme';
+import { ThemeProvider, useTheme } from './src/hooks/useTheme';
 
-export default function App() {
-  const [fontsLoaded] = useFonts({
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-  });
+function AppContent() {
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     initializeApp();
@@ -34,6 +29,22 @@ export default function App() {
     }
   }
 
+  return (
+    <SafeAreaProvider style={{ backgroundColor: colors.background }}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.primaryDark} />
+      <AppNavigator />
+    </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
@@ -44,10 +55,7 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
-        <AppNavigator />
-      </SafeAreaProvider>
+      <AppContent />
     </ThemeProvider>
   );
 }

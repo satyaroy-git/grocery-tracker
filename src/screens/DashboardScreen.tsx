@@ -6,11 +6,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { GroceryItemWithStatus, getItemCount, getAllItems, getExpiringItems, getTotalSpendThisMonth } from '../database';
 import { DashboardStackParamList } from '../navigation/types';
+import { useTheme } from '../hooks/useTheme';
 
 type NavProp = NativeStackNavigationProp<DashboardStackParamList>;
 
 export default function DashboardScreen() {
   const navigation = useNavigation<NavProp>();
+  const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [counts, setCounts] = useState({ total: 0, low: 0, outOfStock: 0 });
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
@@ -45,7 +47,7 @@ export default function DashboardScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}>
       <View style={styles.cardsRow}>
         <View style={[styles.card, { backgroundColor: COLORS.successBg }]}>
           <Ionicons name="cube-outline" size={24} color={COLORS.success} />

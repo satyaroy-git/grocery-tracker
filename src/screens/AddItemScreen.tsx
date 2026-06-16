@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 import {
   DEFAULT_CATEGORIES,
   UNITS_OF_MEASUREMENT,
@@ -26,6 +27,7 @@ import { detectCategoryFromName, detectUnitFromName } from '../utils/autoCategor
 
 export default function AddItemScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
@@ -103,7 +105,7 @@ export default function AddItemScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>

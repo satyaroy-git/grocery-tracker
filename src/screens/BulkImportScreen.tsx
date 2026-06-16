@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 import { parseOrderText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
 import { createItem } from '../database';
 
@@ -13,6 +14,7 @@ type Step = 'guide' | 'paste' | 'review';
 
 export default function BulkImportScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [step, setStep] = useState<Step>('guide');
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
@@ -56,7 +58,7 @@ export default function BulkImportScreen() {
   // ===== GUIDE STEP =====
   if (step === 'guide') {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
         <View style={styles.headerCard}>
           <Ionicons name="receipt-outline" size={36} color={COLORS.primary} />
           <Text style={styles.headerTitle}>Import from Order</Text>
@@ -123,7 +125,7 @@ export default function BulkImportScreen() {
   // ===== PASTE STEP =====
   if (step === 'paste') {
     return (
-      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
         <TouchableOpacity onPress={() => setStep('guide')} style={styles.backRow}>
           <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
           <Text style={styles.backText}>Back</Text>
@@ -165,7 +167,7 @@ export default function BulkImportScreen() {
 
   // ===== REVIEW STEP =====
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.reviewHeader}>
         <TouchableOpacity onPress={() => setStep('paste')} style={styles.backRow}>
           <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
