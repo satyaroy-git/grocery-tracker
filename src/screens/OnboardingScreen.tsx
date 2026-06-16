@@ -15,6 +15,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constant
 import { ONBOARDING_TEMPLATES } from '../constants/categories';
 import { createItem, markOnboardingComplete } from '../database';
 import { RootStackParamList } from '../navigation/types';
+import { useTheme } from '../hooks/useTheme';
 
 type OnboardingNavProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
@@ -29,6 +30,7 @@ interface TemplateSelection {
 
 export default function OnboardingScreen() {
   const navigation = useNavigation<OnboardingNavProp>();
+  const { colors } = useTheme();
   const [step, setStep] = useState(0);
   const [templates, setTemplates] = useState<TemplateSelection[]>(
     ONBOARDING_TEMPLATES.map((t) => ({ ...t, selected: false }))
@@ -36,6 +38,33 @@ export default function OnboardingScreen() {
   const [saving, setSaving] = useState(false);
 
   const selectedCount = templates.filter((t) => t.selected).length;
+
+  const tutorialSteps = [
+    {
+      icon: 'cube-outline' as keyof typeof Ionicons.glyphMap,
+      title: 'Track Your Pantry',
+      description: 'Add items with quantity, category, and expiry. Get alerts when stock is low.',
+      color: COLORS.primary,
+    },
+    {
+      icon: 'cart-outline' as keyof typeof Ionicons.glyphMap,
+      title: 'Smart Shopping',
+      description: 'Auto-generate shopping lists, share via WhatsApp, save templates for reuse.',
+      color: COLORS.success,
+    },
+    {
+      icon: 'barcode-outline' as keyof typeof Ionicons.glyphMap,
+      title: 'Scan & Import',
+      description: 'Scan barcodes to add items instantly, or paste order text from Blinkit/Instamart.',
+      color: COLORS.secondary,
+    },
+    {
+      icon: 'people-outline' as keyof typeof Ionicons.glyphMap,
+      title: 'Family Sharing',
+      description: 'Share your pantry and shopping list with family using a simple 6-digit code.',
+      color: COLORS.warning,
+    },
+  ];
 
   const toggleItem = (index: number) => {
     setTemplates((prev) =>
@@ -144,7 +173,57 @@ export default function OnboardingScreen() {
     );
   }
 
-  // Step 1: Template Selection
+  // Steps 1-4: Tutorial Steps
+  if (step >= 1 && step <= 4) {
+    const tutorialIndex = step - 1;
+    const currentTutorial = tutorialSteps[tutorialIndex];
+    const totalTutorialSteps = tutorialSteps.length;
+
+    return (
+      <View style={[styles.welcomeContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.welcomeContent}>
+          <View style={[styles.tutorialIconCircle, { backgroundColor: currentTutorial.color + '15' }]}>
+            <Ionicons name={currentTutorial.icon} size={64} color={currentTutorial.color} />
+          </View>
+          <Text style={[styles.tutorialTitle, { color: colors.text }]}>{currentTutorial.title}</Text>
+          <Text style={[styles.tutorialDescription, { color: colors.textSecondary }]}>
+            {currentTutorial.description}
+          </Text>
+
+          {/* Progress Dots */}
+          <View style={styles.progressDots}>
+            {tutorialSteps.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  index === tutorialIndex ? styles.dotActive : styles.dotInactive,
+                  index === tutorialIndex && { backgroundColor: currentTutorial.color },
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.tutorialButtons}>
+          <TouchableOpacity style={styles.skipTutorialButton} onPress={() => setStep(5)}>
+            <Text style={[styles.skipTutorialText, { color: colors.textSecondary }]}>Skip</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.nextButton, { backgroundColor: currentTutorial.color }]}
+            onPress={() => setStep(step + 1)}
+          >
+            <Text style={styles.nextButtonText}>
+              {tutorialIndex === totalTutorialSteps - 1 ? 'Continue' : 'Next'}
+            </Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Step 5: Template Selection
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -399,6 +478,74 @@ const styles = StyleSheet.create({
   },
   addItemsButtonText: {
     color: COLORS.surface,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+  },
+  // Tutorial Steps
+  tutorialIconCircle: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+  },
+  tutorialTitle: {
+    fontSize: FONT_SIZES.xxxl,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  tutorialDescription: {
+    fontSize: FONT_SIZES.lg,
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.xl,
+  },
+  progressDots: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotActive: {
+    width: 24,
+    borderRadius: 5,
+  },
+  dotInactive: {
+    backgroundColor: COLORS.textLight,
+  },
+  tutorialButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+  },
+  skipTutorialButton: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  skipTutorialText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '500',
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: BORDER_RADIUS.md,
+    gap: SPACING.sm,
+    ...SHADOWS.md,
+  },
+  nextButtonText: {
+    color: '#fff',
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },

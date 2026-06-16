@@ -18,6 +18,7 @@ export type DashboardStackParamList = {
   Dashboard: undefined;
   LogUsage: { itemId?: string };
   Restock: { itemId: string };
+  WeeklyDigest: undefined;
 };
 
 export type InventoryStackParamList = {

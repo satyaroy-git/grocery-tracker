@@ -30,6 +30,7 @@ import RecipeSuggestionsScreen from '../screens/RecipeSuggestionsScreen';
 
 import ShoppingTemplatesScreen from '../screens/ShoppingTemplatesScreen';
 import FamilySharingScreen from '../screens/FamilySharingScreen';
+import WeeklyDigestScreen from '../screens/WeeklyDigestScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -44,6 +45,7 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'PantryPal', headerTitleStyle: { fontFamily: 'Poppins_700Bold', fontSize: 20, color: '#fff' } }} />
       <DashboardStack.Screen name="LogUsage" component={LogUsageScreen} options={{ title: 'Log Usage' }} />
       <DashboardStack.Screen name="Restock" component={RestockScreen} options={{ title: 'Restock Item' }} />
+      <DashboardStack.Screen name="WeeklyDigest" component={WeeklyDigestScreen} options={{ title: 'Weekly Summary' }} />
     </DashboardStack.Navigator>
   );
 }

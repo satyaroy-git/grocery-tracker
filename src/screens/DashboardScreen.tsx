@@ -7,6 +7,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constant
 import { GroceryItemWithStatus, getItemCount, getAllItems, getExpiringItems, getTotalSpendThisMonth } from '../database';
 import { DashboardStackParamList } from '../navigation/types';
 import { useTheme } from '../hooks/useTheme';
+import { getReorderPredictions, ReorderPrediction } from '../utils/predictions';
 
 type NavProp = NativeStackNavigationProp<DashboardStackParamList>;
 
@@ -19,14 +20,16 @@ export default function DashboardScreen() {
   const [expiringItems, setExpiringItems] = useState<GroceryItemWithStatus[]>([]);
   const [monthlySpend, setMonthlySpend] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [predictions, setPredictions] = useState<ReorderPrediction[]>([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [countData, allItems, expiring, spend] = await Promise.all([getItemCount(), getAllItems(), getExpiringItems(), getTotalSpendThisMonth()]);
+      const [countData, allItems, expiring, spend, preds] = await Promise.all([getItemCount(), getAllItems(), getExpiringItems(), getTotalSpendThisMonth(), getReorderPredictions()]);
       setCounts(countData);
       setItems(allItems);
       setExpiringItems(expiring);
       setMonthlySpend(spend);
+      setPredictions(preds.filter((p) => p.urgency !== 'ok').slice(0, 3));
     } catch (error) { /* silent */ }
   }, []);
 
@@ -76,6 +79,45 @@ export default function DashboardScreen() {
               <Text style={{ fontSize: FONT_SIZES.xxl, fontWeight: '700', color: COLORS.primary }}>Rs. {monthlySpend.toFixed(0)}</Text>
             </View>
           </View>
+        </View>
+      )}
+
+      {/* Weekly Digest Button */}
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.lg, ...SHADOWS.sm }}
+          onPress={() => navigation.navigate('WeeklyDigest')}
+        >
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary + '15', justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name="calendar-outline" size={22} color={COLORS.primary} />
+          </View>
+          <View style={{ marginLeft: SPACING.md, flex: 1 }}>
+            <Text style={{ fontSize: FONT_SIZES.md, fontWeight: '600', color: colors.text }}>Weekly Digest</Text>
+            <Text style={{ fontSize: FONT_SIZES.sm, color: colors.textSecondary }}>View your weekly summary</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Reorder Soon Section */}
+      {predictions.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Reorder Soon</Text>
+          {predictions.map((pred) => (
+            <View key={pred.itemId} style={[styles.itemRow, { borderLeftWidth: 3, borderLeftColor: pred.urgency === 'critical' ? COLORS.danger : COLORS.warning }]}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{pred.name}</Text>
+                <Text style={[styles.itemDetail, { color: pred.urgency === 'critical' ? COLORS.danger : COLORS.warning }]}>
+                  {pred.daysUntilEmpty === 0 ? 'Empty now' : `~${pred.daysUntilEmpty} day${pred.daysUntilEmpty !== 1 ? 's' : ''} left`}
+                </Text>
+              </View>
+              <View style={{ backgroundColor: (pred.urgency === 'critical' ? COLORS.dangerBg : COLORS.warningBg), paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.full }}>
+                <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '700', color: pred.urgency === 'critical' ? COLORS.danger : COLORS.warning }}>
+                  {pred.urgency === 'critical' ? 'URGENT' : 'SOON'}
+                </Text>
+              </View>
+            </View>
+          ))}
         </View>
       )}
 
