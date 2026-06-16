@@ -20,7 +20,7 @@ import {
   UNITS_OF_MEASUREMENT,
   CONSUMPTION_FREQUENCIES,
 } from '../constants/categories';
-import { createItem } from '../database';
+import { createItem, logConsumption } from '../database';
 import { ConsumptionMode, ConsumptionFrequency } from '../database';
 import { trackUsageAndPromptRating } from '../utils/ratingPrompt';
 import { detectCategoryFromName, detectUnitFromName } from '../utils/autoCategorize';
@@ -43,6 +43,7 @@ export default function AddItemScreen() {
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expiryDate, setExpiryDate] = useState('');
+  const [pricePaid, setPricePaid] = useState('');
 
   const handleNameChange = (text: string) => {
     setName(text);
@@ -80,7 +81,7 @@ export default function AddItemScreen() {
     setSaving(true);
     try {
       const finalCategory = showCustomCategory ? customCategory.trim() : category;
-      await createItem({
+      const item = await createItem({
         name: name.trim(),
         category: finalCategory,
         unit,
@@ -91,6 +92,10 @@ export default function AddItemScreen() {
         autoConsumptionFrequency: consumptionMode === 'auto' ? autoFrequency : null,
         expiryDate: expiryDate.trim() || null,
       });
+      // Log price if entered
+      if (pricePaid.trim() && parseFloat(pricePaid) > 0) {
+        await logConsumption(item.id, parseFloat(currentQuantity), 'restock', 'Initial stock', parseFloat(pricePaid));
+      }
       trackUsageAndPromptRating();
       navigation.goBack();
     } catch (error) {
@@ -350,6 +355,20 @@ export default function AddItemScreen() {
             keyboardType="numbers-and-punctuation"
           />
           <Text style={{ fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginTop: SPACING.xs }}>Get alerts when items are about to expire</Text>
+        </View>
+
+        {/* Price Paid */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Price Paid (Optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 120"
+            placeholderTextColor={COLORS.textLight}
+            value={pricePaid}
+            onChangeText={setPricePaid}
+            keyboardType="decimal-pad"
+          />
+          <Text style={{ fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginTop: SPACING.xs }}>Track your grocery spending over time</Text>
         </View>
 
         {/* Save Button */}
