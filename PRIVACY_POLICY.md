@@ -61,7 +61,7 @@ We may update this policy. Changes will be reflected in the "Last updated" date.
 
 ## Contact
 
-For privacy questions, contact: [your-email@example.com]
+For privacy questions, contact: satya.bit123@gmail.com
 
 ---
 
