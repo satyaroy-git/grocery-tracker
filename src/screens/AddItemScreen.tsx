@@ -22,6 +22,7 @@ import {
 import { createItem } from '../database';
 import { ConsumptionMode, ConsumptionFrequency } from '../database';
 import { trackUsageAndPromptRating } from '../utils/ratingPrompt';
+import { detectCategoryFromName, detectUnitFromName } from '../utils/autoCategorize';
 
 export default function AddItemScreen() {
   const navigation = useNavigation();
@@ -40,6 +41,21 @@ export default function AddItemScreen() {
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expiryDate, setExpiryDate] = useState('');
+
+  const handleNameChange = (text: string) => {
+    setName(text);
+    // Auto-detect category and unit from item name
+    if (text.length >= 3) {
+      const detectedCategory = detectCategoryFromName(text);
+      if (detectedCategory && !showCustomCategory) {
+        setCategory(detectedCategory);
+      }
+      const detectedUnit = detectUnitFromName(text);
+      if (detectedUnit) {
+        setUnit(detectedUnit);
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -97,7 +113,7 @@ export default function AddItemScreen() {
           <TextInput
             style={styles.input}
             value={name}
-            onChangeText={setName}
+            onChangeText={handleNameChange}
             placeholder="e.g. Rice, Milk, Eggs"
             placeholderTextColor={COLORS.textLight}
           />
@@ -116,7 +132,7 @@ export default function AddItemScreen() {
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           {showCategoryPicker && (
-            <View style={styles.pickerOptions}>
+            <ScrollView style={styles.pickerOptions} nestedScrollEnabled={true}>
               {DEFAULT_CATEGORIES.map((cat) => (
                 <TouchableOpacity
                   key={cat}
@@ -156,7 +172,7 @@ export default function AddItemScreen() {
                   + Custom Category
                 </Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           )}
           {showCustomCategory && (
             <TextInput
@@ -395,7 +411,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: BORDER_RADIUS.md,
     marginTop: SPACING.xs,
-    maxHeight: 200,
+    maxHeight: 400,
   },
   pickerOption: {
     padding: SPACING.md,
