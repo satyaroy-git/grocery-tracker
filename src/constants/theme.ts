@@ -19,6 +19,27 @@ export const COLORS = {
   dangerBg: '#FFEBEE',
 };
 
+export const DARK_COLORS = {
+  primary: '#4CAF50',
+  primaryLight: '#81C784',
+  primaryDark: '#2E7D32',
+  secondary: '#FFA726',
+  secondaryLight: '#FFB74D',
+  success: '#66BB6A',
+  warning: '#FFCA28',
+  danger: '#EF5350',
+  background: '#121212',
+  surface: '#1E1E1E',
+  text: '#ECECEC',
+  textSecondary: '#AAAAAA',
+  textLight: '#666666',
+  border: '#333333',
+  disabled: '#555555',
+  successBg: '#1B3D1F',
+  warningBg: '#3D3520',
+  dangerBg: '#3D1F1F',
+};
+
 export const SPACING = {
   xs: 4,
   sm: 8,

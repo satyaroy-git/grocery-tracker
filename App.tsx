@@ -5,6 +5,7 @@ import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, P
 import AppNavigator from './src/navigation/AppNavigator';
 import { processAutoDeductions } from './src/utils/autoConsumption';
 import { COLORS } from './src/constants/theme';
+import { ThemeProvider } from './src/hooks/useTheme';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -42,9 +43,11 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
-      <AppNavigator />
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
+        <AppNavigator />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }

@@ -14,8 +14,10 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constant
 import { ALERT_FREQUENCIES } from '../constants/categories';
 import { getSettings, updateSettings, resetDatabase } from '../database';
 import { AppSettings, ConsumptionMode, AlertFrequency } from '../database';
+import { useTheme } from '../hooks/useTheme';
 
 export default function SettingsScreen() {
+  const { mode, setMode, isDark, colors } = useTheme();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -206,6 +208,25 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Dark Mode */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <View style={styles.themeRow}>
+          <TouchableOpacity style={[styles.themeBtn, mode === 'light' && styles.themeBtnActive]} onPress={() => setMode('light')}>
+            <Ionicons name="sunny-outline" size={20} color={mode === 'light' ? '#fff' : COLORS.textSecondary} />
+            <Text style={[styles.themeBtnText, mode === 'light' && styles.themeBtnTextActive]}>Light</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.themeBtn, mode === 'dark' && styles.themeBtnActive]} onPress={() => setMode('dark')}>
+            <Ionicons name="moon-outline" size={20} color={mode === 'dark' ? '#fff' : COLORS.textSecondary} />
+            <Text style={[styles.themeBtnText, mode === 'dark' && styles.themeBtnTextActive]}>Dark</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.themeBtn, mode === 'system' && styles.themeBtnActive]} onPress={() => setMode('system')}>
+            <Ionicons name="phone-portrait-outline" size={20} color={mode === 'system' ? '#fff' : COLORS.textSecondary} />
+            <Text style={[styles.themeBtnText, mode === 'system' && styles.themeBtnTextActive]}>System</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Danger Zone */}
       <View style={styles.dangerSection}>
         <Text style={styles.dangerTitle}>Danger Zone</Text>
@@ -328,6 +349,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.danger + '30',
   },
+  themeRow: { flexDirection: 'row', gap: SPACING.sm },
+  themeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: SPACING.md, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border, gap: SPACING.xs },
+  themeBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  themeBtnText: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
+  themeBtnTextActive: { color: '#fff', fontWeight: '600' },
   dangerTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
