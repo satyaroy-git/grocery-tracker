@@ -207,7 +207,7 @@ export default function ItemListScreen() {
           <TouchableOpacity style={styles.recipeFab} onPress={() => navigation.navigate('RecipeSuggestions')}><Ionicons name="nutrition-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity style={styles.barcodeFab} onPress={() => navigation.navigate('BarcodeScanner')}><Ionicons name="barcode-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity style={styles.importFab} onPress={() => navigation.navigate('BulkImport')}><Ionicons name="clipboard-outline" size={22} color="#fff" /></TouchableOpacity>
-          <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddItem')}><Ionicons name="add" size={28} color="#fff" /></TouchableOpacity>
+          <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddItem', {})}><Ionicons name="add" size={28} color="#fff" /></TouchableOpacity>
         </>
       )}
     </View>

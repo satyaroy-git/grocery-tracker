@@ -23,7 +23,7 @@ export type DashboardStackParamList = {
 export type InventoryStackParamList = {
   ItemList: undefined;
   ItemDetail: { itemId: string };
-  AddItem: undefined;
+  AddItem: { prefill?: { name?: string; category?: string; unit?: string; quantity?: string } };
   EditItem: { itemId: string };
   LogUsage: { itemId?: string };
   Restock: { itemId: string };

@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import {
@@ -24,17 +24,20 @@ import { createItem, logConsumption } from '../database';
 import { ConsumptionMode, ConsumptionFrequency } from '../database';
 import { trackUsageAndPromptRating } from '../utils/ratingPrompt';
 import { detectCategoryFromName, detectUnitFromName } from '../utils/autoCategorize';
+import { InventoryStackParamList } from '../navigation/types';
 
 export default function AddItemScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const route = useRoute<RouteProp<InventoryStackParamList, 'AddItem'>>();
+  const prefill = route.params?.prefill;
 
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
+  const [name, setName] = useState(prefill?.name || '');
+  const [category, setCategory] = useState(prefill?.category || DEFAULT_CATEGORIES[0]);
   const [customCategory, setCustomCategory] = useState('');
   const [showCustomCategory, setShowCustomCategory] = useState(false);
-  const [unit, setUnit] = useState(UNITS_OF_MEASUREMENT[0].value);
-  const [currentQuantity, setCurrentQuantity] = useState('');
+  const [unit, setUnit] = useState(prefill?.unit || UNITS_OF_MEASUREMENT[0].value);
+  const [currentQuantity, setCurrentQuantity] = useState(prefill?.quantity || '');
   const [threshold, setThreshold] = useState('');
   const [consumptionMode, setConsumptionMode] = useState<ConsumptionMode>('manual');
   const [autoRate, setAutoRate] = useState('');

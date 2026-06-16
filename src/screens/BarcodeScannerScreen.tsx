@@ -11,8 +11,11 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { lookupBarcode, ProductInfo } from '../utils/barcodeLookup';
-import { createItem } from '../database';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { InventoryStackParamList } from '../navigation/types';
+
+type NavProp = NativeStackNavigationProp<InventoryStackParamList>;
 
 type ScanState = 'scanning' | 'loading' | 'found' | 'not_found';
 
@@ -20,7 +23,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const FRAME_SIZE = SCREEN_WIDTH * 0.7;
 
 export default function BarcodeScannerScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavProp>();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [product, setProduct] = useState<ProductInfo | null>(null);
@@ -52,22 +55,14 @@ export default function BarcodeScannerScreen() {
 
   const handleAddToPantry = async () => {
     if (!product) return;
-
-    setIsAdding(true);
-    try {
-      await createItem({
-        name: product.name,
+    navigation.replace('AddItem', {
+      prefill: {
+        name: product.brand ? `${product.brand} ${product.name}` : product.name,
         category: product.category,
         unit: product.unit || 'pieces',
-        currentQuantity: parseFloat(product.quantity) || 1,
-        threshold: 1,
-        consumptionMode: 'manual',
-      });
-      navigation.goBack();
-    } catch (error) {
-      // error handled silently
-      setIsAdding(false);
-    }
+        quantity: product.quantity || '1',
+      },
+    });
   };
 
   const handleScanAgain = () => {
@@ -77,7 +72,7 @@ export default function BarcodeScannerScreen() {
   };
 
   const handleAddManually = () => {
-    navigation.goBack();
+    navigation.replace('AddItem', { prefill: {} });
   };
 
   // Permission not yet determined
