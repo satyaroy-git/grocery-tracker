@@ -14,13 +14,20 @@
     },
     "ios": {
       "supportsTablet": true,
-      "icon": "./assets/icon.png"
+      "icon": "./assets/icon.png",
+      "bundleIdentifier": "com.pantrypal.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "PantryPal needs camera access to scan product barcodes.",
+        "CFBundleDisplayName": "PantryPal"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#2E7D32",
         "foregroundImage": "./assets/icon.png"
-      }
+      },
+      "package": "com.pantrypal.app",
+      "permissions": ["CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
