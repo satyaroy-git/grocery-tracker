@@ -1,156 +1,215 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  FlatList,
+  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, Image, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { parseOrderText, ParsedItem, PASTE_EXAMPLES } from '../utils/orderParser';
+import { extractTextFromImage, cleanReceiptText } from '../utils/receiptOcr';
 import { createItem } from '../database';
 
-type Step = 'paste' | 'review';
+type Step = 'choose' | 'paste' | 'review';
 
 export default function BulkImportScreen() {
   const navigation = useNavigation();
-  const [step, setStep] = useState<Step>('paste');
+  const [step, setStep] = useState<Step>('choose');
   const [inputText, setInputText] = useState('');
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
   const [importing, setImporting] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
 
   const handleParse = () => {
     const items = parseOrderText(inputText);
     if (items.length === 0) {
-      Alert.alert('No Items Found', 'Could not detect any grocery items from the text. Try pasting your order details or a list of items.');
+      Alert.alert('No Items Found', 'Could not detect any grocery items. Try editing the text to have one item per line.');
       return;
     }
     setParsedItems(items);
     setStep('review');
   };
 
+  const handlePickImage = async (useCamera: boolean) => {
+    try {
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') { Alert.alert('Permission Required', 'Camera access is needed.'); return; }
+      }
+
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, base64: true })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const asset = result.assets[0];
+      setReceiptImage(asset.uri);
+      setScanning(true);
+
+      if (asset.base64) {
+        const ocrResult = await extractTextFromImage(asset.base64);
+        setScanning(false);
+        if (ocrResult.success && ocrResult.text) {
+          const cleaned = cleanReceiptText(ocrResult.text);
+          setInputText(cleaned);
+          setStep('paste');
+          Alert.alert('Text Extracted', 'Review the extracted text below. Edit if needed, then tap "Parse Items".');
+        } else {
+          setStep('paste');
+          Alert.alert('OCR Issue', ocrResult.error || 'Could not read text clearly. Please type the items manually.');
+        }
+      } else {
+        setScanning(false);
+        setStep('paste');
+      }
+    } catch (e) {
+      setScanning(false);
+      setStep('paste');
+      Alert.alert('Error', 'Failed to process image. Please paste items manually.');
+    }
+  };
+
   const toggleItem = (id: string) => {
-    setParsedItems((prev) =>
-      prev.map((item) => item.id === id ? { ...item, selected: !item.selected } : item)
-    );
+    setParsedItems((prev) => prev.map((item) => item.id === id ? { ...item, selected: !item.selected } : item));
   };
 
   const updateItemField = (id: string, field: keyof ParsedItem, value: any) => {
-    setParsedItems((prev) =>
-      prev.map((item) => item.id === id ? { ...item, [field]: value } : item)
-    );
+    setParsedItems((prev) => prev.map((item) => item.id === id ? { ...item, [field]: value } : item));
   };
 
   const selectAll = () => setParsedItems((prev) => prev.map((i) => ({ ...i, selected: true })));
   const deselectAll = () => setParsedItems((prev) => prev.map((i) => ({ ...i, selected: false })));
-
   const selectedCount = parsedItems.filter((i) => i.selected).length;
 
   const handleImport = async () => {
     const itemsToImport = parsedItems.filter((i) => i.selected);
-    if (itemsToImport.length === 0) {
-      Alert.alert('No Items Selected', 'Please select at least one item to import.');
-      return;
-    }
-
+    if (itemsToImport.length === 0) { Alert.alert('No Items Selected', 'Select at least one item.'); return; }
     setImporting(true);
     try {
-      let successCount = 0;
       for (const item of itemsToImport) {
-        await createItem({
-          name: item.name,
-          category: item.category,
-          unit: item.unit,
-          currentQuantity: item.quantity,
-          threshold: Math.max(1, Math.round(item.quantity * 0.2)),
-          consumptionMode: 'manual',
-        });
-        successCount++;
+        await createItem({ name: item.name, category: item.category, unit: item.unit, currentQuantity: item.quantity, threshold: Math.max(1, Math.round(item.quantity * 0.2)), consumptionMode: 'manual' });
       }
-      Alert.alert(
-        'Import Complete!',
-        `Successfully added ${successCount} items to your pantry.`,
-        [{ text: 'Great!', onPress: () => navigation.goBack() }]
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Some items failed to import. Please try again.');
-    } finally {
-      setImporting(false);
-    }
+      Alert.alert('Import Complete!', `Added ${itemsToImport.length} items to your pantry.`, [{ text: 'Great!', onPress: () => navigation.goBack() }]);
+    } catch (e) { Alert.alert('Error', 'Some items failed to import.'); }
+    finally { setImporting(false); }
   };
 
-  // PASTE STEP
-  if (step === 'paste') {
+  // ===== CHOOSE STEP =====
+  if (step === 'choose') {
     return (
-      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.container} contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
         <View style={styles.headerCard}>
-          <Ionicons name="clipboard-outline" size={32} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Quick Import</Text>
+          <Ionicons name="receipt-outline" size={36} color={COLORS.primary} />
+          <Text style={styles.headerTitle}>Import Groceries</Text>
           <Text style={styles.headerSubtitle}>
-            Paste your order details from Blinkit, Instamart, Flipkart, Zepto, or any grocery app.
-            Copy from your order emails, SMS, or app notifications.
+            Add items from your Blinkit, Instamart, or Flipkart orders
           </Text>
         </View>
 
+        {scanning && (
+          <View style={styles.scanningCard}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.scanningText}>Reading receipt...</Text>
+          </View>
+        )}
+
+        {/* Scan Receipt */}
+        <Text style={styles.sectionLabel}>SCAN RECEIPT (Beta)</Text>
+
+        <TouchableOpacity style={styles.optionCard} onPress={() => handlePickImage(true)}>
+          <View style={[styles.optionIcon, { backgroundColor: COLORS.primaryLight + '20' }]}>
+            <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
+          </View>
+          <View style={styles.optionContent}>
+            <Text style={styles.optionTitle}>Take Photo</Text>
+            <Text style={styles.optionDesc}>Snap a photo of your receipt/invoice</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.optionCard} onPress={() => handlePickImage(false)}>
+          <View style={[styles.optionIcon, { backgroundColor: COLORS.secondary + '20' }]}>
+            <Ionicons name="image-outline" size={28} color={COLORS.secondary} />
+          </View>
+          <View style={styles.optionContent}>
+            <Text style={styles.optionTitle}>Upload from Gallery</Text>
+            <Text style={styles.optionDesc}>Pick a screenshot of your order</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.betaNote}>
+          <Ionicons name="information-circle-outline" size={16} color={COLORS.textSecondary} />
+          <Text style={styles.betaNoteText}>OCR may not be 100% accurate. You can edit the extracted text before importing.</Text>
+        </View>
+
+        {/* Paste Text */}
+        <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>PASTE TEXT (Recommended)</Text>
+
+        <TouchableOpacity style={styles.optionCard} onPress={() => { setReceiptImage(null); setStep('paste'); }}>
+          <View style={[styles.optionIcon, { backgroundColor: COLORS.success + '20' }]}>
+            <Ionicons name="clipboard-outline" size={28} color={COLORS.success} />
+          </View>
+          <View style={styles.optionContent}>
+            <Text style={styles.optionTitle}>Paste Order Text</Text>
+            <Text style={styles.optionDesc}>Copy from email, SMS, or app — most reliable!</Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  // ===== PASTE STEP =====
+  if (step === 'paste') {
+    return (
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: SPACING.md, paddingBottom: SPACING.xxl }}>
+        <TouchableOpacity onPress={() => setStep('choose')} style={styles.backRow}>
+          <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+
+        {receiptImage && (
+          <View style={styles.receiptPreview}>
+            <Image source={{ uri: receiptImage }} style={styles.receiptImage} resizeMode="contain" />
+          </View>
+        )}
+
         <View style={styles.field}>
-          <Text style={styles.label}>Paste Order Text</Text>
+          <Text style={styles.label}>{receiptImage ? 'Extracted Text (edit if needed)' : 'Paste Order Text'}</Text>
           <TextInput
             style={styles.textArea}
-            placeholder={"Paste your order here...\n\nExamples:\n- Tata Salt 1kg\n- Amul Butter 500g\n- Onion 2 kg\n- Milk 1 ltr"}
+            placeholder={"Paste items here, one per line:\n\nMaggi Noodles\nToor Dal 1kg\nAmul Butter 500g\nEggs 12\nHarpic"}
             placeholderTextColor={COLORS.textLight}
             multiline
-            numberOfLines={10}
+            numberOfLines={12}
             textAlignVertical="top"
             value={inputText}
             onChangeText={setInputText}
           />
         </View>
 
-        {/* Sample buttons */}
-        <View style={styles.samplesSection}>
-          <Text style={styles.samplesTitle}>Try a sample:</Text>
-          {PASTE_EXAMPLES.map((sample, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={styles.sampleChip}
-              onPress={() => setInputText(sample.text)}
-            >
-              <Ionicons name="document-text-outline" size={14} color={COLORS.primary} />
-              <Text style={styles.sampleChipText}>{sample.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {!receiptImage && (
+          <View style={styles.samplesSection}>
+            <Text style={styles.samplesTitle}>Try a sample:</Text>
+            {PASTE_EXAMPLES.map((sample, idx) => (
+              <TouchableOpacity key={idx} style={styles.sampleChip} onPress={() => setInputText(sample.text)}>
+                <Ionicons name="document-text-outline" size={14} color={COLORS.primary} />
+                <Text style={styles.sampleChipText}>{sample.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
-        {/* Tips */}
-        <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>Tips for best results:</Text>
-          <Text style={styles.tipItem}>  Copy order details from your email/SMS confirmations</Text>
-          <Text style={styles.tipItem}>  Supports: "Item 500g", "2 x Item", "Item, Item"</Text>
-          <Text style={styles.tipItem}>  Works with Blinkit, Instamart, Zepto, BigBasket, Flipkart</Text>
-          <Text style={styles.tipItem}>  Prices and order IDs are automatically ignored</Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.parseButton, !inputText.trim() && styles.buttonDisabled]}
-          onPress={handleParse}
-          disabled={!inputText.trim()}
-        >
+        <TouchableOpacity style={[styles.primaryBtn, !inputText.trim() && styles.btnDisabled]} onPress={handleParse} disabled={!inputText.trim()}>
           <Ionicons name="scan-outline" size={20} color="#fff" />
-          <Text style={styles.parseButtonText}>Parse Items</Text>
+          <Text style={styles.primaryBtnText}>Parse Items</Text>
         </TouchableOpacity>
-
-        <View style={{ height: SPACING.xxl }} />
       </ScrollView>
     );
   }
 
-  // REVIEW STEP
+  // ===== REVIEW STEP =====
   return (
     <View style={styles.container}>
       <View style={styles.reviewHeader}>
@@ -162,12 +221,8 @@ export default function BulkImportScreen() {
       </View>
 
       <View style={styles.selectActions}>
-        <TouchableOpacity onPress={selectAll}>
-          <Text style={styles.selectLink}>Select All</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={deselectAll}>
-          <Text style={styles.selectLink}>Deselect All</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={selectAll}><Text style={styles.selectLink}>Select All</Text></TouchableOpacity>
+        <TouchableOpacity onPress={deselectAll}><Text style={styles.selectLink}>Deselect All</Text></TouchableOpacity>
       </View>
 
       <FlatList
@@ -177,29 +232,14 @@ export default function BulkImportScreen() {
         renderItem={({ item }) => (
           <View style={[styles.itemCard, !item.selected && styles.itemCardDeselected]}>
             <TouchableOpacity style={styles.checkbox} onPress={() => toggleItem(item.id)}>
-              <Ionicons
-                name={item.selected ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={item.selected ? COLORS.primary : COLORS.textLight}
-              />
+              <Ionicons name={item.selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={item.selected ? COLORS.primary : COLORS.textLight} />
             </TouchableOpacity>
             <View style={styles.itemContent}>
-              <TextInput
-                style={styles.itemNameInput}
-                value={item.name}
-                onChangeText={(v) => updateItemField(item.id, 'name', v)}
-              />
+              <TextInput style={styles.itemNameInput} value={item.name} onChangeText={(v) => updateItemField(item.id, 'name', v)} />
               <View style={styles.itemMeta}>
-                <TextInput
-                  style={styles.itemQtyInput}
-                  value={item.quantity.toString()}
-                  keyboardType="decimal-pad"
-                  onChangeText={(v) => updateItemField(item.id, 'quantity', parseFloat(v) || 0)}
-                />
+                <TextInput style={styles.itemQtyInput} value={item.quantity.toString()} keyboardType="decimal-pad" onChangeText={(v) => updateItemField(item.id, 'quantity', parseFloat(v) || 0)} />
                 <Text style={styles.itemUnit}>{item.unit}</Text>
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{item.category}</Text>
-                </View>
+                <View style={styles.categoryBadge}><Text style={styles.categoryText}>{item.category}</Text></View>
               </View>
             </View>
           </View>
@@ -207,15 +247,9 @@ export default function BulkImportScreen() {
       />
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={[styles.importButton, (selectedCount === 0 || importing) && styles.buttonDisabled]}
-          onPress={handleImport}
-          disabled={selectedCount === 0 || importing}
-        >
+        <TouchableOpacity style={[styles.primaryBtn, (selectedCount === 0 || importing) && styles.btnDisabled]} onPress={handleImport} disabled={selectedCount === 0 || importing}>
           <Ionicons name="download-outline" size={20} color="#fff" />
-          <Text style={styles.importButtonText}>
-            {importing ? 'Importing...' : `Import ${selectedCount} Items to Pantry`}
-          </Text>
+          <Text style={styles.primaryBtnText}>{importing ? 'Importing...' : `Import ${selectedCount} Items to Pantry`}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -224,25 +258,36 @@ export default function BulkImportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  headerCard: { alignItems: 'center', backgroundColor: COLORS.surface, margin: SPACING.md, padding: SPACING.lg, borderRadius: BORDER_RADIUS.lg, ...SHADOWS.sm },
+  headerCard: { alignItems: 'center', backgroundColor: COLORS.surface, padding: SPACING.lg, borderRadius: BORDER_RADIUS.lg, marginBottom: SPACING.lg, ...SHADOWS.sm },
   headerTitle: { fontSize: FONT_SIZES.xxl, fontWeight: '700', color: COLORS.text, marginTop: SPACING.sm },
-  headerSubtitle: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.xs, lineHeight: 20 },
-  field: { paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
+  headerSubtitle: { fontSize: FONT_SIZES.md, color: COLORS.textSecondary, textAlign: 'center', marginTop: SPACING.xs },
+  sectionLabel: { fontSize: FONT_SIZES.xs, fontWeight: '700', color: COLORS.textSecondary, marginBottom: SPACING.sm, letterSpacing: 1 },
+  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.lg, marginBottom: SPACING.sm, ...SHADOWS.sm },
+  optionIcon: { width: 48, height: 48, borderRadius: BORDER_RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  optionContent: { flex: 1, marginLeft: SPACING.md },
+  optionTitle: { fontSize: FONT_SIZES.md, fontWeight: '600', color: COLORS.text },
+  optionDesc: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, marginTop: 2 },
+  betaNote: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.xs, paddingHorizontal: SPACING.sm },
+  betaNoteText: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, flex: 1 },
+  scanningCard: { alignItems: 'center', padding: SPACING.lg, backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.lg, marginBottom: SPACING.md },
+  scanningText: { marginTop: SPACING.sm, fontSize: FONT_SIZES.md, color: COLORS.textSecondary },
+  // Paste step
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: SPACING.md },
+  backText: { fontSize: FONT_SIZES.md, color: COLORS.primary, fontWeight: '500' },
+  receiptPreview: { marginBottom: SPACING.md, borderRadius: BORDER_RADIUS.md, overflow: 'hidden', backgroundColor: COLORS.surface, ...SHADOWS.sm },
+  receiptImage: { width: '100%', height: 150, backgroundColor: COLORS.background },
+  field: { marginBottom: SPACING.md },
   label: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.textSecondary, marginBottom: SPACING.xs, textTransform: 'uppercase' },
-  textArea: { backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, fontSize: FONT_SIZES.md, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, minHeight: 200 },
-  samplesSection: { paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
+  textArea: { backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, fontSize: FONT_SIZES.md, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, minHeight: 220 },
+  samplesSection: { marginBottom: SPACING.md },
   samplesTitle: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, marginBottom: SPACING.xs },
   sampleChip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: COLORS.surface, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.full, borderWidth: 1, borderColor: COLORS.primary, gap: SPACING.xs, marginBottom: SPACING.xs },
   sampleChipText: { fontSize: FONT_SIZES.sm, color: COLORS.primary, fontWeight: '500' },
-  tipsCard: { backgroundColor: COLORS.warningBg, marginHorizontal: SPACING.md, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.lg },
-  tipsTitle: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.xs },
-  tipItem: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, lineHeight: 20 },
-  parseButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, marginHorizontal: SPACING.md, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.md },
-  parseButtonText: { color: '#fff', fontSize: FONT_SIZES.lg, fontWeight: '600' },
-  buttonDisabled: { opacity: 0.5 },
-  reviewHeader: { flexDirection: 'row', alignItems: 'center', paddingRight: SPACING.md },
-  backRow: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, gap: SPACING.xs },
-  backText: { fontSize: FONT_SIZES.md, color: COLORS.primary, fontWeight: '500' },
+  primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.md },
+  primaryBtnText: { color: '#fff', fontSize: FONT_SIZES.md, fontWeight: '600' },
+  btnDisabled: { opacity: 0.5 },
+  // Review step
+  reviewHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingTop: SPACING.md },
   reviewTitle: { fontSize: FONT_SIZES.lg, fontWeight: '600', color: COLORS.text, marginLeft: SPACING.sm },
   selectActions: { flexDirection: 'row', paddingHorizontal: SPACING.md, marginBottom: SPACING.sm, gap: SPACING.lg },
   selectLink: { fontSize: FONT_SIZES.md, color: COLORS.primary, fontWeight: '500' },
@@ -257,6 +302,4 @@ const styles = StyleSheet.create({
   categoryBadge: { backgroundColor: COLORS.primaryLight + '20', paddingHorizontal: SPACING.sm, paddingVertical: 2, borderRadius: BORDER_RADIUS.full, marginLeft: 'auto' },
   categoryText: { fontSize: FONT_SIZES.xs, color: COLORS.primary, fontWeight: '500' },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: SPACING.md, backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border },
-  importButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, gap: SPACING.sm, ...SHADOWS.md },
-  importButtonText: { color: '#fff', fontSize: FONT_SIZES.md, fontWeight: '600' },
 });
