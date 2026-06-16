@@ -21,7 +21,7 @@ export default function ShoppingTemplatesScreen() {
   const loadTemplates = useCallback(async () => {
     try {
       setTemplates(await getAllTemplates());
-    } catch (e) { console.error(e); }
+    } catch (e) { /* silent */ }
   }, []);
 
   useFocusEffect(useCallback(() => { loadTemplates(); }, [loadTemplates]));

@@ -41,6 +41,6 @@ export async function processAutoDeductions(): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('Auto-deduction processing failed:', error);
+    // error handled silently
   }
 }

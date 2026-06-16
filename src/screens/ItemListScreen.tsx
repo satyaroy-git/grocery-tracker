@@ -21,7 +21,7 @@ export default function ItemListScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const loadItems = useCallback(async () => { try { setItems(await getAllItems()); } catch (e) { console.error(e); } }, []);
+  const loadItems = useCallback(async () => { try { setItems(await getAllItems()); } catch (e) { /* silent */ } }, []);
   useFocusEffect(useCallback(() => { loadItems(); }, [loadItems]));
   const onRefresh = async () => { setRefreshing(true); await loadItems(); setRefreshing(false); };
 

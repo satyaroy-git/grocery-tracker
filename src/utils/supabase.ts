@@ -65,7 +65,7 @@ export async function createFamily(displayName: string): Promise<{ familyId: str
 
     return { familyId: family.id, familyCode };
   } catch (error) {
-    console.error('Create family failed:', error);
+    // error handled silently
     return null;
   }
 }
@@ -93,7 +93,7 @@ export async function joinFamily(familyCode: string, displayName: string): Promi
 
     return { familyId: family.id, familyName: family.name };
   } catch (error) {
-    console.error('Join family failed:', error);
+    // error handled silently
     return null;
   }
 }

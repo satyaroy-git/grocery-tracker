@@ -43,7 +43,7 @@ export default function BarcodeScannerScreen() {
           setScanState('not_found');
         }
       } catch (error) {
-        console.error('Barcode lookup error:', error);
+        // error handled silently
         setScanState('not_found');
       }
     },
@@ -65,7 +65,7 @@ export default function BarcodeScannerScreen() {
       });
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to add item:', error);
+      // error handled silently
       setIsAdding(false);
     }
   };

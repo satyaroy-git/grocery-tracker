@@ -48,7 +48,7 @@ export default function InsightsScreen() {
         setSelectedItemId(allItems[0].id);
       }
     } catch (error) {
-      console.error('Failed to load insights:', error);
+      // error handled silently
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ export default function InsightsScreen() {
       const data = await getWeeklyConsumption(itemId, 4);
       setWeeklyData(data);
     } catch (error) {
-      console.error('Failed to load weekly data:', error);
+      // error handled silently
     }
   };
 

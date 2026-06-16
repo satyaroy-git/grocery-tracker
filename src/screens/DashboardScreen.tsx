@@ -25,7 +25,7 @@ export default function DashboardScreen() {
       setItems(allItems);
       setExpiringItems(expiring);
       setMonthlySpend(spend);
-    } catch (error) { console.error('Failed to load dashboard data:', error); }
+    } catch (error) { /* silent */ }
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));

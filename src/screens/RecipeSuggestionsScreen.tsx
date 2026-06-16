@@ -46,7 +46,7 @@ export default function RecipeSuggestionsScreen() {
       const results = await getRecipeSuggestions(names);
       setSuggestions(results);
     } catch (error) {
-      console.error('Failed to load recipe suggestions:', error);
+      // error handled silently
       setSuggestions([]);
     } finally {
       setLoading(false);
@@ -69,7 +69,7 @@ export default function RecipeSuggestionsScreen() {
         setSelectedRecipe(details);
       }
     } catch (error) {
-      console.error('Failed to load recipe details:', error);
+      // error handled silently
     } finally {
       setDetailsLoading(false);
     }

@@ -26,10 +26,10 @@ export default function App() {
         await notifications.requestNotificationPermissions();
         await notifications.checkAndNotifyLowStock();
       } catch (e) {
-        console.log('Notifications not available in this environment');
+        // silent
       }
     } catch (error) {
-      console.error('App initialization error:', error);
+      // error handled silently
     }
   }
 

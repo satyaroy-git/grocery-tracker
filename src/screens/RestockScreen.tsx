@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { getItemById, restockItem, logConsumption } from '../database';
+import { trackUsageAndPromptRating } from '../utils/ratingPrompt';
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 
@@ -89,6 +90,7 @@ export default function RestockScreen() {
         const priceVal = price.trim() ? parseFloat(price) : undefined;
         await logConsumption(item!.id, addedAmount, 'restock', undefined, priceVal);
       }
+      trackUsageAndPromptRating();
       Alert.alert(
         'Success',
         `Restocked ${item!.name} to ${finalAmount} ${item!.unit}`,

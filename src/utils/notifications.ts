@@ -14,7 +14,7 @@ try {
     }),
   });
 } catch (e) {
-  console.log('expo-notifications not available');
+  // silent
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
@@ -36,7 +36,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     }
     return true;
   } catch (e) {
-    console.log('Notification permissions error:', e);
+    // silent
     return false;
   }
 }
@@ -91,7 +91,7 @@ export async function checkAndNotifyLowStock(): Promise<void> {
 
     await updateSettings({ lastNotificationCheck: now });
   } catch (e) {
-    console.log('Low stock notification error:', e);
+    // silent
   }
 }
 
@@ -108,6 +108,6 @@ export async function scheduleAutoDeductionCheck(): Promise<void> {
       trigger: { hour: 9, minute: 0, repeats: true },
     });
   } catch (e) {
-    console.log('Schedule notification error:', e);
+    // silent
   }
 }

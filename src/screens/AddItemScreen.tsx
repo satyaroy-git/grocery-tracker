@@ -21,6 +21,7 @@ import {
 } from '../constants/categories';
 import { createItem } from '../database';
 import { ConsumptionMode, ConsumptionFrequency } from '../database';
+import { trackUsageAndPromptRating } from '../utils/ratingPrompt';
 
 export default function AddItemScreen() {
   const navigation = useNavigation();
@@ -72,6 +73,7 @@ export default function AddItemScreen() {
         autoConsumptionFrequency: consumptionMode === 'auto' ? autoFrequency : null,
         expiryDate: expiryDate.trim() || null,
       });
+      trackUsageAndPromptRating();
       navigation.goBack();
     } catch (error) {
       Alert.alert('Error', 'Failed to save item. Please try again.');
