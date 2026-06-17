@@ -20,6 +20,7 @@ export default function DashboardScreen() {
   const [expiringItems, setExpiringItems] = useState<GroceryItemWithStatus[]>([]);
   const [monthlySpend, setMonthlySpend] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showRestockPicker, setShowRestockPicker] = useState(false);
   const [predictions, setPredictions] = useState<ReorderPrediction[]>([]);
 
   const loadData = useCallback(async () => {
@@ -128,11 +129,34 @@ export default function DashboardScreen() {
             <Ionicons name="remove-circle-outline" size={20} color="#fff" />
             <Text style={styles.actionText}>Log Usage</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.secondary }]} onPress={() => { if (items.length > 0) navigation.navigate('Restock', { itemId: items[0].id }); }}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.secondary }]} onPress={() => { if (items.length > 0) setShowRestockPicker(true); }}>
             <Ionicons name="add-circle-outline" size={20} color="#fff" />
             <Text style={styles.actionText}>Restock</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Restock Item Picker */}
+        {showRestockPicker && (
+          <View style={{ backgroundColor: colors.surface, borderRadius: BORDER_RADIUS.lg, marginTop: SPACING.sm, padding: SPACING.sm, ...SHADOWS.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm, paddingHorizontal: SPACING.sm }}>
+              <Text style={{ fontSize: FONT_SIZES.md, fontWeight: '600', color: colors.text }}>Select item to restock:</Text>
+              <TouchableOpacity onPress={() => setShowRestockPicker(false)}>
+                <Ionicons name="close-circle" size={22} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            {items.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={{ flexDirection: 'row', alignItems: 'center', padding: SPACING.sm, borderRadius: BORDER_RADIUS.md, marginBottom: 4 }}
+                onPress={() => { setShowRestockPicker(false); navigation.navigate('Restock', { itemId: item.id }); }}
+              >
+                <Ionicons name="cube-outline" size={18} color={COLORS.primary} />
+                <Text style={{ flex: 1, marginLeft: SPACING.sm, fontSize: FONT_SIZES.md, color: colors.text }}>{item.name}</Text>
+                <Text style={{ fontSize: FONT_SIZES.sm, color: colors.textSecondary }}>{item.currentQuantity} {item.unit}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={styles.section}>
