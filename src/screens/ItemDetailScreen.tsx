@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 import { getItemById, deleteItem, getConsumptionLogs } from '../database';
 import { GroceryItemWithStatus, ConsumptionLog } from '../database';
 import { InventoryStackParamList } from '../navigation/types';

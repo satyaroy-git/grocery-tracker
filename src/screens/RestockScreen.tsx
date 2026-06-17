@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 import { getItemById, restockItem, logConsumption } from '../database';
 import { trackUsageAndPromptRating } from '../utils/ratingPrompt';
 import { GroceryItemWithStatus } from '../database';
