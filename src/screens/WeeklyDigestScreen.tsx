@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, COLORS } from '../constants/theme';
-import { getRecentConsumptionLogs, getTotalSpendThisMonth, getExpiringItems } from '../database';
+import { getRecentConsumptionLogs, getTotalSpendThisMonth, getExpiringItems, getAllItems } from '../database';
 import { ConsumptionLog, GroceryItemWithStatus } from '../database/types';
 import { getReorderPredictions, ReorderPrediction } from '../utils/predictions';
 import { useTheme } from '../hooks/useTheme';
@@ -31,11 +31,12 @@ export default function WeeklyDigestScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [logs, spend, expiring, predictions] = await Promise.all([
+      const [logs, spend, expiring, predictions, allItems] = await Promise.all([
         getRecentConsumptionLogs(7),
         getTotalSpendThisMonth(),
         getExpiringItems(),
         getReorderPredictions(),
+        getAllItems(),
       ]);
 
       const consumptionLogs = logs.filter(
@@ -48,10 +49,16 @@ export default function WeeklyDigestScreen() {
         0
       );
 
+      // Build a map of itemId → item name
+      const itemNameMap: Record<string, string> = {};
+      for (const item of allItems) {
+        itemNameMap[item.id] = item.name;
+      }
+
       const itemConsumption: Record<string, number> = {};
       for (const log of consumptionLogs) {
-        const key = log.itemId;
-        itemConsumption[key] = (itemConsumption[key] ?? 0) + log.quantity;
+        const name = itemNameMap[log.itemId] || 'Unknown Item';
+        itemConsumption[name] = (itemConsumption[name] ?? 0) + log.quantity;
       }
 
       const topConsumed = Object.entries(itemConsumption)
