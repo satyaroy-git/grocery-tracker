@@ -125,7 +125,7 @@ export default function RestockScreen() {
           <View style={styles.stockRow}>
             <Ionicons name="cube-outline" size={24} color={COLORS.primary} />
             <Text style={styles.stockValue}>
-              {item.currentQuantity} {item.unit}
+              {parseFloat(item.currentQuantity.toFixed(2))} {item.unit}
             </Text>
           </View>
           <Text style={styles.stockLabel}>Current Stock</Text>
@@ -200,7 +200,7 @@ export default function RestockScreen() {
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Current:</Text>
               <Text style={styles.previewValue}>
-                {item.currentQuantity} {item.unit}
+                {parseFloat(item.currentQuantity.toFixed(2))} {item.unit}
               </Text>
             </View>
             {mode === 'add' && (

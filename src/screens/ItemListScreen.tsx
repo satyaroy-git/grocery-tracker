@@ -127,7 +127,7 @@ export default function ItemListScreen() {
         <View style={styles.itemContent}>
           <View style={styles.itemHeader}><Text style={styles.itemName}>{item.name}</Text><View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} /></View>
           <Text style={styles.itemCategory}>{item.category}</Text>
-          <View style={styles.itemFooter}><Text style={styles.itemQuantity}>{item.currentQuantity} {item.unit}</Text>{item.daysUntilEmpty !== null && <Text style={styles.daysLeft}>~{item.daysUntilEmpty}d left</Text>}</View>
+          <View style={styles.itemFooter}><Text style={styles.itemQuantity}>{parseFloat(item.currentQuantity.toFixed(2))} {item.unit}</Text>{item.daysUntilEmpty !== null && <Text style={styles.daysLeft}>~{item.daysUntilEmpty}d left</Text>}</View>
           <View style={styles.progressBar}><View style={[styles.progressFill, { width: `${Math.min(100, (item.currentQuantity / Math.max(item.threshold * 2, 1)) * 100)}%`, backgroundColor: getStatusColor(item.status) }]} /></View>
         </View>
       </View>

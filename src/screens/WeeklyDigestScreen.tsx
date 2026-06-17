@@ -184,7 +184,7 @@ export default function WeeklyDigestScreen() {
                 <Text style={[styles.listItemName, { color: colors.text }]}>{item.name}</Text>
               </View>
               <Text style={[styles.listItemDetail, { color: colors.textSecondary }]}>
-                {item.quantity}x
+                {item.quantity.toFixed(2)}x
               </Text>
             </View>
           ))}

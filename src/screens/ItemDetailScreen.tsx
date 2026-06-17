@@ -160,7 +160,7 @@ export default function ItemDetailScreen() {
         <Text style={styles.cardTitle}>Stock Level</Text>
         <View style={styles.quantityRow}>
           <Text style={styles.quantityValue}>
-            {item.currentQuantity} {item.unit}
+            {parseFloat(item.currentQuantity.toFixed(2))} {item.unit}
           </Text>
           <Text style={styles.thresholdText}>
             Threshold: {item.threshold} {item.unit}
@@ -234,7 +234,7 @@ export default function ItemDetailScreen() {
               <View style={styles.logInfo}>
                 <Text style={styles.logText}>
                   {log.type === 'restock' ? '+' : '-'}
-                  {log.quantity} {item.unit}
+                  {parseFloat(log.quantity.toFixed(2))} {item.unit}
                   {log.type === 'auto' ? ' (auto)' : ''}
                 </Text>
                 {log.note && <Text style={styles.logNote}>{log.note}</Text>}

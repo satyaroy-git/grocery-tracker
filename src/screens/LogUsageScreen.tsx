@@ -160,7 +160,7 @@ export default function LogUsageScreen() {
                   >
                     <Text style={styles.dropdownItemName}>{item.name}</Text>
                     <Text style={styles.dropdownItemDetail}>
-                      {item.currentQuantity} {item.unit}
+                      {parseFloat(item.currentQuantity.toFixed(2))} {item.unit}
                     </Text>
                   </TouchableOpacity>
                 ))
@@ -174,7 +174,7 @@ export default function LogUsageScreen() {
           <View style={styles.selectedInfo}>
             <Text style={styles.selectedName}>{selectedItem.name}</Text>
             <Text style={styles.selectedStock}>
-              Current Stock: {selectedItem.currentQuantity} {selectedItem.unit}
+              Current Stock: {parseFloat(selectedItem.currentQuantity.toFixed(2))} {selectedItem.unit}
             </Text>
           </View>
         )}
@@ -230,7 +230,7 @@ export default function LogUsageScreen() {
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Current Stock:</Text>
               <Text style={styles.previewValue}>
-                {selectedItem.currentQuantity} {selectedItem.unit}
+                {parseFloat(selectedItem.currentQuantity.toFixed(2))} {selectedItem.unit}
               </Text>
             </View>
             <View style={styles.previewRow}>

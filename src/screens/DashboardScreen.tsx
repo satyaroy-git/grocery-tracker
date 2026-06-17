@@ -152,7 +152,7 @@ export default function DashboardScreen() {
               >
                 <Ionicons name="cube-outline" size={18} color={COLORS.primary} />
                 <Text style={{ flex: 1, marginLeft: SPACING.sm, fontSize: FONT_SIZES.md, color: colors.text }}>{item.name}</Text>
-                <Text style={{ fontSize: FONT_SIZES.sm, color: colors.textSecondary }}>{item.currentQuantity} {item.unit}</Text>
+                <Text style={{ fontSize: FONT_SIZES.sm, color: colors.textSecondary }}>{parseFloat(item.currentQuantity.toFixed(2))} {item.unit}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -192,7 +192,7 @@ export default function DashboardScreen() {
         ) : (
           filteredItems.map((item) => (
             <TouchableOpacity key={item.id} style={styles.itemRow} onPress={() => navigation.navigate('LogUsage', { itemId: item.id })}>
-              <View style={styles.itemInfo}><Text style={styles.itemName}>{item.name}</Text><Text style={styles.itemDetail}>{item.currentQuantity} {item.unit} | {item.category}</Text></View>
+              <View style={styles.itemInfo}><Text style={styles.itemName}>{item.name}</Text><Text style={styles.itemDetail}>{parseFloat(item.currentQuantity.toFixed(2))} {item.unit} | {item.category}</Text></View>
               <View style={[styles.statusBadge, { backgroundColor: getStatusBg(item.status) }]}><View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} /><Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{getStatusLabel(item.status)}</Text></View>
             </TouchableOpacity>
           ))
