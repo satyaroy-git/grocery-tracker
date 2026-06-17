@@ -15,6 +15,7 @@ import {
   getAllItems,
   getRecentConsumptionLogs,
   getWeeklyConsumption,
+  getMonthlySpend,
 } from '../database';
 import { GroceryItemWithStatus, ConsumptionLog } from '../database';
 
@@ -22,6 +23,7 @@ export default function InsightsScreen() {
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [recentLogs, setRecentLogs] = useState<ConsumptionLog[]>([]);
   const [weeklyData, setWeeklyData] = useState<{ week: string; total: number }[]>([]);
+  const [monthlySpendData, setMonthlySpendData] = useState<{ month: string; total: number }[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,12 +41,14 @@ export default function InsightsScreen() {
 
   const loadData = async () => {
     try {
-      const [allItems, logs] = await Promise.all([
+      const [allItems, logs, spendHistory] = await Promise.all([
         getAllItems(),
         getRecentConsumptionLogs(30),
+        getMonthlySpend(6),
       ]);
       setItems(allItems);
       setRecentLogs(logs);
+      setMonthlySpendData(spendHistory);
       if (allItems.length > 0 && !selectedItemId) {
         setSelectedItemId(allItems[0].id);
       }
@@ -240,6 +244,63 @@ export default function InsightsScreen() {
               </View>
             </View>
           ))
+        )}
+      </View>
+
+      {/* Monthly Spend History */}
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <Ionicons name="wallet-outline" size={20} color={COLORS.primary} />
+          <Text style={styles.cardTitle}>Monthly Grocery Spend</Text>
+        </View>
+        {monthlySpendData.length === 0 ? (
+          <Text style={styles.emptyText}>No spend data yet. Add prices when restocking items.</Text>
+        ) : (
+          <>
+            {/* Bar Chart */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', height: 120, marginVertical: SPACING.md }}>
+              {monthlySpendData.map((item, index) => {
+                const maxSpend = Math.max(...monthlySpendData.map((d) => d.total), 1);
+                const barHeight = Math.max(8, (item.total / maxSpend) * 100);
+                const monthLabel = item.month.split('-')[1];
+                const monthNames: Record<string, string> = { '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec' };
+                return (
+                  <View key={index} style={{ alignItems: 'center' }}>
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginBottom: 4 }}>
+                      {item.total > 0 ? `${(item.total / 1000).toFixed(1)}k` : '0'}
+                    </Text>
+                    <View style={{ width: 32, height: barHeight, backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.sm }} />
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginTop: 4 }}>
+                      {monthNames[monthLabel] || monthLabel}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Monthly List */}
+            {monthlySpendData.slice().reverse().map((item, index) => {
+              const monthNames: Record<string, string> = { '01': 'January', '02': 'February', '03': 'March', '04': 'April', '05': 'May', '06': 'June', '07': 'July', '08': 'August', '09': 'September', '10': 'October', '11': 'November', '12': 'December' };
+              const [year, month] = item.month.split('-');
+              const monthName = monthNames[month] || month;
+              return (
+                <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.border + '40' }}>
+                  <Text style={{ fontSize: FONT_SIZES.md, color: COLORS.text }}>{monthName} {year}</Text>
+                  <Text style={{ fontSize: FONT_SIZES.md, fontWeight: '700', color: COLORS.primary }}>Rs. {item.total.toFixed(0)}</Text>
+                </View>
+              );
+            })}
+
+            {/* Average */}
+            {monthlySpendData.length > 1 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.md, marginTop: SPACING.sm, borderTopWidth: 2, borderTopColor: COLORS.border }}>
+                <Text style={{ fontSize: FONT_SIZES.md, fontWeight: '600', color: COLORS.textSecondary }}>Monthly Average</Text>
+                <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: '700', color: COLORS.success }}>
+                  Rs. {(monthlySpendData.reduce((sum, d) => sum + d.total, 0) / monthlySpendData.length).toFixed(0)}
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </View>
     </ScrollView>
