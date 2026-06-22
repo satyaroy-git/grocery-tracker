@@ -81,7 +81,7 @@ export default function AddShoppingItemScreen() {
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           {showCategoryPicker && (
-            <View style={styles.pickerOptions}>
+            <ScrollView style={styles.pickerOptions} nestedScrollEnabled={true}>
               {DEFAULT_CATEGORIES.map((cat) => (
                 <TouchableOpacity
                   key={cat}
@@ -101,7 +101,7 @@ export default function AddShoppingItemScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           )}
         </View>
 
@@ -216,7 +216,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: BORDER_RADIUS.md,
     marginTop: SPACING.xs,
-    maxHeight: 200,
+    maxHeight: 250,
+    overflow: 'hidden',
+    zIndex: 100,
+    elevation: 10,
   },
   pickerOption: {
     padding: SPACING.md,
