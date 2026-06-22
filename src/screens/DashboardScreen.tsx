@@ -51,7 +51,7 @@ export default function DashboardScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingTop: SPACING.sm }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}>
       <View style={styles.cardsRow}>
         <View style={[styles.card, { backgroundColor: COLORS.successBg }]}>
           <Ionicons name="cube-outline" size={24} color={COLORS.success} />
@@ -205,7 +205,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  cardsRow: { flexDirection: 'row', padding: SPACING.md, gap: SPACING.sm },
+  cardsRow: { flexDirection: 'row', padding: SPACING.md, paddingTop: SPACING.sm, gap: SPACING.sm },
   card: { flex: 1, padding: SPACING.md, borderRadius: BORDER_RADIUS.lg, alignItems: 'center', ...SHADOWS.sm },
   cardNumber: { fontSize: FONT_SIZES.xxl, fontWeight: '700', marginTop: SPACING.xs },
   cardLabel: { fontSize: FONT_SIZES.xs, color: COLORS.textSecondary, marginTop: 2 },

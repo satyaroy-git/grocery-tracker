@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
-import { getItemById, restockItem, logConsumption } from '../database';
+import { getItemById, restockItem, logConsumption, updateItem } from '../database';
 import { trackUsageAndPromptRating } from '../utils/ratingPrompt';
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
@@ -32,6 +32,7 @@ export default function RestockScreen() {
   const [mode, setMode] = useState<'add' | 'set'>('add');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -92,6 +93,10 @@ export default function RestockScreen() {
         await logConsumption(item!.id, addedAmount, 'restock', undefined, priceVal);
       }
       trackUsageAndPromptRating();
+      // Update expiry date if provided
+      if (expiryDate.trim()) {
+        await updateItem(item!.id, { expiryDate: expiryDate.trim() } as any);
+      }
       Alert.alert(
         'Success',
         `Restocked ${item!.name} to ${finalAmount} ${item!.unit}`,
@@ -192,6 +197,20 @@ export default function RestockScreen() {
             keyboardType="decimal-pad"
           />
           <Text style={{ fontSize: 11, color: COLORS.textSecondary, marginTop: 4 }}>Track your grocery spending over time</Text>
+        </View>
+
+        {/* Expiry Date */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Expiry Date (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={expiryDate}
+            onChangeText={setExpiryDate}
+            placeholder="YYYY-MM-DD (e.g., 2026-08-15)"
+            placeholderTextColor={COLORS.textLight}
+            keyboardType="numbers-and-punctuation"
+          />
+          <Text style={{ fontSize: 11, color: COLORS.textSecondary, marginTop: 4 }}>Update expiry for this restock batch</Text>
         </View>
 
         {/* Preview */}
