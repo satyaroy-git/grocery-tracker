@@ -7,7 +7,6 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constant
 import { GroceryItemWithStatus, getItemCount, getAllItems, getExpiringItems, getTotalSpendThisMonth } from '../database';
 import { DashboardStackParamList } from '../navigation/types';
 import { useTheme } from '../hooks/useTheme';
-import { getReorderPredictions, ReorderPrediction } from '../utils/predictions';
 
 type NavProp = NativeStackNavigationProp<DashboardStackParamList>;
 
@@ -21,16 +20,14 @@ export default function DashboardScreen() {
   const [monthlySpend, setMonthlySpend] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [showRestockPicker, setShowRestockPicker] = useState(false);
-  const [predictions, setPredictions] = useState<ReorderPrediction[]>([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [countData, allItems, expiring, spend, preds] = await Promise.all([getItemCount(), getAllItems(), getExpiringItems(), getTotalSpendThisMonth(), getReorderPredictions()]);
+      const [countData, allItems, expiring, spend] = await Promise.all([getItemCount(), getAllItems(), getExpiringItems(), getTotalSpendThisMonth()]);
       setCounts(countData);
       setItems(allItems);
       setExpiringItems(expiring);
       setMonthlySpend(spend);
-      setPredictions(preds.filter((p) => p.urgency !== 'ok').slice(0, 3));
     } catch (error) { /* silent */ }
   }, []);
 
@@ -100,28 +97,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Reorder Soon Section */}
-      {predictions.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reorder Soon</Text>
-          {predictions.map((pred) => (
-            <View key={pred.itemId} style={[styles.itemRow, { borderLeftWidth: 3, borderLeftColor: pred.urgency === 'critical' ? COLORS.danger : COLORS.warning }]}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{pred.name}</Text>
-                <Text style={[styles.itemDetail, { color: pred.urgency === 'critical' ? COLORS.danger : COLORS.warning }]}>
-                  {pred.daysUntilEmpty === 0 ? 'Empty now' : `~${pred.daysUntilEmpty} day${pred.daysUntilEmpty !== 1 ? 's' : ''} left`}
-                </Text>
-              </View>
-              <View style={{ backgroundColor: (pred.urgency === 'critical' ? COLORS.dangerBg : COLORS.warningBg), paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.full }}>
-                <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '700', color: pred.urgency === 'critical' ? COLORS.danger : COLORS.warning }}>
-                  {pred.urgency === 'critical' ? 'URGENT' : 'SOON'}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
+      {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionsRow}>
