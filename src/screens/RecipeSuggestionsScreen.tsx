@@ -95,7 +95,13 @@ export default function RecipeSuggestionsScreen() {
       onPress={() => handleRecipePress(item)}
       activeOpacity={0.7}
     >
-      <Image source={{ uri: item.recipe.thumbnail }} style={styles.thumbnail} />
+      {item.recipe.thumbnail ? (
+        <Image source={{ uri: item.recipe.thumbnail }} style={styles.thumbnail} />
+      ) : (
+        <View style={[styles.thumbnail, { backgroundColor: COLORS.successBg, justifyContent: 'center', alignItems: 'center' }]}>
+          <Ionicons name="restaurant-outline" size={36} color={COLORS.primary} />
+        </View>
+      )}
       <View style={styles.cardContent}>
         <Text style={styles.recipeName} numberOfLines={2}>
           {item.recipe.name}
@@ -189,10 +195,17 @@ export default function RecipeSuggestionsScreen() {
           <View style={styles.modalContainer}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Modal Header Image */}
-              <Image
-                source={{ uri: selectedRecipe.thumbnail }}
-                style={styles.modalImage}
-              />
+              {selectedRecipe.thumbnail ? (
+                <Image
+                  source={{ uri: selectedRecipe.thumbnail }}
+                  style={styles.modalImage}
+                />
+              ) : (
+                <View style={[styles.modalImage, { backgroundColor: COLORS.successBg, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="restaurant-outline" size={64} color={COLORS.primary} />
+                  <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: '600', color: COLORS.primary, marginTop: SPACING.sm }}>{selectedRecipe.name}</Text>
+                </View>
+              )}
 
               {/* Close Button */}
               <TouchableOpacity style={styles.modalCloseButton} onPress={closeModal}>
