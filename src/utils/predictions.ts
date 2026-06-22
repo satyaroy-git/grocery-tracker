@@ -26,6 +26,8 @@ function estimateDaysFromLogs(item: GroceryItemWithStatus, logs: ConsumptionLog[
   const consumptionLogs = logs.filter(
     (log) => log.type === 'manual' || log.type === 'auto'
   );
+  
+  // Need at least 2 consumption entries to estimate a rate
   if (consumptionLogs.length < 2) return null;
 
   const sortedLogs = [...consumptionLogs].sort(
@@ -36,14 +38,21 @@ function estimateDaysFromLogs(item: GroceryItemWithStatus, logs: ConsumptionLog[
   const lastDate = new Date(sortedLogs[sortedLogs.length - 1].createdAt).getTime();
   const daySpan = (lastDate - firstDate) / (1000 * 60 * 60 * 24);
 
-  if (daySpan < 1) return null;
+  // Need at least 3 days of history to make a reliable prediction
+  // Otherwise the estimate will be wildly inaccurate
+  if (daySpan < 3) return null;
 
   const totalConsumed = consumptionLogs.reduce((sum, log) => sum + log.quantity, 0);
   const dailyRate = totalConsumed / daySpan;
 
   if (dailyRate <= 0) return null;
 
-  return Math.floor(item.currentQuantity / dailyRate);
+  const daysUntilEmpty = Math.floor(item.currentQuantity / dailyRate);
+  
+  // Cap at reasonable maximum (don't show predictions beyond 90 days)
+  if (daysUntilEmpty > 90) return null;
+  
+  return daysUntilEmpty;
 }
 
 export async function getReorderPredictions(): Promise<ReorderPrediction[]> {
