@@ -48,7 +48,7 @@ export default function BulkImportScreen() {
     setImporting(true);
     try {
       for (const item of itemsToImport) {
-        await createItem({ name: item.name, category: item.category, unit: item.unit, currentQuantity: item.quantity, threshold: Math.max(1, Math.round(item.quantity * 0.2)), consumptionMode: 'manual' });
+        await createItem({ name: item.name, category: item.category, unit: item.unit, currentQuantity: item.quantity, threshold: 0, consumptionMode: 'manual' });
       }
       Alert.alert('Done!', `Added ${itemsToImport.length} items to pantry.`, [{ text: 'OK', onPress: () => navigation.goBack() }]);
     } catch (e) { Alert.alert('Error', 'Some items failed.'); }
