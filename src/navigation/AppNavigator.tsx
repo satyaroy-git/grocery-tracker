@@ -87,7 +87,8 @@ function MainTabNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.disabled,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: 8, paddingTop: 4, height: 70 },
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: 20, paddingTop: 6, height: 90 },
+        tabBarHideOnKeyboard: true,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500', fontFamily: 'Poppins_500Medium' },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
