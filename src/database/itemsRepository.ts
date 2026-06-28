@@ -103,7 +103,7 @@ export async function createItem(input: CreateItemInput): Promise<GroceryItemWit
     `INSERT INTO grocery_items (id, name, category, unit, current_quantity, threshold, consumption_mode, auto_consumption_rate, auto_consumption_frequency, expiry_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, input.name, input.category, input.unit, input.currentQuantity, input.threshold, input.consumptionMode, input.autoConsumptionRate ?? null, input.autoConsumptionFrequency ?? null, input.expiryDate ?? null, now, now]
   );
-  return (await getItemById(id))!;
+  return (await getItemById(id)) as GroceryItemWithStatus;
 }
 
 export async function updateItem(id: string, input: Partial<CreateItemInput>): Promise<GroceryItemWithStatus | null> {

@@ -85,14 +85,18 @@ export default function OnboardingScreen() {
     try {
       const selectedItems = templates.filter((t) => t.selected);
       for (const item of selectedItems) {
-        await createItem({
-          name: item.name,
-          category: item.category,
-          unit: item.unit,
-          currentQuantity: item.defaultQuantity,
-          threshold: item.threshold,
-          consumptionMode: 'manual',
-        });
+        try {
+          await createItem({
+            name: item.name,
+            category: item.category,
+            unit: item.unit,
+            currentQuantity: item.defaultQuantity,
+            threshold: item.threshold,
+            consumptionMode: 'manual',
+          });
+        } catch (itemError) {
+          // Skip items that fail (e.g., duplicates) and continue
+        }
       }
       await markOnboardingComplete();
       navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
