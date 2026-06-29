@@ -240,7 +240,7 @@ export default function OnboardingScreen() {
       {/* Select All / Clear All */}
       <View style={styles.bulkActions}>
         <TouchableOpacity style={styles.bulkButton} onPress={selectAll}>
-          <Ionicons name="checkbox-outline" size={18} color={COLORS.primary} />
+          <Ionicons name="checkmark-done-outline" size={18} color={COLORS.primary} />
           <Text style={styles.bulkButtonText}>Select All</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.bulkButton} onPress={clearAll}>
@@ -308,6 +308,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.surface,
     padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
     justifyContent: 'space-between',
   },
   welcomeContent: {
@@ -529,6 +530,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.xl,
   },
   skipTutorialButton: {
     paddingVertical: SPACING.md,
