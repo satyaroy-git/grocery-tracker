@@ -1,0 +1,83 @@
+DEPLOYMENT STEPS FOR BARCODE SCANNING FEATURE
+
+1. PRODUCTION SUPABASE SETUP (5 min)
+   - Go to supabase.com
+   - Create new project: pantrypal-production
+   - Region: ap-south-1 (India)
+   - Copy URL and anon key
+
+2. CREATE DATABASE
+   - Open Supabase SQL Editor
+   - Run SQL from BARCODE_SETUP.md
+   - Create products table with indexes
+   - Enable RLS and create read policy
+
+3. IMPORT PRODUCT DATA
+   - Run INSERT statements from BARCODE_SETUP.md
+   - Or use CSV import in Supabase
+   - Verify 10+ products imported
+
+4. CONFIGURE ENVIRONMENT
+   - Update .env with production credentials
+   - EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   - EXPO_PUBLIC_SUPABASE_ANON_KEY=your-key
+   - Add .env to .gitignore
+
+5. BUILD FOR PRODUCTION
+   - npm install -g eas-cli
+   - eas login
+   - eas build --platform android
+   - eas build --platform ios
+
+6. TEST BUILD
+   - Install APK on Android device
+   - Test barcode scanning
+   - Test manual entry
+   - Test name search
+   - Verify no errors
+
+7. DEPLOY TO GOOGLE PLAY
+   - Go to play.google.com/console
+   - Create developer account ($25)
+   - Create app: PantryPal
+   - Upload APK
+   - Fill store listing
+   - Submit for review
+
+8. DEPLOY TO APPLE APP STORE
+   - Go to developer.apple.com
+   - Enroll in Developer Program ($99/year)
+   - Go to appstoreconnect.apple.com
+   - Create app: PantryPal
+   - Upload IPA
+   - Fill app information
+   - Submit for review
+
+9. MONITOR AFTER DEPLOYMENT
+   - Check app store reviews
+   - Monitor Supabase logs
+   - Track crash reports
+   - Collect user feedback
+
+10. ROLLBACK (if needed)
+    - Google Play: Pause release, upload previous version
+    - Apple App Store: Pause release, upload previous version
+
+DEPLOYMENT CHECKLIST
+[ ] Production Supabase created
+[ ] Database created
+[ ] Product data imported
+[ ] .env configured
+[ ] Build tested on device
+[ ] Screenshots prepared
+[ ] Store listings filled
+[ ] Privacy policy updated
+[ ] Beta testing done
+[ ] Ready to submit
+
+SUPPORT LINKS
+- Expo: https://docs.expo.dev
+- EAS Build: https://docs.expo.dev/build/introduction/
+- Google Play: https://support.google.com/googleplay/android-developer
+- Apple App Store: https://developer.apple.com/app-store/
+- Supabase: https://supabase.com/docs
