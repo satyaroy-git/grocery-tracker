@@ -54,6 +54,10 @@ export default function ScanInvoiceScreen() {
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+  // Free-typed text for quantity/price fields, keyed as `q-${index}` / `p-${index}`.
+  // Kept separate from editableItems so users can freely type (e.g. clear the field,
+  // type "12.5") without every keystroke needing to already be a valid number.
+  const [textDrafts, setTextDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     checkApiKey();
@@ -176,13 +180,76 @@ export default function ScanInvoiceScreen() {
     setSelectedItems(new Set());
   };
 
-  // Update a single field (category or unit) on one item in the editable list
-  const updateItemField = (index: number, field: 'category' | 'unit' | 'quantity', value: string | number) => {
+  // Update a single field on one item in the editable list
+  const updateItemField = (
+    index: number,
+    field: 'category' | 'unit' | 'quantity' | 'name' | 'brand' | 'price',
+    value: string | number | undefined
+  ) => {
     setEditableItems((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value } as ParsedInvoiceItem;
       return next;
     });
+  };
+
+  // --- Quantity editing (stepper buttons + free text typing) ---
+  const getQuantityText = (index: number): string =>
+    textDrafts[`q-${index}`] ?? String(editableItems[index]?.quantity ?? '');
+
+  const stepQuantity = (index: number, delta: number) => {
+    const current = editableItems[index]?.quantity ?? 1;
+    const next = Math.max(1, current + delta);
+    updateItemField(index, 'quantity', next);
+    setTextDrafts((prev) => ({ ...prev, [`q-${index}`]: String(next) }));
+  };
+
+  const handleQuantityChange = (index: number, text: string) => {
+    setTextDrafts((prev) => ({ ...prev, [`q-${index}`]: text }));
+    const parsed = parseFloat(text);
+    if (!isNaN(parsed) && parsed > 0) {
+      updateItemField(index, 'quantity', parsed);
+    }
+  };
+
+  const handleQuantityBlur = (index: number) => {
+    const text = textDrafts[`q-${index}`];
+    const parsed = text !== undefined ? parseFloat(text) : NaN;
+    // If what's typed doesn't resolve to a valid positive number, snap the
+    // visible text back to the last valid quantity rather than leaving it blank/invalid.
+    if (text === undefined || text.trim() === '' || isNaN(parsed) || parsed <= 0) {
+      setTextDrafts((prev) => ({ ...prev, [`q-${index}`]: String(editableItems[index]?.quantity ?? 1) }));
+    }
+  };
+
+  // --- Price editing (free text typing, optional field) ---
+  const getPriceText = (index: number): string => {
+    if (textDrafts[`p-${index}`] !== undefined) return textDrafts[`p-${index}`];
+    const price = editableItems[index]?.price;
+    return price !== undefined ? String(price) : '';
+  };
+
+  const handlePriceChange = (index: number, text: string) => {
+    setTextDrafts((prev) => ({ ...prev, [`p-${index}`]: text }));
+    if (text.trim() === '') {
+      updateItemField(index, 'price', undefined);
+      return;
+    }
+    const parsed = parseFloat(text);
+    if (!isNaN(parsed) && parsed >= 0) {
+      updateItemField(index, 'price', parsed);
+    }
+  };
+
+  const handlePriceBlur = (index: number) => {
+    const text = textDrafts[`p-${index}`];
+    if (text === undefined) return;
+    const parsed = parseFloat(text);
+    // Price is optional - empty is fine. Only revert if it's a non-empty, invalid value.
+    if (text.trim() !== '' && (isNaN(parsed) || parsed < 0)) {
+      const price = editableItems[index]?.price;
+      setTextDrafts((prev) => ({ ...prev, [`p-${index}`]: price !== undefined ? String(price) : '' }));
+    }
   };
 
   const handleAddToPantry = async () => {
@@ -191,10 +258,20 @@ export default function ScanInvoiceScreen() {
       return;
     }
 
+    // Validate: names can be freely edited now, so make sure none were left blank.
+    const selectedIndexes = Array.from(selectedItems);
+    const blankNameIndex = selectedIndexes.find((i) => !editableItems[i]?.name?.trim());
+    if (blankNameIndex !== undefined) {
+      Alert.alert('Missing Item Name', 'Please enter a name for every selected item before adding.');
+      return;
+    }
+
     setScreenState('saving');
 
     try {
-      const itemsToAdd = editableItems.filter((_, index) => selectedItems.has(index));
+      const itemsToAdd = editableItems
+        .filter((_, index) => selectedItems.has(index))
+        .map((item) => ({ ...item, name: item.name.trim() }));
       const createInputs: CreateItemInput[] = convertToCreateItemInputs(itemsToAdd);
       await createItemsBatch(createInputs);
 
@@ -215,6 +292,7 @@ export default function ScanInvoiceScreen() {
     setParseResult(null);
     setEditableItems([]);
     setSelectedItems(new Set());
+    setTextDrafts({});
   };
 
   // Render API key input
@@ -291,7 +369,7 @@ export default function ScanInvoiceScreen() {
             {parseResult.totalAmount ? ` | Total: ₹${parseResult.totalAmount}` : ''}
           </Text>
           <Text style={styles.editHint}>
-            Tap category or unit on any item below to change it.
+            Edit name, quantity, amount, unit, or category on any item below.
           </Text>
           <View style={styles.selectionRow}>
             <TouchableOpacity onPress={selectAll}>
@@ -330,28 +408,44 @@ export default function ScanInvoiceScreen() {
               </TouchableOpacity>
 
               <View style={styles.reviewItemInfo}>
-                <Text style={styles.reviewItemName}>
-                  {item.brand ? `${item.brand} ` : ''}{item.name}
-                  {item.price ? (
-                    <Text style={styles.reviewItemPrice}> · ₹{item.price}</Text>
-                  ) : null}
-                </Text>
+                {/* Editable item name */}
+                <TextInput
+                  style={styles.nameInput}
+                  value={item.name}
+                  onChangeText={(text) => updateItemField(index, 'name', text)}
+                  placeholder="Item name"
+                  placeholderTextColor={COLORS.textLight}
+                />
+
+                {/* Editable brand (optional, shown as a smaller sub-field) */}
+                <TextInput
+                  style={styles.brandInput}
+                  value={item.brand || ''}
+                  onChangeText={(text) => updateItemField(index, 'brand', text || undefined)}
+                  placeholder="Brand (optional)"
+                  placeholderTextColor={COLORS.textLight}
+                />
 
                 <View style={styles.editableRow}>
-                  {/* Quantity stepper */}
+                  {/* Quantity: stepper buttons + directly editable number field */}
                   <View style={styles.qtyStepper}>
                     <TouchableOpacity
                       style={styles.qtyButton}
-                      onPress={() =>
-                        updateItemField(index, 'quantity', Math.max(1, item.quantity - 1))
-                      }
+                      onPress={() => stepQuantity(index, -1)}
                     >
                       <Ionicons name="remove" size={16} color={COLORS.primary} />
                     </TouchableOpacity>
-                    <Text style={styles.qtyValue}>{item.quantity}</Text>
+                    <TextInput
+                      style={styles.qtyInput}
+                      value={getQuantityText(index)}
+                      onChangeText={(text) => handleQuantityChange(index, text)}
+                      onBlur={() => handleQuantityBlur(index)}
+                      keyboardType="decimal-pad"
+                      selectTextOnFocus
+                    />
                     <TouchableOpacity
                       style={styles.qtyButton}
-                      onPress={() => updateItemField(index, 'quantity', item.quantity + 1)}
+                      onPress={() => stepQuantity(index, 1)}
                     >
                       <Ionicons name="add" size={16} color={COLORS.primary} />
                     </TouchableOpacity>
@@ -374,6 +468,20 @@ export default function ScanInvoiceScreen() {
                     <Text style={styles.editChipText}>{item.category}</Text>
                     <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
                   </TouchableOpacity>
+                </View>
+
+                {/* Editable price/amount */}
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>₹</Text>
+                  <TextInput
+                    style={styles.priceInput}
+                    value={getPriceText(index)}
+                    onChangeText={(text) => handlePriceChange(index, text)}
+                    onBlur={() => handlePriceBlur(index)}
+                    placeholder="Amount paid"
+                    placeholderTextColor={COLORS.textLight}
+                    keyboardType="decimal-pad"
+                  />
                 </View>
               </View>
             </View>
@@ -875,20 +983,45 @@ const styles = StyleSheet.create({
   reviewItemInfo: {
     flex: 1,
   },
-  reviewItemName: {
+  nameInput: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.text,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: 4,
   },
-  reviewItemPrice: {
+  brandInput: {
     fontSize: FONT_SIZES.sm,
-    fontWeight: '400',
+    color: COLORS.textSecondary,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: 4,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    gap: 4,
+  },
+  priceLabel: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
     color: COLORS.textSecondary,
   },
-  reviewItemDetails: {
+  priceInput: {
+    flex: 1,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    color: COLORS.text,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.sm,
+    maxWidth: 100,
   },
   editHint: {
     fontSize: FONT_SIZES.xs,
@@ -914,12 +1047,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: 6,
   },
-  qtyValue: {
-    minWidth: 28,
+  qtyInput: {
+    minWidth: 36,
     textAlign: 'center',
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
     color: COLORS.text,
+    paddingVertical: 4,
   },
   editChip: {
     flexDirection: 'row',
