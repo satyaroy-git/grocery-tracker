@@ -75,7 +75,8 @@ export default function ScanInvoiceScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      // Expo SDK 54: MediaTypeOptions is deprecated in favor of a MediaType array
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     });

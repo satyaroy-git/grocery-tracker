@@ -1,4 +1,6 @@
-import * as FileSystem from 'expo-file-system';
+// Expo SDK 54 renamed the classic file API to expo-file-system/legacy
+// (the default `expo-file-system` export is now the new object-oriented API).
+import * as FileSystem from 'expo-file-system/legacy';
 
 const CONFIG_FILE = `${FileSystem.documentDirectory}pantrypal_config.json`;
 

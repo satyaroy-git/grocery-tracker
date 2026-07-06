@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#4CAF50"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pantrypal.app",
@@ -47,7 +49,8 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
