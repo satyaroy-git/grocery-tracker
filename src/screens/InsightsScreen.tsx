@@ -12,8 +12,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import {
   getAllItems,
-  getRecentConsumptionLogs,
-  getWeeklyConsumption,
+  getAllRecentConsumptionLogs,
+  getWeeklyConsumptionBreakdown,
 } from '../database';
 import { GroceryItemWithStatus, ConsumptionLog } from '../database';
 
@@ -21,7 +21,7 @@ export default function InsightsScreen() {
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [recentLogs, setRecentLogs] = useState<ConsumptionLog[]>([]);
   const [weeklyData, setWeeklyData] = useState<{ week: string; total: number }[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -40,7 +40,7 @@ export default function InsightsScreen() {
     try {
       const [allItems, logs] = await Promise.all([
         getAllItems(),
-        getRecentConsumptionLogs(30),
+        getAllRecentConsumptionLogs(30),
       ]);
       setItems(allItems);
       setRecentLogs(logs);
@@ -54,12 +54,13 @@ export default function InsightsScreen() {
     }
   };
 
-  const loadWeeklyData = async (itemId: string) => {
+  const loadWeeklyData = async (itemId: number) => {
     try {
-      const data = await getWeeklyConsumption(itemId, 4);
+      const data = await getWeeklyConsumptionBreakdown(itemId, 4);
       setWeeklyData(data);
     } catch (error) {
       console.error('Failed to load weekly data:', error);
+      setWeeklyData([]);
     }
   };
 

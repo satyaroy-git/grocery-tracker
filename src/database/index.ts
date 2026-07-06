@@ -308,6 +308,17 @@ export async function getRecentConsumptionLogs(itemId: number, limit: number = 1
   );
 }
 
+// Recent consumption logs across ALL items (not scoped to one item) - used by
+// InsightsScreen to compute this-week/this-month counts and top-consumed
+// rankings. Distinct from getRecentConsumptionLogs() above, which is scoped
+// to a single item.
+export async function getAllRecentConsumptionLogs(limit: number = 30): Promise<ConsumptionLog[]> {
+  return db.getAllAsync<ConsumptionLog>(
+    'SELECT * FROM consumption_logs ORDER BY createdAt DESC LIMIT ?',
+    [limit]
+  );
+}
+
 export async function getWeeklyConsumption(itemId: number): Promise<number> {
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(quantity) as total FROM consumption_logs 
@@ -315,6 +326,29 @@ export async function getWeeklyConsumption(itemId: number): Promise<number> {
     [itemId]
   );
   return result?.total || 0;
+}
+
+// Weekly consumption breakdown for a single item over the past N weeks,
+// used to render the bar chart on InsightsScreen. Returns oldest week first
+// (W1) so the chart reads left-to-right chronologically.
+export async function getWeeklyConsumptionBreakdown(
+  itemId: number,
+  weeksCount: number = 4
+): Promise<{ week: string; total: number }[]> {
+  const buckets: { week: string; total: number }[] = [];
+
+  for (let i = weeksCount - 1; i >= 0; i--) {
+    const result = await db.getFirstAsync<{ total: number | null }>(
+      `SELECT SUM(quantity) as total FROM consumption_logs
+       WHERE itemId = ? AND type != 'restock'
+         AND createdAt >= datetime('now', ?)
+         AND createdAt < datetime('now', ?)`,
+      [itemId, `-${(i + 1) * 7} days`, `-${i * 7} days`]
+    );
+    buckets.push({ week: `W${weeksCount - i}`, total: result?.total || 0 });
+  }
+
+  return buckets;
 }
 
 // Shopping List
