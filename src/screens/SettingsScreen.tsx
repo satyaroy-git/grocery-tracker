@@ -9,13 +9,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { ALERT_FREQUENCIES } from '../constants/categories';
 import { getSettings, updateSettings, resetDatabase } from '../database';
 import { AppSettings, ConsumptionMode, AlertFrequency } from '../database';
+import { SettingsStackParamList } from '../navigation/types';
+
+type SettingsNavProp = NativeStackNavigationProp<SettingsStackParamList, 'SettingsMain'>;
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<SettingsNavProp>();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -198,12 +203,19 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.aboutCard}>
           <Ionicons name="leaf-outline" size={32} color={COLORS.primary} />
-          <Text style={styles.appName}>Grocery Tracker</Text>
+          <Text style={styles.appName}>PantryPal</Text>
           <Text style={styles.appVersion}>Version 1.0.0</Text>
           <Text style={styles.appDescription}>
             Track your grocery inventory, monitor consumption patterns, and never run out of essentials.
           </Text>
         </View>
+        <TouchableOpacity
+          style={styles.replayGuideButton}
+          onPress={() => navigation.navigate('Onboarding')}
+        >
+          <Ionicons name="help-circle-outline" size={20} color={COLORS.primary} />
+          <Text style={styles.replayGuideButtonText}>Replay Welcome Guide</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Danger Zone */}
@@ -319,6 +331,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.sm,
     lineHeight: 20,
+  },
+  replayGuideButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  replayGuideButtonText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   dangerSection: {
     backgroundColor: COLORS.dangerBg,

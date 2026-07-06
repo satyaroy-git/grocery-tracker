@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,41 +7,81 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Switch,
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import {
-  DEFAULT_CATEGORIES,
-  UNITS_OF_MEASUREMENT,
-  CONSUMPTION_FREQUENCIES,
-} from '../constants/categories';
+import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
 import { createItem } from '../database';
-import { ConsumptionMode, ConsumptionFrequency } from '../database';
+import { lookupBarcode, BarcodeProductInfo } from '../services/barcodeLookup';
 import DateField from '../components/DateField';
 
-export default function AddItemScreen() {
-  const navigation = useNavigation();
+type ScreenState = 'scanning' | 'looking-up' | 'review' | 'saving';
 
+// Barcode formats commonly used on retail/grocery packaging in India and worldwide.
+const SCAN_BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128'] as const;
+
+export default function BarcodeScanScreen() {
+  const navigation = useNavigation();
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const [screenState, setScreenState] = useState<ScreenState>('scanning');
+  const [lookupResult, setLookupResult] = useState<BarcodeProductInfo | null>(null);
+  const scannedOnceRef = useRef(false);
+
+  // Editable form fields for the review step - pre-filled from lookup when available
   const [name, setName] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
-  const [customCategory, setCustomCategory] = useState('');
-  const [showCustomCategory, setShowCustomCategory] = useState(false);
-  const [unit, setUnit] = useState(UNITS_OF_MEASUREMENT[0].value);
-  const [currentQuantity, setCurrentQuantity] = useState('');
-  const [threshold, setThreshold] = useState('');
-  const [consumptionMode, setConsumptionMode] = useState<ConsumptionMode>('manual');
-  const [autoRate, setAutoRate] = useState('');
-  const [autoFrequency, setAutoFrequency] = useState<ConsumptionFrequency>('daily');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [unit, setUnit] = useState(UNITS_OF_MEASUREMENT[0].value);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
-  // Both optional - price and expiry date are never required to save an item
+  const [currentQuantity, setCurrentQuantity] = useState('1');
+  const [threshold, setThreshold] = useState('0');
   const [price, setPrice] = useState('');
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const handleBarcodeScanned = async (scanResult: BarcodeScanningResult) => {
+    if (scannedOnceRef.current) return; // debounce - camera fires repeatedly while a code is in view
+    scannedOnceRef.current = true;
+
+    setScreenState('looking-up');
+    const result = await lookupBarcode(scanResult.data);
+    setLookupResult(result);
+
+    if (result.found) {
+      setName(result.name || '');
+      if (result.brand && !result.name) setName(result.brand);
+      if (result.category && DEFAULT_CATEGORIES.includes(result.category)) {
+        setCategory(result.category);
+      }
+      if (result.unit) setUnit(result.unit);
+      if (result.quantity) setCurrentQuantity(String(result.quantity));
+    } else {
+      // Not found - start with a blank form but let the user know why
+      setName('');
+    }
+
+    setScreenState('review');
+  };
+
+  const handleRescan = () => {
+    scannedOnceRef.current = false;
+    setLookupResult(null);
+    setName('');
+    setCategory(DEFAULT_CATEGORIES[0]);
+    setUnit(UNITS_OF_MEASUREMENT[0].value);
+    setCurrentQuantity('1');
+    setThreshold('0');
+    setPrice('');
+    setExpiryDate(null);
+    setScreenState('scanning');
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -56,11 +96,6 @@ export default function AddItemScreen() {
       Alert.alert('Error', 'Please enter a valid threshold.');
       return;
     }
-    if (consumptionMode === 'auto' && (!autoRate || parseFloat(autoRate) <= 0)) {
-      Alert.alert('Error', 'Please enter a valid consumption rate.');
-      return;
-    }
-    // Price is optional, but if the user typed something, it must be a valid non-negative number
     if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
       Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
       return;
@@ -68,16 +103,15 @@ export default function AddItemScreen() {
 
     setSaving(true);
     try {
-      const finalCategory = showCustomCategory ? customCategory.trim() : category;
       await createItem({
         name: name.trim(),
-        category: finalCategory,
+        category,
         unit,
         currentQuantity: parseFloat(currentQuantity),
         threshold: parseFloat(threshold),
-        consumptionMode,
-        autoConsumptionRate: consumptionMode === 'auto' ? parseFloat(autoRate) : null,
-        autoConsumptionFrequency: consumptionMode === 'auto' ? autoFrequency : null,
+        consumptionMode: 'manual',
+        autoConsumptionRate: null,
+        autoConsumptionFrequency: null,
         price: price.trim() ? parseFloat(price) : null,
         expiryDate,
       });
@@ -89,15 +123,100 @@ export default function AddItemScreen() {
     }
   };
 
-  const selectedUnitLabel =
-    UNITS_OF_MEASUREMENT.find((u) => u.value === unit)?.label || unit;
+  const selectedUnitLabel = UNITS_OF_MEASUREMENT.find((u) => u.value === unit)?.label || unit;
 
+  // --- Permission states ---
+  if (!permission) {
+    return (
+      <View style={styles.centeredContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.centeredContainer}>
+        <Ionicons name="barcode-outline" size={64} color={COLORS.textLight} />
+        <Text style={styles.permissionTitle}>Camera Access Needed</Text>
+        <Text style={styles.permissionText}>
+          PantryPal needs camera access to scan product barcodes and quickly add items to your pantry.
+        </Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+          <Text style={styles.permissionButtonText}>Grant Camera Access</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // --- Scanning state ---
+  if (screenState === 'scanning') {
+    return (
+      <View style={styles.container}>
+        <CameraView
+          style={styles.camera}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: [...SCAN_BARCODE_TYPES] }}
+          onBarcodeScanned={handleBarcodeScanned}
+        />
+        <View style={styles.scanOverlay}>
+          <View style={styles.scanFrame} />
+          <Text style={styles.scanHint}>Align the barcode within the frame</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // --- Looking up state ---
+  if (screenState === 'looking-up') {
+    return (
+      <View style={styles.centeredContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Looking up product...</Text>
+      </View>
+    );
+  }
+
+  // --- Review/edit form (also used for 'saving') ---
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Lookup result banner */}
+        {lookupResult && (
+          <View
+            style={[
+              styles.lookupBanner,
+              { backgroundColor: lookupResult.found ? COLORS.successBg : COLORS.warningBg },
+            ]}
+          >
+            {lookupResult.imageUrl && (
+              <Image source={{ uri: lookupResult.imageUrl }} style={styles.productImage} />
+            )}
+            <View style={styles.lookupBannerText}>
+              <Ionicons
+                name={lookupResult.found ? 'checkmark-circle' : 'information-circle'}
+                size={18}
+                color={lookupResult.found ? COLORS.success : COLORS.warning}
+              />
+              <Text
+                style={[
+                  styles.lookupBannerLabel,
+                  { color: lookupResult.found ? COLORS.success : COLORS.warning },
+                ]}
+              >
+                {lookupResult.found
+                  ? 'Product found - review details below'
+                  : lookupResult.error || 'Product not found - please fill in details manually'}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <Text style={styles.barcodeText}>Barcode: {lookupResult?.barcode}</Text>
+
         {/* Name */}
         <View style={styles.field}>
           <Text style={styles.label}>Item Name</Text>
@@ -117,9 +236,7 @@ export default function AddItemScreen() {
             style={styles.pickerButton}
             onPress={() => setShowCategoryPicker(!showCategoryPicker)}
           >
-            <Text style={styles.pickerButtonText}>
-              {showCustomCategory ? 'Custom' : category}
-            </Text>
+            <Text style={styles.pickerButtonText}>{category}</Text>
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           {showCategoryPicker && (
@@ -127,52 +244,23 @@ export default function AddItemScreen() {
               {DEFAULT_CATEGORIES.map((cat) => (
                 <TouchableOpacity
                   key={cat}
-                  style={[
-                    styles.pickerOption,
-                    category === cat && !showCustomCategory && styles.pickerOptionSelected,
-                  ]}
+                  style={[styles.pickerOption, category === cat && styles.pickerOptionSelected]}
                   onPress={() => {
                     setCategory(cat);
-                    setShowCustomCategory(false);
                     setShowCategoryPicker(false);
                   }}
                 >
                   <Text
                     style={[
                       styles.pickerOptionText,
-                      category === cat && !showCustomCategory && styles.pickerOptionTextSelected,
+                      category === cat && styles.pickerOptionTextSelected,
                     ]}
                   >
                     {cat}
                   </Text>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity
-                style={[styles.pickerOption, showCustomCategory && styles.pickerOptionSelected]}
-                onPress={() => {
-                  setShowCustomCategory(true);
-                  setShowCategoryPicker(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pickerOptionText,
-                    showCustomCategory && styles.pickerOptionTextSelected,
-                  ]}
-                >
-                  + Custom Category
-                </Text>
-              </TouchableOpacity>
             </View>
-          )}
-          {showCustomCategory && (
-            <TextInput
-              style={[styles.input, { marginTop: SPACING.sm }]}
-              value={customCategory}
-              onChangeText={setCustomCategory}
-              placeholder="Enter custom category"
-              placeholderTextColor={COLORS.textLight}
-            />
           )}
         </View>
 
@@ -258,104 +346,19 @@ export default function AddItemScreen() {
           placeholder="No expiry date set"
         />
 
-        {/* Consumption Mode */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Consumption Mode</Text>
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                consumptionMode === 'manual' && styles.toggleButtonActive,
-              ]}
-              onPress={() => setConsumptionMode('manual')}
-            >
-              <Ionicons
-                name="hand-left-outline"
-                size={18}
-                color={consumptionMode === 'manual' ? COLORS.surface : COLORS.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  consumptionMode === 'manual' && styles.toggleTextActive,
-                ]}
-              >
-                Manual
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                consumptionMode === 'auto' && styles.toggleButtonActive,
-              ]}
-              onPress={() => setConsumptionMode('auto')}
-            >
-              <Ionicons
-                name="sync-outline"
-                size={18}
-                color={consumptionMode === 'auto' ? COLORS.surface : COLORS.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  consumptionMode === 'auto' && styles.toggleTextActive,
-                ]}
-              >
-                Auto
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Buttons */}
+        <TouchableOpacity style={styles.rescanButton} onPress={handleRescan}>
+          <Ionicons name="scan-outline" size={20} color={COLORS.primary} />
+          <Text style={styles.rescanButtonText}>Scan a Different Barcode</Text>
+        </TouchableOpacity>
 
-        {/* Auto consumption settings */}
-        {consumptionMode === 'auto' && (
-          <View style={styles.autoSection}>
-            <View style={styles.field}>
-              <Text style={styles.label}>Consumption Rate</Text>
-              <TextInput
-                style={styles.input}
-                value={autoRate}
-                onChangeText={setAutoRate}
-                placeholder="Amount consumed per period"
-                placeholderTextColor={COLORS.textLight}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Frequency</Text>
-              <View style={styles.frequencyRow}>
-                {CONSUMPTION_FREQUENCIES.map((freq) => (
-                  <TouchableOpacity
-                    key={freq.value}
-                    style={[
-                      styles.frequencyChip,
-                      autoFrequency === freq.value && styles.frequencyChipActive,
-                    ]}
-                    onPress={() => setAutoFrequency(freq.value as ConsumptionFrequency)}
-                  >
-                    <Text
-                      style={[
-                        styles.frequencyChipText,
-                        autoFrequency === freq.value && styles.frequencyChipTextActive,
-                      ]}
-                    >
-                      {freq.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Save Button */}
         <TouchableOpacity
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
         >
           <Ionicons name="checkmark" size={22} color={COLORS.surface} />
-          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Item'}</Text>
+          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Add to Pantry'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -367,9 +370,107 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+    backgroundColor: COLORS.background,
+  },
+  camera: {
+    flex: 1,
+  },
+  scanOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanFrame: {
+    width: '75%',
+    height: 160,
+    borderWidth: 3,
+    borderColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: 'transparent',
+  },
+  scanHint: {
+    marginTop: SPACING.lg,
+    color: COLORS.surface,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.textSecondary,
+  },
+  permissionTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginTop: SPACING.md,
+  },
+  permissionText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    lineHeight: 22,
+  },
+  permissionButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    ...SHADOWS.md,
+  },
+  permissionButtonText: {
+    color: COLORS.surface,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+  },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
+  },
+  lookupBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  productImage: {
+    width: 48,
+    height: 48,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.surface,
+  },
+  lookupBannerText: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  lookupBannerLabel: {
+    flex: 1,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+  },
+  barcodeText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
   },
   field: {
     marginBottom: SPACING.md,
@@ -427,63 +528,21 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    borderRadius: BORDER_RADIUS.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  toggleButton: {
-    flex: 1,
+  rescanButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    gap: SPACING.xs,
-  },
-  toggleButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  toggleText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  toggleTextActive: {
-    color: COLORS.surface,
-  },
-  autoSection: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    ...SHADOWS.sm,
-  },
-  frequencyRow: {
-    flexDirection: 'row',
     gap: SPACING.sm,
-  },
-  frequencyChip: {
-    flex: 1,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-  },
-  frequencyChipActive: {
-    backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
   },
-  frequencyChipText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  frequencyChipTextActive: {
-    color: COLORS.surface,
+  rescanButtonText: {
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
   },
   saveButton: {
     backgroundColor: COLORS.primary,
@@ -493,7 +552,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
     ...SHADOWS.md,
   },
   saveButtonDisabled: {

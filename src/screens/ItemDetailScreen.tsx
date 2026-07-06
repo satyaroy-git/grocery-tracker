@@ -72,13 +72,17 @@ export default function ItemDetailScreen() {
     );
   };
 
+  // NOTE: ItemStatus (see database/index.ts computeStatus) only ever produces
+  // 'ok' | 'low' | 'empty'. This previously checked for 'sufficient' /
+  // 'out_of_stock', which never match, so the badge always fell through to
+  // "Unknown" regardless of actual stock level.
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'sufficient':
+      case 'ok':
         return { label: 'In Stock', color: COLORS.success, bg: COLORS.successBg };
       case 'low':
         return { label: 'Low Stock', color: COLORS.warning, bg: COLORS.warningBg };
-      case 'out_of_stock':
+      case 'empty':
         return { label: 'Out of Stock', color: COLORS.danger, bg: COLORS.dangerBg };
       default:
         return { label: 'Unknown', color: COLORS.textSecondary, bg: COLORS.background };
@@ -93,7 +97,7 @@ export default function ItemDetailScreen() {
 
   const getProgressColor = () => {
     if (!item) return COLORS.success;
-    if (item.status === 'out_of_stock') return COLORS.danger;
+    if (item.status === 'empty') return COLORS.danger;
     if (item.status === 'low') return COLORS.warning;
     return COLORS.success;
   };
@@ -183,6 +187,45 @@ export default function ItemDetailScreen() {
           </Text>
         )}
       </View>
+
+      {/* Price & Expiry - only rendered if at least one is set, since both are optional */}
+      {(item.price !== null || item.expiryDate !== null) && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Purchase Details</Text>
+          {item.price !== null && (
+            <View style={styles.detailRow}>
+              <Ionicons name="pricetag-outline" size={18} color={COLORS.textSecondary} />
+              <Text style={styles.detailLabel}>Price</Text>
+              <Text style={styles.detailValue}>₹{item.price}</Text>
+            </View>
+          )}
+          {item.expiryDate !== null && (
+            <View style={styles.detailRow}>
+              <Ionicons
+                name={item.isExpired ? 'alert-circle' : 'calendar-outline'}
+                size={18}
+                color={item.isExpired ? COLORS.danger : item.isExpiringSoon ? COLORS.warning : COLORS.textSecondary}
+              />
+              <Text style={styles.detailLabel}>Expiry</Text>
+              <Text
+                style={[
+                  styles.detailValue,
+                  item.isExpired && { color: COLORS.danger },
+                  item.isExpiringSoon && !item.isExpired && { color: COLORS.warning },
+                ]}
+              >
+                {new Date(item.expiryDate).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+                {item.isExpired && ' (Expired)'}
+                {item.isExpiringSoon && !item.isExpired && ` (${item.daysUntilExpiry}d left)`}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Consumption Mode */}
       <View style={styles.card}>
@@ -352,6 +395,22 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginTop: SPACING.sm,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  detailLabel: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   modeRow: {
     flexDirection: 'row',

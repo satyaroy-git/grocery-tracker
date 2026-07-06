@@ -83,7 +83,13 @@ export default function RestockScreen() {
     try {
       const finalAmount = getFinalAmount();
       const addedAmount = finalAmount - item!.currentQuantity;
-      await restockItem(item!.id, finalAmount);
+      // restockItem() ADDS its argument to the current quantity, so we must pass
+      // the delta (addedAmount), not the final target amount, or stock gets
+      // corrupted (e.g. "set total to 10" would incorrectly add 10 on top of
+      // whatever was already there).
+      if (addedAmount !== 0) {
+        await restockItem(item!.id, addedAmount);
+      }
       if (addedAmount > 0) {
         await logConsumption(item!.id, addedAmount, 'restock');
       }

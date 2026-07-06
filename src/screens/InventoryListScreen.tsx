@@ -71,7 +71,31 @@ export default function InventoryListScreen() {
         />
         <View style={styles.itemInfo}>
           <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemCategory}>{item.category}</Text>
+          <View style={styles.itemMetaRow}>
+            <Text style={styles.itemCategory}>{item.category}</Text>
+            {(item.isExpired || item.isExpiringSoon) && (
+              <View
+                style={[
+                  styles.expiryBadge,
+                  { backgroundColor: item.isExpired ? COLORS.dangerBg : COLORS.warningBg },
+                ]}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={10}
+                  color={item.isExpired ? COLORS.danger : COLORS.warning}
+                />
+                <Text
+                  style={[
+                    styles.expiryBadgeText,
+                    { color: item.isExpired ? COLORS.danger : COLORS.warning },
+                  ]}
+                >
+                  {item.isExpired ? 'Expired' : `${item.daysUntilExpiry}d left`}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
       <View style={styles.itemRight}>
@@ -98,7 +122,7 @@ export default function InventoryListScreen() {
             <Ionicons name="cube-outline" size={64} color={COLORS.textLight} />
             <Text style={styles.emptyTitle}>Your pantry is empty</Text>
             <Text style={styles.emptySubtitle}>
-              Add items manually or scan a grocery invoice
+              Add items manually, scan a barcode, or scan a grocery invoice
             </Text>
           </View>
         }
@@ -106,6 +130,12 @@ export default function InventoryListScreen() {
 
       {/* Floating Action Buttons */}
       <View style={styles.fabContainer}>
+        <TouchableOpacity
+          style={[styles.fab, styles.fabTertiary]}
+          onPress={() => navigation.navigate('BarcodeScan')}
+        >
+          <Ionicons name="barcode-outline" size={22} color={COLORS.surface} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.fab, styles.fabSecondary]}
           onPress={() => navigation.navigate('ScanInvoice')}
@@ -161,6 +191,24 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 2,
   },
+  itemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: 2,
+  },
+  expiryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  expiryBadgeText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+  },
   itemRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -207,5 +255,11 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: COLORS.accent,
+  },
+  fabTertiary: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.secondary,
   },
 });

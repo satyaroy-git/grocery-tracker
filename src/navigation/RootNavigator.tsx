@@ -9,6 +9,7 @@ import InventoryStack from './InventoryStack';
 import ShoppingStack from './ShoppingStack';
 import DashboardStack from './DashboardStack';
 import SettingsStack from './SettingsStack';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -24,6 +25,15 @@ export default function RootNavigator() {
   }, []);
 
   if (onboardingDone === null) return null;
+
+  // First launch: show the onboarding/welcome guide before the main tab
+  // navigator exists at all, so there's nothing to navigate "back" to.
+  // Previously this check existed but was never actually acted on - the
+  // Tab.Navigator (and the rest of the app) rendered unconditionally
+  // regardless of onboardingComplete, so new users never saw this screen.
+  if (!onboardingDone) {
+    return <OnboardingScreen onComplete={() => setOnboardingDone(true)} />;
+  }
 
   return (
     <Tab.Navigator

@@ -9,14 +9,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { ONBOARDING_TEMPLATES } from '../constants/categories';
 import { createItem, markOnboardingComplete } from '../database';
-import { RootStackParamList } from '../navigation/types';
-
-type OnboardingNavProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
 interface TemplateSelection {
   name: string;
@@ -27,8 +22,16 @@ interface TemplateSelection {
   selected: boolean;
 }
 
-export default function OnboardingScreen() {
-  const navigation = useNavigation<OnboardingNavProp>();
+interface OnboardingScreenProps {
+  // Called once onboarding is finished (either by adding items or skipping).
+  // RootNavigator renders this screen OUTSIDE the tab navigator on first
+  // launch (there are no tabs to navigate into yet), so completion is
+  // signaled via this callback rather than navigation.reset() to a route
+  // that doesn't exist in this navigator.
+  onComplete: () => void;
+}
+
+export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [step, setStep] = useState(0);
   const [templates, setTemplates] = useState<TemplateSelection[]>(
     ONBOARDING_TEMPLATES.map((t) => ({ ...t, selected: false }))
@@ -63,10 +66,16 @@ export default function OnboardingScreen() {
           currentQuantity: item.defaultQuantity,
           threshold: item.threshold,
           consumptionMode: 'manual',
+          // Required by CreateItemInput even when unused in manual mode
+          autoConsumptionRate: null,
+          autoConsumptionFrequency: null,
+          // Price/expiry are optional and not part of onboarding templates
+          price: null,
+          expiryDate: null,
         });
       }
       await markOnboardingComplete();
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      onComplete();
     } catch (error) {
       Alert.alert('Error', 'Failed to create items. Please try again.');
     } finally {
@@ -77,7 +86,7 @@ export default function OnboardingScreen() {
   const handleSkip = async () => {
     try {
       await markOnboardingComplete();
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      onComplete();
     } catch (error) {
       Alert.alert('Error', 'Failed to complete onboarding.');
     }
@@ -91,7 +100,7 @@ export default function OnboardingScreen() {
           <View style={styles.iconCircle}>
             <Ionicons name="leaf" size={48} color={COLORS.primary} />
           </View>
-          <Text style={styles.welcomeTitle}>Grocery Tracker</Text>
+          <Text style={styles.welcomeTitle}>PantryPal</Text>
           <Text style={styles.welcomeSubtitle}>
             Never run out of essentials again
           </Text>
@@ -102,7 +111,25 @@ export default function OnboardingScreen() {
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Track Inventory</Text>
                 <Text style={styles.featureDescription}>
-                  Keep tabs on what you have at home
+                  Keep tabs on what you have at home, including price and expiry dates
+                </Text>
+              </View>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="barcode-outline" size={24} color={COLORS.accent} />
+              <View style={styles.featureText}>
+                <Text style={styles.featureTitle}>Scan Barcodes</Text>
+                <Text style={styles.featureDescription}>
+                  Scan a product barcode to add it in seconds
+                </Text>
+              </View>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="sparkles-outline" size={24} color={COLORS.secondary} />
+              <View style={styles.featureText}>
+                <Text style={styles.featureTitle}>AI Invoice Scanning</Text>
+                <Text style={styles.featureDescription}>
+                  Scan a Blinkit/Instamart/BigBasket invoice to add many items at once
                 </Text>
               </View>
             </View>

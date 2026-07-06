@@ -13,6 +13,10 @@ export interface ParsedInvoiceItem {
   category: string;
   price?: number;
   brand?: string;
+  // Optional - grocery invoices rarely state an expiry date, but the field
+  // is editable in the review screen so users can add one manually (e.g.
+  // for dairy/perishables where they know the typical shelf life).
+  expiryDate?: string | null;
 }
 
 export interface InvoiceParseResult {
@@ -273,6 +277,10 @@ export function convertToCreateItemInputs(items: ParsedInvoiceItem[]): CreateIte
     consumptionMode: 'manual' as const,
     autoConsumptionRate: null,
     autoConsumptionFrequency: null,
+    // Price was previously extracted by the AI and shown/editable in the review
+    // screen, but silently dropped here before saving. Now it's actually persisted.
+    price: item.price ?? null,
+    expiryDate: item.expiryDate ?? null,
   }));
 }
 

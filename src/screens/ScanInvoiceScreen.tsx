@@ -28,6 +28,7 @@ import {
   InvoiceParseResult,
 } from '../services/invoiceParser';
 import { hasApiKey, setApiKey } from '../services/config';
+import DateField from '../components/DateField';
 
 type ParseMode = 'image' | 'text';
 type ScreenState = 'input' | 'parsing' | 'review' | 'saving' | 'done';
@@ -183,8 +184,8 @@ export default function ScanInvoiceScreen() {
   // Update a single field on one item in the editable list
   const updateItemField = (
     index: number,
-    field: 'category' | 'unit' | 'quantity' | 'name' | 'brand' | 'price',
-    value: string | number | undefined
+    field: 'category' | 'unit' | 'quantity' | 'name' | 'brand' | 'price' | 'expiryDate',
+    value: string | number | undefined | null
   ) => {
     setEditableItems((prev) => {
       const next = [...prev];
@@ -481,6 +482,16 @@ export default function ScanInvoiceScreen() {
                     placeholder="Amount paid"
                     placeholderTextColor={COLORS.textLight}
                     keyboardType="decimal-pad"
+                  />
+                </View>
+
+                {/* Editable expiry date (optional) - same DateField used in Add/Edit Item */}
+                <View style={styles.expiryFieldWrapper}>
+                  <DateField
+                    label="Expiry Date"
+                    value={item.expiryDate ?? null}
+                    onChange={(iso) => updateItemField(index, 'expiryDate', iso)}
+                    placeholder="Not set (optional)"
                   />
                 </View>
               </View>
@@ -1022,6 +1033,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.sm,
     maxWidth: 100,
+  },
+  expiryFieldWrapper: {
+    marginTop: SPACING.sm,
   },
   editHint: {
     fontSize: FONT_SIZES.xs,

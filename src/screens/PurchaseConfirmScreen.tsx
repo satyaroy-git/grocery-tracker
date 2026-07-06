@@ -83,7 +83,11 @@ export default function PurchaseConfirmScreen() {
       if (linkedItem && newQuantity) {
         const qty = parseFloat(newQuantity);
         const addedAmount = qty - linkedItem.currentQuantity;
-        await restockItem(linkedItem.id, qty);
+        // restockItem() ADDS its argument to the current quantity, so pass the
+        // delta (addedAmount), not the final target quantity `qty`.
+        if (addedAmount !== 0) {
+          await restockItem(linkedItem.id, addedAmount);
+        }
         if (addedAmount > 0) {
           await logConsumption(linkedItem.id, addedAmount, 'restock', 'Purchased from shopping list');
         }

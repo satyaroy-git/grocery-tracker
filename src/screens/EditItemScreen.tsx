@@ -22,6 +22,7 @@ import {
 import { getItemById, updateItem, deleteItem } from '../database';
 import { ConsumptionMode, ConsumptionFrequency, GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
+import DateField from '../components/DateField';
 
 type EditItemRouteProp = RouteProp<InventoryStackParamList, 'EditItem'>;
 
@@ -43,6 +44,9 @@ export default function EditItemScreen() {
   const [autoFrequency, setAutoFrequency] = useState<ConsumptionFrequency>('daily');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
+  // Both optional - price and expiry date are never required to save an item
+  const [price, setPrice] = useState('');
+  const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -71,6 +75,10 @@ export default function EditItemScreen() {
         if (item.autoConsumptionFrequency) {
           setAutoFrequency(item.autoConsumptionFrequency);
         }
+        if (item.price !== null && item.price !== undefined) {
+          setPrice(item.price.toString());
+        }
+        setExpiryDate(item.expiryDate ?? null);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load item.');
@@ -97,6 +105,11 @@ export default function EditItemScreen() {
       Alert.alert('Error', 'Please enter a valid consumption rate.');
       return;
     }
+    // Price is optional, but if the user typed something, it must be a valid non-negative number
+    if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -110,6 +123,8 @@ export default function EditItemScreen() {
         consumptionMode,
         autoConsumptionRate: consumptionMode === 'auto' ? parseFloat(autoRate) : null,
         autoConsumptionFrequency: consumptionMode === 'auto' ? autoFrequency : null,
+        price: price.trim() ? parseFloat(price) : null,
+        expiryDate,
       });
       navigation.goBack();
     } catch (error) {
@@ -296,6 +311,27 @@ export default function EditItemScreen() {
             keyboardType="decimal-pad"
           />
         </View>
+
+        {/* Price (optional) */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Price (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={price}
+            onChangeText={setPrice}
+            placeholder="e.g. 199"
+            placeholderTextColor={COLORS.textLight}
+            keyboardType="decimal-pad"
+          />
+        </View>
+
+        {/* Expiry Date (optional) */}
+        <DateField
+          label="Expiry Date (optional)"
+          value={expiryDate}
+          onChange={setExpiryDate}
+          placeholder="No expiry date set"
+        />
 
         {/* Consumption Mode */}
         <View style={styles.field}>

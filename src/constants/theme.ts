@@ -7,10 +7,13 @@ export const COLORS = {
   accent: '#2196F3',
   danger: '#F44336',
   dangerLight: '#EF9A9A',
+  dangerBg: '#FDECEA',
   warning: '#FFC107',
   warningLight: '#FFE082',
+  warningBg: '#FFF8E1',
   success: '#4CAF50',
   successLight: '#A5D6A7',
+  successBg: '#E8F5E9',
 
   background: '#F5F7FA',
   surface: '#FFFFFF',
@@ -53,6 +56,7 @@ export const BORDER_RADIUS = {
   lg: 12,
   xl: 16,
   round: 9999,
+  full: 9999, // alias for round - some screens reference BORDER_RADIUS.full
 };
 
 export const SHADOWS = {

@@ -4,6 +4,7 @@ import * as SQLite from 'expo-sqlite';
 export type ConsumptionMode = 'manual' | 'auto';
 export type ConsumptionFrequency = 'daily' | 'weekly' | 'monthly';
 export type ItemStatus = 'ok' | 'low' | 'empty';
+export type AlertFrequency = 'daily' | 'every_2_days' | 'weekly' | 'never';
 
 export interface GroceryItem {
   id: number;
@@ -15,6 +16,9 @@ export interface GroceryItem {
   consumptionMode: ConsumptionMode;
   autoConsumptionRate: number | null;
   autoConsumptionFrequency: ConsumptionFrequency | null;
+  // Both optional/nullable - price and expiry are not required to add an item
+  price: number | null;
+  expiryDate: string | null; // ISO date string, e.g. '2026-08-15'
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +26,9 @@ export interface GroceryItem {
 export interface GroceryItemWithStatus extends GroceryItem {
   status: ItemStatus;
   daysUntilEmpty: number | null;
+  daysUntilExpiry: number | null;
+  isExpired: boolean;
+  isExpiringSoon: boolean; // within 3 days
 }
 
 export interface ShoppingListItem {
@@ -39,14 +46,14 @@ export interface ConsumptionLog {
   id: number;
   itemId: number;
   quantity: number;
-  type: 'manual' | 'auto';
+  type: 'manual' | 'auto' | 'restock';
   note: string | null;
   createdAt: string;
 }
 
 export interface AppSettings {
   defaultConsumptionMode: ConsumptionMode;
-  alertFrequency: string;
+  alertFrequency: AlertFrequency;
   onboardingComplete: boolean;
 }
 
@@ -59,6 +66,9 @@ export interface CreateItemInput {
   consumptionMode: ConsumptionMode;
   autoConsumptionRate: number | null;
   autoConsumptionFrequency: ConsumptionFrequency | null;
+  // Optional fields - safe to omit entirely when creating an item
+  price?: number | null;
+  expiryDate?: string | null;
 }
 
 // Database instance
@@ -80,6 +90,8 @@ export async function initDatabase(): Promise<void> {
       consumptionMode TEXT NOT NULL DEFAULT 'manual',
       autoConsumptionRate REAL,
       autoConsumptionFrequency TEXT,
+      price REAL,
+      expiryDate TEXT,
       createdAt TEXT NOT NULL DEFAULT (datetime('now')),
       updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -115,6 +127,24 @@ export async function initDatabase(): Promise<void> {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('alertFrequency', 'daily');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('onboardingComplete', 'false');
   `);
+
+  await migrateSchema();
+}
+
+// Safe migration: adds price/expiryDate columns to installs that already have
+// an `items` table from before these fields existed. CREATE TABLE IF NOT EXISTS
+// above only applies to brand-new databases, so existing users need this to
+// pick up the new columns without losing their data.
+async function migrateSchema(): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(items)`);
+  const columnNames = new Set(columns.map((c) => c.name));
+
+  if (!columnNames.has('price')) {
+    await db.execAsync(`ALTER TABLE items ADD COLUMN price REAL;`);
+  }
+  if (!columnNames.has('expiryDate')) {
+    await db.execAsync(`ALTER TABLE items ADD COLUMN expiryDate TEXT;`);
+  }
 }
 
 // Helper to compute status
@@ -137,14 +167,29 @@ function computeStatus(item: GroceryItem): GroceryItemWithStatus {
     daysUntilEmpty = dailyRate > 0 ? Math.floor(item.currentQuantity / dailyRate) : null;
   }
 
-  return { ...item, status, daysUntilEmpty };
+  // Expiry is entirely optional - all of these stay null/false when expiryDate isn't set
+  let daysUntilExpiry: number | null = null;
+  let isExpired = false;
+  let isExpiringSoon = false;
+  if (item.expiryDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(item.expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+    const diffMs = expiry.getTime() - today.getTime();
+    daysUntilExpiry = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    isExpired = daysUntilExpiry < 0;
+    isExpiringSoon = daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
+  }
+
+  return { ...item, status, daysUntilEmpty, daysUntilExpiry, isExpired, isExpiringSoon };
 }
 
 // CRUD Operations
 export async function createItem(input: CreateItemInput): Promise<number> {
   const result = await db.runAsync(
-    `INSERT INTO items (name, category, unit, currentQuantity, threshold, consumptionMode, autoConsumptionRate, autoConsumptionFrequency)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO items (name, category, unit, currentQuantity, threshold, consumptionMode, autoConsumptionRate, autoConsumptionFrequency, price, expiryDate)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.name,
       input.category,
@@ -154,6 +199,8 @@ export async function createItem(input: CreateItemInput): Promise<number> {
       input.consumptionMode,
       input.autoConsumptionRate,
       input.autoConsumptionFrequency,
+      input.price ?? null,
+      input.expiryDate ?? null,
     ]
   );
   return result.lastInsertRowId;
@@ -180,6 +227,8 @@ export async function updateItem(id: number, input: Partial<CreateItemInput>): P
   if (input.consumptionMode !== undefined) { fields.push('consumptionMode = ?'); values.push(input.consumptionMode); }
   if (input.autoConsumptionRate !== undefined) { fields.push('autoConsumptionRate = ?'); values.push(input.autoConsumptionRate); }
   if (input.autoConsumptionFrequency !== undefined) { fields.push('autoConsumptionFrequency = ?'); values.push(input.autoConsumptionFrequency); }
+  if (input.price !== undefined) { fields.push('price = ?'); values.push(input.price); }
+  if (input.expiryDate !== undefined) { fields.push('expiryDate = ?'); values.push(input.expiryDate); }
 
   if (fields.length === 0) return;
 
@@ -219,20 +268,33 @@ export async function deductQuantity(id: number, quantity: number): Promise<void
 }
 
 // Consumption Logs
+//
+// IMPORTANT: this only records a log entry and deducts stock for 'manual'/'auto'
+// consumption events. For 'restock' entries, the caller is expected to have
+// already adjusted the quantity via restockItem() BEFORE calling this - otherwise
+// stock would be double-counted (once by restockItem, once by this function).
 export async function logConsumption(
   itemId: number,
   quantity: number,
-  type: 'manual' | 'auto' = 'manual',
+  type: 'manual' | 'auto' | 'restock' = 'manual',
   note?: string
 ): Promise<void> {
   await db.runAsync(
     `INSERT INTO consumption_logs (itemId, quantity, type, note) VALUES (?, ?, ?, ?)`,
     [itemId, quantity, type, note || null]
   );
-  await deductQuantity(itemId, quantity);
+  if (type !== 'restock') {
+    await deductQuantity(itemId, quantity);
+  }
 }
 
-export async function getConsumptionLogs(itemId: number): Promise<ConsumptionLog[]> {
+export async function getConsumptionLogs(itemId: number, limit?: number): Promise<ConsumptionLog[]> {
+  if (limit !== undefined) {
+    return db.getAllAsync<ConsumptionLog>(
+      'SELECT * FROM consumption_logs WHERE itemId = ? ORDER BY createdAt DESC LIMIT ?',
+      [itemId, limit]
+    );
+  }
   return db.getAllAsync<ConsumptionLog>(
     'SELECT * FROM consumption_logs WHERE itemId = ? ORDER BY createdAt DESC',
     [itemId]
@@ -338,12 +400,12 @@ export async function getSettings(): Promise<AppSettings> {
   }
   return {
     defaultConsumptionMode: (settings.defaultConsumptionMode as ConsumptionMode) || 'manual',
-    alertFrequency: settings.alertFrequency || 'daily',
+    alertFrequency: (settings.alertFrequency as AlertFrequency) || 'daily',
     onboardingComplete: settings.onboardingComplete === 'true',
   };
 }
 
-export async function updateSettings(updates: Partial<AppSettings>): Promise<void> {
+export async function updateSettings(updates: Partial<AppSettings>): Promise<AppSettings> {
   if (updates.defaultConsumptionMode !== undefined) {
     await db.runAsync(
       "INSERT OR REPLACE INTO settings (key, value) VALUES ('defaultConsumptionMode', ?)",
@@ -362,6 +424,8 @@ export async function updateSettings(updates: Partial<AppSettings>): Promise<voi
       [updates.onboardingComplete.toString()]
     );
   }
+  // Return the fresh settings so callers (e.g. SettingsScreen) can update UI state directly
+  return getSettings();
 }
 
 export async function markOnboardingComplete(): Promise<void> {

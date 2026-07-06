@@ -8,6 +8,7 @@ export type InventoryStackParamList = {
   LogUsage: { itemId: number; itemName: string };
   Restock: { itemId: number; itemName: string };
   ScanInvoice: undefined;
+  BarcodeScan: undefined;
 };
 
 export type ShoppingStackParamList = {

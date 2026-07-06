@@ -9,6 +9,7 @@ import EditItemScreen from '../screens/EditItemScreen';
 import LogUsageScreen from '../screens/LogUsageScreen';
 import RestockScreen from '../screens/RestockScreen';
 import ScanInvoiceScreen from '../screens/ScanInvoiceScreen';
+import BarcodeScanScreen from '../screens/BarcodeScanScreen';
 
 // Placeholder for inventory list - we'll use ItemDetailScreen pattern
 import InventoryListScreen from '../screens/InventoryListScreen';
@@ -58,6 +59,11 @@ export default function InventoryStack() {
         name="ScanInvoice"
         component={ScanInvoiceScreen}
         options={{ title: 'Scan Invoice' }}
+      />
+      <Stack.Screen
+        name="BarcodeScan"
+        component={BarcodeScanScreen}
+        options={{ title: 'Scan Barcode' }}
       />
     </Stack.Navigator>
   );
