@@ -123,6 +123,23 @@ export async function initDatabase(): Promise<void> {
       value TEXT NOT NULL
     );
 
+    -- User-added categories/units, so a custom entry (e.g. "Floor Cleaner"
+    -- category, or a custom unit like "crate") persists and shows up as a
+    -- real pickable option for every future item, not just a one-off free
+    -- text field that has to be retyped each time.
+    CREATE TABLE IF NOT EXISTS custom_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS custom_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      value TEXT NOT NULL UNIQUE,
+      label TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     INSERT OR IGNORE INTO settings (key, value) VALUES ('defaultConsumptionMode', 'manual');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('alertFrequency', 'daily');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('onboardingComplete', 'false');
@@ -564,11 +581,54 @@ export async function markOnboardingComplete(): Promise<void> {
   await updateSettings({ onboardingComplete: true });
 }
 
+// --- Custom categories & units ---
+//
+// These let a user's custom entry (e.g. typing "Floor Cleaner" as a category)
+// persist across the whole app rather than being a one-off value that has to
+// be retyped every time. Once added, they show up in the picker alongside
+// the built-in DEFAULT_CATEGORIES / UNITS_OF_MEASUREMENT lists everywhere.
+
+export interface CustomUnit {
+  value: string;
+  label: string;
+}
+
+export async function getCustomCategories(): Promise<string[]> {
+  const rows = await db.getAllAsync<{ name: string }>(
+    'SELECT name FROM custom_categories ORDER BY name COLLATE NOCASE'
+  );
+  return rows.map((r) => r.name);
+}
+
+export async function addCustomCategory(name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  await db.runAsync('INSERT OR IGNORE INTO custom_categories (name) VALUES (?)', [trimmed]);
+}
+
+export async function getCustomUnits(): Promise<CustomUnit[]> {
+  const rows = await db.getAllAsync<{ value: string; label: string }>(
+    'SELECT value, label FROM custom_units ORDER BY label COLLATE NOCASE'
+  );
+  return rows;
+}
+
+export async function addCustomUnit(value: string, label?: string): Promise<void> {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return;
+  await db.runAsync(
+    'INSERT OR IGNORE INTO custom_units (value, label) VALUES (?, ?)',
+    [trimmedValue, label?.trim() || trimmedValue]
+  );
+}
+
 export async function resetDatabase(): Promise<void> {
   await db.execAsync(`
     DELETE FROM consumption_logs;
     DELETE FROM shopping_list;
     DELETE FROM items;
+    DELETE FROM custom_categories;
+    DELETE FROM custom_units;
     DELETE FROM settings;
     INSERT INTO settings (key, value) VALUES ('defaultConsumptionMode', 'manual');
     INSERT INTO settings (key, value) VALUES ('alertFrequency', 'daily');

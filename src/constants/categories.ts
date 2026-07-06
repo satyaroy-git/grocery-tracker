@@ -1,4 +1,5 @@
 export const DEFAULT_CATEGORIES = [
+  // Food & grocery
   'Dairy',
   'Fruits',
   'Vegetables',
@@ -16,13 +17,30 @@ export const DEFAULT_CATEGORIES = [
   'Dry Fruits & Nuts',
   'Breakfast & Cereals',
   'Chocolates & Sweets',
+  // Personal care (split out so things like toothpaste have a specific home)
+  'Oral Care',
+  'Hair Care',
+  'Skin Care',
+  'Bath & Body',
   'Personal Care',
   'Baby Care',
+  'Feminine Care',
   'Health & Wellness',
+  'Grooming & Shaving',
+  // Household & cleaning (split out so cleaners have a specific home)
   'Household',
   'Cleaning Supplies',
-  'Pet Care',
+  'Floor Care',
+  'Bathroom Care',
+  'Laundry Care',
+  'Dishwashing',
+  'Air Fresheners & Fragrance',
+  'Pest Control',
   'Kitchen & Home',
+  'Paper & Disposables',
+  'Stationery & Office',
+  'Pet Care',
+  'Electronics & Batteries',
   'Other',
 ];
 

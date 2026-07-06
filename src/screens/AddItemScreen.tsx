@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,16 +12,23 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import {
   DEFAULT_CATEGORIES,
   UNITS_OF_MEASUREMENT,
   CONSUMPTION_FREQUENCIES,
 } from '../constants/categories';
-import { createItem } from '../database';
+import {
+  createItem,
+  getCustomCategories,
+  addCustomCategory,
+  getCustomUnits,
+  addCustomUnit,
+} from '../database';
 import { ConsumptionMode, ConsumptionFrequency } from '../database';
 import DateField from '../components/DateField';
+import SelectModal from '../components/SelectModal';
 import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
 export default function AddItemScreen() {
@@ -29,35 +36,68 @@ export default function AddItemScreen() {
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
-  const [customCategory, setCustomCategory] = useState('');
-  const [showCustomCategory, setShowCustomCategory] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  // Custom categories/units the user has previously added - persisted in the
+  // DB, so once "Floor Cleaner" is added once, it's a real pickable option
+  // forever after, for this item and every future one.
+  const [extraCategories, setExtraCategories] = useState<string[]>([]);
+  const [extraUnits, setExtraUnits] = useState<{ value: string; label: string }[]>([]);
   // Tracks whether the user has manually picked a category/unit themselves -
   // once true, we stop auto-suggesting based on the name so we never override
   // an intentional choice.
   const [categoryTouched, setCategoryTouched] = useState(false);
   const [unitTouched, setUnitTouched] = useState(false);
   const [unit, setUnit] = useState(UNITS_OF_MEASUREMENT[0].value);
-  const [customUnit, setCustomUnit] = useState('');
-  const [showCustomUnit, setShowCustomUnit] = useState(false);
+  const [showUnitModal, setShowUnitModal] = useState(false);
   const [currentQuantity, setCurrentQuantity] = useState('');
   const [threshold, setThreshold] = useState('');
   const [consumptionMode, setConsumptionMode] = useState<ConsumptionMode>('manual');
   const [autoRate, setAutoRate] = useState('');
   const [autoFrequency, setAutoFrequency] = useState<ConsumptionFrequency>('daily');
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showUnitPicker, setShowUnitPicker] = useState(false);
   // Both optional - price and expiry date are never required to save an item
   const [price, setPrice] = useState('');
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const loadExtras = useCallback(async () => {
+    try {
+      const [cats, units] = await Promise.all([getCustomCategories(), getCustomUnits()]);
+      setExtraCategories(cats);
+      setExtraUnits(units);
+    } catch (error) {
+      console.error('Failed to load custom categories/units:', error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadExtras();
+    }, [loadExtras])
+  );
+
+  const allCategoryOptions = [...DEFAULT_CATEGORIES, ...extraCategories].map((c) => ({
+    label: c,
+    value: c,
+  }));
+  const allUnitOptions = [...UNITS_OF_MEASUREMENT, ...extraUnits];
+
+  const handleAddCustomCategory = async (value: string) => {
+    await addCustomCategory(value);
+    setExtraCategories((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    setCategory(value);
+    setCategoryTouched(true);
+  };
+
+  const handleAddCustomUnit = async (value: string) => {
+    await addCustomUnit(value);
+    setExtraUnits((prev) => (prev.some((u) => u.value === value) ? prev : [...prev, { value, label: value }]));
+    setUnit(value);
+    setUnitTouched(true);
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter an item name.');
-      return;
-    }
-    if (showCustomUnit && !customUnit.trim()) {
-      Alert.alert('Error', 'Please enter a custom unit, or pick one from the list.');
       return;
     }
     if (!currentQuantity || parseFloat(currentQuantity) < 0) {
@@ -80,12 +120,10 @@ export default function AddItemScreen() {
 
     setSaving(true);
     try {
-      const finalCategory = showCustomCategory ? customCategory.trim() : category;
-      const finalUnit = showCustomUnit ? customUnit.trim() : unit;
       await createItem({
         name: name.trim(),
-        category: finalCategory,
-        unit: finalUnit,
+        category,
+        unit,
         currentQuantity: parseFloat(currentQuantity),
         threshold: parseFloat(threshold),
         consumptionMode,
@@ -103,7 +141,7 @@ export default function AddItemScreen() {
   };
 
   const selectedUnitLabel =
-    UNITS_OF_MEASUREMENT.find((u) => u.value === unit)?.label || unit;
+    allUnitOptions.find((u) => u.value === unit)?.label || unit;
 
   // Auto-populate category and unit as soon as the user types a recognizable
   // item name - this is exactly the behavior that was working in invoice/
@@ -114,13 +152,13 @@ export default function AddItemScreen() {
     setName(text);
     if (!text.trim()) return;
 
-    if (!categoryTouched && !showCustomCategory) {
+    if (!categoryTouched) {
       const guessedCategory = safeCategoryGuess(text);
       if (guessedCategory !== 'Other') {
         setCategory(guessedCategory);
       }
     }
-    if (!unitTouched && !showCustomUnit) {
+    if (!unitTouched) {
       const guessedUnit = guessUnitFromName(text, currentQuantity ? parseFloat(currentQuantity) || 1 : 1);
       setUnit(guessedUnit);
     }
@@ -152,67 +190,11 @@ export default function AddItemScreen() {
           <Text style={styles.label}>Category</Text>
           <TouchableOpacity
             style={styles.pickerButton}
-            onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+            onPress={() => setShowCategoryModal(true)}
           >
-            <Text style={styles.pickerButtonText}>
-              {showCustomCategory ? 'Custom' : category}
-            </Text>
+            <Text style={styles.pickerButtonText}>{category}</Text>
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          {showCategoryPicker && (
-            <View style={styles.pickerOptions}>
-              {DEFAULT_CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.pickerOption,
-                    category === cat && !showCustomCategory && styles.pickerOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setCategory(cat);
-                    setShowCustomCategory(false);
-                    setShowCategoryPicker(false);
-                    setCategoryTouched(true);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerOptionText,
-                      category === cat && !showCustomCategory && styles.pickerOptionTextSelected,
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={[styles.pickerOption, showCustomCategory && styles.pickerOptionSelected]}
-                onPress={() => {
-                  setShowCustomCategory(true);
-                  setShowCategoryPicker(false);
-                  setCategoryTouched(true);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pickerOptionText,
-                    showCustomCategory && styles.pickerOptionTextSelected,
-                  ]}
-                >
-                  + Custom Category
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {showCustomCategory && (
-            <TextInput
-              style={[styles.input, { marginTop: SPACING.sm }]}
-              value={customCategory}
-              onChangeText={setCustomCategory}
-              placeholder="Enter custom category"
-              placeholderTextColor={COLORS.textLight}
-            />
-          )}
         </View>
 
         {/* Unit */}
@@ -220,68 +202,42 @@ export default function AddItemScreen() {
           <Text style={styles.label}>Unit of Measurement</Text>
           <TouchableOpacity
             style={styles.pickerButton}
-            onPress={() => setShowUnitPicker(!showUnitPicker)}
+            onPress={() => setShowUnitModal(true)}
           >
-            <Text style={styles.pickerButtonText}>
-              {showCustomUnit ? 'Custom' : selectedUnitLabel}
-            </Text>
+            <Text style={styles.pickerButtonText}>{selectedUnitLabel}</Text>
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          {showUnitPicker && (
-            <ScrollView style={styles.pickerOptions} nestedScrollEnabled>
-              {UNITS_OF_MEASUREMENT.map((u) => (
-                <TouchableOpacity
-                  key={u.value}
-                  style={[
-                    styles.pickerOption,
-                    unit === u.value && !showCustomUnit && styles.pickerOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setUnit(u.value);
-                    setShowCustomUnit(false);
-                    setShowUnitPicker(false);
-                    setUnitTouched(true);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerOptionText,
-                      unit === u.value && !showCustomUnit && styles.pickerOptionTextSelected,
-                    ]}
-                  >
-                    {u.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={[styles.pickerOption, showCustomUnit && styles.pickerOptionSelected]}
-                onPress={() => {
-                  setShowCustomUnit(true);
-                  setShowUnitPicker(false);
-                  setUnitTouched(true);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pickerOptionText,
-                    showCustomUnit && styles.pickerOptionTextSelected,
-                  ]}
-                >
-                  + Custom Unit
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          )}
-          {showCustomUnit && (
-            <TextInput
-              style={[styles.input, { marginTop: SPACING.sm }]}
-              value={customUnit}
-              onChangeText={setCustomUnit}
-              placeholder="Enter custom unit (e.g. crate, drum)"
-              placeholderTextColor={COLORS.textLight}
-            />
-          )}
         </View>
+
+        <SelectModal
+          visible={showCategoryModal}
+          title="Select Category"
+          options={allCategoryOptions}
+          selectedValue={category}
+          onSelect={(value) => {
+            setCategory(value);
+            setCategoryTouched(true);
+          }}
+          onClose={() => setShowCategoryModal(false)}
+          onAddCustom={handleAddCustomCategory}
+          addCustomLabel="+ Add New Category"
+          addCustomPlaceholder="e.g. Floor Cleaner, Toothpaste"
+        />
+
+        <SelectModal
+          visible={showUnitModal}
+          title="Select Unit"
+          options={allUnitOptions}
+          selectedValue={unit}
+          onSelect={(value) => {
+            setUnit(value);
+            setUnitTouched(true);
+          }}
+          onClose={() => setShowUnitModal(false)}
+          onAddCustom={handleAddCustomUnit}
+          addCustomLabel="+ Add New Unit"
+          addCustomPlaceholder="e.g. crate, drum, number"
+        />
 
         {/* Quantity */}
         <View style={styles.field}>
