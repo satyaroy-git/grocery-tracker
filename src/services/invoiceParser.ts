@@ -24,6 +24,13 @@ export interface InvoiceParseResult {
   error?: string;
 }
 
+// Full list of units the app supports (kept in sync with constants/categories.ts UNITS_OF_MEASUREMENT)
+const VALID_UNITS_LIST = [
+  'kg', 'g', 'mg', 'L', 'mL', 'pcs', 'nos', 'dz', 'pkt', 'pouch', 'sachet',
+  'btl', 'jar', 'tube', 'box', 'can', 'bag', 'bunch', 'tray', 'roll', 'strip',
+  'pair', 'set',
+];
+
 // The LLM prompt specifically designed for Indian grocery invoice parsing
 const INVOICE_PARSE_PROMPT = `You are a grocery invoice parser specialized in Indian online grocery delivery platforms (Blinkit, Swiggy Instamart, BigBasket, Zepto, JioMart, Amazon Fresh, DMart Ready).
 
@@ -32,23 +39,32 @@ Analyze the provided grocery invoice image and extract ALL purchased items.
 For each item, provide:
 1. "name": Clean product name (remove brand prefixes if it's a common item, keep brand for branded products)
 2. "quantity": Numeric quantity purchased (parse from "2 x 500g" as quantity=2, or "1 kg" as quantity=1)
-3. "unit": One of: "kg", "g", "L", "mL", "pcs", "pkt", "btl", "dz", "box", "can", "bag"
-4. "category": One of: "Dairy", "Fruits", "Vegetables", "Grains & Cereals", "Snacks", "Beverages", "Spices & Condiments", "Meat & Seafood", "Bakery", "Frozen", "Personal Care", "Household", "Other"
+3. "unit": Pick the single best-fitting unit from: ${VALID_UNITS_LIST.join(', ')}
+4. "category": Pick the single best-fitting category from: ${DEFAULT_CATEGORIES.join(', ')}
 5. "price": Price paid for this item (number, INR)
 6. "brand": Brand name if visible
 
 IMPORTANT RULES:
 - Parse weight/volume from product names: "Amul Toned Milk 500ml" → unit: "mL", quantity: 500
 - For packaged items sold as packs: "Maggi Noodles 4-pack" → unit: "pkt", quantity: 4
-- If quantity shows "2 x 1L Milk", that means 2 items of 1L each → quantity: 2, unit: "L"  
+- If quantity shows "2 x 1L Milk", that means 2 items of 1L each → quantity: 2, unit: "L"
 - Normalize names: remove excessive brand/variant text, keep it recognizable
 - For produce sold by weight: "Onion 1kg" → name: "Onion", quantity: 1, unit: "kg"
-- Recognize common Indian grocery items and categorize appropriately
-- Items like "Atta" → "Grains & Cereals", "Ghee" → "Dairy", "Haldi" → "Spices & Condiments"
+- For items counted individually with no weight given (eggs, lemons, single fruits/vegetables sold per piece), use unit "nos" or "pcs" — e.g. "Eggs 6" → name: "Eggs", quantity: 6, unit: "nos"
+- Recognize common Indian grocery items and categorize appropriately, e.g.:
+  "Atta"/"Rice"/"Poha" → "Grains & Cereals", "Toor Dal"/"Moong Dal"/"Chana" → "Pulses & Dals",
+  "Ghee"/"Cooking Oil"/"Mustard Oil" → "Oils & Ghee", "Haldi"/"Jeera"/"Garam Masala" → "Spices & Condiments",
+  "Tea"/"Coffee" → "Tea & Coffee", "Ketchup"/"Jam"/"Mayonnaise" → "Sauces & Spreads",
+  "Almonds"/"Cashews"/"Raisins" → "Dry Fruits & Nuts", "Cornflakes"/"Muesli"/"Oats" → "Breakfast & Cereals",
+  "Chocolate"/"Candy" → "Chocolates & Sweets", "Frozen Peas"/"Ice Cream" → "Frozen Foods",
+  "Diapers"/"Baby Wipes" → "Baby Care", "Detergent"/"Dishwash" → "Cleaning Supplies",
+  "Pet Food" → "Pet Care"
 
 Extract every item you find and return them in the structured format requested.`;
 
-// JSON Schema Gemini uses to constrain its response (guarantees valid, parseable JSON)
+// JSON Schema Gemini uses to constrain its response (guarantees valid, parseable JSON).
+// Constraining category/unit to enums keeps AI output aligned with what the app
+// actually supports, so users rarely need to correct them in the review screen.
 const RESPONSE_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -62,8 +78,8 @@ const RESPONSE_SCHEMA = {
         properties: {
           name: { type: 'STRING' },
           quantity: { type: 'NUMBER' },
-          unit: { type: 'STRING' },
-          category: { type: 'STRING' },
+          unit: { type: 'STRING', enum: VALID_UNITS_LIST },
+          category: { type: 'STRING', enum: DEFAULT_CATEGORIES },
           price: { type: 'NUMBER', nullable: true },
           brand: { type: 'STRING', nullable: true },
         },
@@ -303,7 +319,8 @@ function parseJsonResponse(content: string): any {
   }
 }
 
-const VALID_UNITS = ['kg', 'g', 'L', 'mL', 'pcs', 'pkt', 'btl', 'dz', 'box', 'can', 'bag'];
+// Reuse the same list defined above (near the prompt) for validation
+const VALID_UNITS = VALID_UNITS_LIST;
 
 function validateAndCleanItems(items: any[]): ParsedInvoiceItem[] {
   return items
@@ -347,6 +364,8 @@ function validateAndCleanItems(items: any[]): ParsedInvoiceItem[] {
 
 function guessUnit(name: string, quantity: number): string {
   const lower = name.toLowerCase();
+  // Items almost always counted individually, regardless of quantity size
+  if (/egg|lemon|coconut|corn|cucumber|capsicum|brinjal|banana(?!\s?chips)/i.test(lower)) return 'nos';
   if (lower.includes('milk') || lower.includes('oil') || lower.includes('juice')) return 'L';
   if (lower.includes('water')) return 'L';
   if (quantity >= 100 && quantity <= 1000) return 'g'; // likely grams
@@ -357,38 +376,82 @@ function guessUnit(name: string, quantity: number): string {
 function guessCategory(name: string): string {
   const lower = name.toLowerCase();
 
-  if (/milk|curd|paneer|cheese|butter|ghee|yogurt|dahi/i.test(lower)) return 'Dairy';
-  if (/apple|banana|mango|orange|grape|papaya|fruit/i.test(lower)) return 'Fruits';
-  if (/onion|tomato|potato|carrot|spinach|capsicum|vegetable|sabzi/i.test(lower)) return 'Vegetables';
-  if (/rice|atta|flour|dal|lentil|wheat|oats|cereal|bread/i.test(lower)) return 'Grains & Cereals';
-  if (/chips|biscuit|cookie|namkeen|snack|chocolate/i.test(lower)) return 'Snacks';
-  if (/tea|coffee|juice|soda|water|drink|cola/i.test(lower)) return 'Beverages';
-  if (/salt|sugar|turmeric|haldi|jeera|cumin|masala|spice|sauce|ketchup/i.test(lower)) return 'Spices & Condiments';
+  if (/milk|curd|paneer|cheese|butter|yogurt|dahi/i.test(lower)) return 'Dairy';
+  if (/apple|banana|mango|orange|grape|papaya|fruit|lemon|watermelon|pineapple/i.test(lower)) return 'Fruits';
+  if (/onion|tomato|potato|carrot|spinach|capsicum|vegetable|sabzi|brinjal|cucumber|corn/i.test(lower)) return 'Vegetables';
+  if (/rice|atta|flour|wheat|poha|suji|maida/i.test(lower)) return 'Grains & Cereals';
+  if (/dal|lentil|chana|rajma|moong|toor|urad/i.test(lower)) return 'Pulses & Dals';
+  if (/ghee|cooking oil|mustard oil|sunflower oil|olive oil|vanaspati/i.test(lower)) return 'Oils & Ghee';
+  if (/oats|cornflakes|muesli|cereal/i.test(lower)) return 'Breakfast & Cereals';
+  if (/chips|biscuit|cookie|namkeen|snack|kurkure/i.test(lower)) return 'Snacks';
+  if (/chocolate|candy|toffee|sweet|mithai/i.test(lower)) return 'Chocolates & Sweets';
+  if (/tea|coffee/i.test(lower)) return 'Tea & Coffee';
+  if (/juice|soda|water|drink|cola|beverage/i.test(lower)) return 'Beverages';
+  if (/ketchup|sauce|jam|mayonnaise|spread/i.test(lower)) return 'Sauces & Spreads';
+  if (/salt|sugar|turmeric|haldi|jeera|cumin|masala|spice/i.test(lower)) return 'Spices & Condiments';
+  if (/almond|cashew|raisin|walnut|pista|dry fruit|nuts/i.test(lower)) return 'Dry Fruits & Nuts';
   if (/chicken|mutton|fish|egg|prawn|meat/i.test(lower)) return 'Meat & Seafood';
-  if (/soap|shampoo|toothpaste|cream|lotion|deo/i.test(lower)) return 'Personal Care';
-  if (/detergent|cleaner|mop|tissue|trash/i.test(lower)) return 'Household';
+  if (/bread|bun|cake|pastry|bakery/i.test(lower)) return 'Bakery';
+  if (/frozen|ice cream|kulfi/i.test(lower)) return 'Frozen Foods';
+  if (/diaper|baby wipes|baby food|formula/i.test(lower)) return 'Baby Care';
+  if (/vitamin|supplement|medicine|bandage|sanitizer/i.test(lower)) return 'Health & Wellness';
+  if (/soap|shampoo|toothpaste|cream|lotion|deo|razor/i.test(lower)) return 'Personal Care';
+  if (/detergent|dishwash|cleaner|mop|toilet clean/i.test(lower)) return 'Cleaning Supplies';
+  if (/pet food|dog|cat litter/i.test(lower)) return 'Pet Care';
+  if (/tissue|trash|foil|plastic wrap|container/i.test(lower)) return 'Kitchen & Home';
+  if (/detergent|cleaner|mop|trash/i.test(lower)) return 'Household';
 
   return 'Other';
 }
 
 function suggestThreshold(item: ParsedInvoiceItem): number {
-  // Suggest a reasonable threshold based on the item
+  // Suggest a reasonable low-stock threshold based on the item.
+  // IMPORTANT: the threshold must always be strictly LESS than the quantity
+  // just purchased, otherwise the item is immediately flagged as "low stock"
+  // the moment it's added (status is currentQuantity <= threshold).
   const { quantity, unit } = item;
 
+  let suggested: number;
   switch (unit) {
     case 'kg':
-      return Math.max(0.25, quantity * 0.2);
-    case 'g':
-      return Math.max(50, quantity * 0.2);
     case 'L':
-      return Math.max(0.25, quantity * 0.2);
+      suggested = quantity * 0.2;
+      break;
+    case 'g':
     case 'mL':
-      return Math.max(100, quantity * 0.2);
+    case 'mg':
+      suggested = quantity * 0.2;
+      break;
     case 'pcs':
-      return Math.max(1, Math.floor(quantity * 0.2));
+    case 'nos':
     case 'pkt':
-      return 1;
+    case 'pouch':
+    case 'sachet':
+    case 'box':
+    case 'can':
+    case 'bag':
+    case 'bottle':
+    case 'btl':
+    case 'jar':
+    case 'tube':
+    case 'bunch':
+    case 'tray':
+    case 'roll':
+    case 'strip':
+    case 'pair':
+    case 'set':
+      suggested = Math.floor(quantity * 0.2);
+      break;
+    case 'dz':
+      suggested = quantity * 0.2;
+      break;
     default:
-      return Math.max(1, Math.floor(quantity * 0.2));
+      suggested = quantity * 0.2;
   }
+
+  // Cap the threshold so it can never reach or exceed the purchased quantity.
+  // For small quantities (e.g. quantity = 1), this results in threshold = 0,
+  // meaning the item won't show "low stock" until it's actually used up.
+  const maxAllowed = quantity > 1 ? quantity - 1 : 0;
+  return Math.max(0, Math.min(suggested, maxAllowed));
 }

@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
 import { createItemsBatch, CreateItemInput } from '../database';
 import {
   parseInvoiceImage,
@@ -31,6 +32,12 @@ import { hasApiKey, setApiKey } from '../services/config';
 type ParseMode = 'image' | 'text';
 type ScreenState = 'input' | 'parsing' | 'review' | 'saving' | 'done';
 
+// Picker target identifies which item + which field (category/unit) is being edited
+interface PickerTarget {
+  index: number;
+  field: 'category' | 'unit';
+}
+
 export default function ScanInvoiceScreen() {
   const navigation = useNavigation();
 
@@ -39,10 +46,14 @@ export default function ScanInvoiceScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [invoiceText, setInvoiceText] = useState('');
   const [parseResult, setParseResult] = useState<InvoiceParseResult | null>(null);
+  // Editable copy of the parsed items — lets the user correct category/unit/quantity
+  // right in the review screen before anything is saved to the pantry.
+  const [editableItems, setEditableItems] = useState<ParsedInvoiceItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [apiKeyConfigured, setApiKeyConfigured] = useState<boolean>(true);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
 
   useEffect(() => {
     checkApiKey();
@@ -131,8 +142,9 @@ export default function ScanInvoiceScreen() {
     setParseResult(result);
 
     if (result.success && result.items.length > 0) {
-      // Select all items by default
+      // Select all items by default, and make an editable copy for the review screen
       setSelectedItems(new Set(result.items.map((_, index) => index)));
+      setEditableItems(result.items.map((item) => ({ ...item })));
       setScreenState('review');
     } else {
       setScreenState('input');
@@ -157,17 +169,24 @@ export default function ScanInvoiceScreen() {
   };
 
   const selectAll = () => {
-    if (parseResult?.items) {
-      setSelectedItems(new Set(parseResult.items.map((_, i) => i)));
-    }
+    setSelectedItems(new Set(editableItems.map((_, i) => i)));
   };
 
   const deselectAll = () => {
     setSelectedItems(new Set());
   };
 
+  // Update a single field (category or unit) on one item in the editable list
+  const updateItemField = (index: number, field: 'category' | 'unit' | 'quantity', value: string | number) => {
+    setEditableItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value } as ParsedInvoiceItem;
+      return next;
+    });
+  };
+
   const handleAddToPantry = async () => {
-    if (!parseResult?.items || selectedItems.size === 0) {
+    if (editableItems.length === 0 || selectedItems.size === 0) {
       Alert.alert('No Items Selected', 'Please select at least one item to add.');
       return;
     }
@@ -175,7 +194,7 @@ export default function ScanInvoiceScreen() {
     setScreenState('saving');
 
     try {
-      const itemsToAdd = parseResult.items.filter((_, index) => selectedItems.has(index));
+      const itemsToAdd = editableItems.filter((_, index) => selectedItems.has(index));
       const createInputs: CreateItemInput[] = convertToCreateItemInputs(itemsToAdd);
       await createItemsBatch(createInputs);
 
@@ -194,6 +213,7 @@ export default function ScanInvoiceScreen() {
   const handleRetry = () => {
     setScreenState('input');
     setParseResult(null);
+    setEditableItems([]);
     setSelectedItems(new Set());
   };
 
@@ -257,6 +277,9 @@ export default function ScanInvoiceScreen() {
 
   // Render review state
   if (screenState === 'review' && parseResult) {
+    const selectedUnitLabel = (unit: string) =>
+      UNITS_OF_MEASUREMENT.find((u) => u.value === unit)?.label || unit;
+
     return (
       <View style={styles.container}>
         <View style={styles.reviewHeader}>
@@ -264,8 +287,11 @@ export default function ScanInvoiceScreen() {
             <Text style={styles.storeName}>{parseResult.storeName}</Text>
           )}
           <Text style={styles.itemCount}>
-            {parseResult.items.length} items found
+            {editableItems.length} items found
             {parseResult.totalAmount ? ` | Total: ₹${parseResult.totalAmount}` : ''}
+          </Text>
+          <Text style={styles.editHint}>
+            Tap category or unit on any item below to change it.
           </Text>
           <View style={styles.selectionRow}>
             <TouchableOpacity onPress={selectAll}>
@@ -282,34 +308,75 @@ export default function ScanInvoiceScreen() {
         </View>
 
         <FlatList
-          data={parseResult.items}
+          data={editableItems}
           keyExtractor={(_, index) => index.toString()}
           contentContainerStyle={styles.listContent}
           renderItem={({ item, index }) => (
-            <TouchableOpacity
+            <View
               style={[
                 styles.reviewItem,
                 selectedItems.has(index) && styles.reviewItemSelected,
               ]}
-              onPress={() => toggleItemSelection(index)}
             >
-              <View style={styles.checkbox}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => toggleItemSelection(index)}
+              >
                 {selectedItems.has(index) ? (
                   <Ionicons name="checkbox" size={24} color={COLORS.primary} />
                 ) : (
                   <Ionicons name="square-outline" size={24} color={COLORS.textLight} />
                 )}
-              </View>
+              </TouchableOpacity>
+
               <View style={styles.reviewItemInfo}>
                 <Text style={styles.reviewItemName}>
                   {item.brand ? `${item.brand} ` : ''}{item.name}
+                  {item.price ? (
+                    <Text style={styles.reviewItemPrice}> · ₹{item.price}</Text>
+                  ) : null}
                 </Text>
-                <Text style={styles.reviewItemDetails}>
-                  {item.quantity} {item.unit} | {item.category}
-                  {item.price ? ` | ₹${item.price}` : ''}
-                </Text>
+
+                <View style={styles.editableRow}>
+                  {/* Quantity stepper */}
+                  <View style={styles.qtyStepper}>
+                    <TouchableOpacity
+                      style={styles.qtyButton}
+                      onPress={() =>
+                        updateItemField(index, 'quantity', Math.max(1, item.quantity - 1))
+                      }
+                    >
+                      <Ionicons name="remove" size={16} color={COLORS.primary} />
+                    </TouchableOpacity>
+                    <Text style={styles.qtyValue}>{item.quantity}</Text>
+                    <TouchableOpacity
+                      style={styles.qtyButton}
+                      onPress={() => updateItemField(index, 'quantity', item.quantity + 1)}
+                    >
+                      <Ionicons name="add" size={16} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Unit chip - tap to change */}
+                  <TouchableOpacity
+                    style={styles.editChip}
+                    onPress={() => setPickerTarget({ index, field: 'unit' })}
+                  >
+                    <Text style={styles.editChipText}>{selectedUnitLabel(item.unit)}</Text>
+                    <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
+                  </TouchableOpacity>
+
+                  {/* Category chip - tap to change */}
+                  <TouchableOpacity
+                    style={styles.editChip}
+                    onPress={() => setPickerTarget({ index, field: 'category' })}
+                  >
+                    <Text style={styles.editChipText}>{item.category}</Text>
+                    <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </TouchableOpacity>
+            </View>
           )}
         />
 
@@ -329,6 +396,59 @@ export default function ScanInvoiceScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Category/Unit picker modal (bottom sheet style overlay) */}
+        {pickerTarget && (
+          <View style={styles.pickerOverlay}>
+            <TouchableOpacity
+              style={styles.pickerOverlayBackdrop}
+              onPress={() => setPickerTarget(null)}
+            />
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerSheetHeader}>
+                <Text style={styles.pickerSheetTitle}>
+                  Select {pickerTarget.field === 'unit' ? 'Unit' : 'Category'}
+                </Text>
+                <TouchableOpacity onPress={() => setPickerTarget(null)}>
+                  <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={pickerTarget.field === 'unit' ? UNITS_OF_MEASUREMENT : DEFAULT_CATEGORIES.map((c) => ({ label: c, value: c }))}
+                keyExtractor={(opt) => opt.value}
+                style={styles.pickerSheetList}
+                renderItem={({ item: option }) => {
+                  const currentValue =
+                    pickerTarget.field === 'unit'
+                      ? editableItems[pickerTarget.index]?.unit
+                      : editableItems[pickerTarget.index]?.category;
+                  const isSelected = currentValue === option.value;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.pickerSheetOption, isSelected && styles.pickerSheetOptionSelected]}
+                      onPress={() => {
+                        updateItemField(pickerTarget.index, pickerTarget.field, option.value);
+                        setPickerTarget(null);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerSheetOptionText,
+                          isSelected && styles.pickerSheetOptionTextSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          </View>
+        )}
       </View>
     );
   }
@@ -760,10 +880,120 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
+  reviewItemPrice: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '400',
+    color: COLORS.textSecondary,
+  },
   reviewItemDetails: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  editHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textLight,
+    marginTop: SPACING.xs,
+  },
+  editableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    gap: SPACING.xs,
+    flexWrap: 'wrap',
+  },
+  qtyStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  qtyButton: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+  },
+  qtyValue: {
+    minWidth: 28,
+    textAlign: 'center',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  editChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryLight + '20',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  editChipText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+
+  // Category/Unit picker sheet
+  pickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+  },
+  pickerOverlayBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.overlay,
+  },
+  pickerSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    maxHeight: '70%',
+    ...SHADOWS.lg,
+  },
+  pickerSheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  pickerSheetTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  pickerSheetList: {
+    paddingBottom: SPACING.lg,
+  },
+  pickerSheetOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  pickerSheetOptionSelected: {
+    backgroundColor: COLORS.primaryLight + '15',
+  },
+  pickerSheetOptionText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+  },
+  pickerSheetOptionTextSelected: {
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   reviewFooter: {
     position: 'absolute',
