@@ -12,7 +12,7 @@ A React Native (Expo) app that helps you track your pantry inventory, manage sho
 
 ## Invoice Parsing (AI-Powered)
 
-The app uses **OpenAI GPT-4o Vision** to parse grocery invoices:
+The app uses **Google Gemini** (gemini-2.5-flash) to parse grocery invoices:
 
 ### Supported Input Methods:
 1. **Camera**: Take a photo of a physical invoice/bill
@@ -38,11 +38,15 @@ The app uses **OpenAI GPT-4o Vision** to parse grocery invoices:
 6. Tap "Add to Pantry" to bulk-add items
 
 ### API Key Setup:
-You need an OpenAI API key (with GPT-4o access):
-1. Go to https://platform.openai.com/api-keys
-2. Create a new key
+You need a Gemini API key (free tier available, no credit card required):
+1. Go to https://aistudio.google.com/apikey
+2. Sign in with your Google account and create a new key
 3. In the app, the first time you use "Scan Invoice", it will prompt you for the key
 4. The key is stored securely on your device
+
+**Free tier limits** (subject to change by Google): a generous daily quota of
+requests on `gemini-2.5-flash`, more than enough for personal invoice scanning.
+See https://ai.google.dev/gemini-api/docs/rate-limits for current limits.
 
 ## Getting Started
 
@@ -87,7 +91,7 @@ Then scan the QR code with Expo Go app on your Android device.
 - **TypeScript**
 - **expo-sqlite** for local database
 - **expo-image-picker** for camera/gallery access
-- **OpenAI GPT-4o** for invoice vision parsing
+- **Google Gemini (gemini-2.5-flash)** for invoice vision parsing
 - **React Navigation** for navigation
 
 ## Project Structure

@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 const CONFIG_FILE = `${FileSystem.documentDirectory}pantrypal_config.json`;
 
 interface AppConfig {
-  openaiApiKey?: string;
+  geminiApiKey?: string;
 }
 
 let cachedConfig: AppConfig | null = null;
@@ -40,12 +40,12 @@ async function saveConfig(config: AppConfig): Promise<void> {
 
 export async function getApiKey(): Promise<string | null> {
   const config = await loadConfig();
-  return config.openaiApiKey || null;
+  return config.geminiApiKey || null;
 }
 
 export async function setApiKey(key: string): Promise<void> {
   const config = await loadConfig();
-  config.openaiApiKey = key;
+  config.geminiApiKey = key;
   await saveConfig(config);
 }
 
@@ -56,7 +56,7 @@ export async function hasApiKey(): Promise<boolean> {
 
 export async function clearApiKey(): Promise<void> {
   const config = await loadConfig();
-  delete config.openaiApiKey;
+  delete config.geminiApiKey;
   await saveConfig(config);
   cachedConfig = config;
 }

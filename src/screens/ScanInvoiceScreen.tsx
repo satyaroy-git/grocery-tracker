@@ -57,8 +57,8 @@ export default function ScanInvoiceScreen() {
   };
 
   const handleSaveApiKey = async () => {
-    if (!apiKeyInput.trim() || !apiKeyInput.startsWith('sk-')) {
-      Alert.alert('Invalid Key', 'Please enter a valid OpenAI API key (starts with sk-)');
+    if (!apiKeyInput.trim() || apiKeyInput.trim().length < 10) {
+      Alert.alert('Invalid Key', 'Please enter a valid Gemini API key from Google AI Studio.');
       return;
     }
     await setApiKey(apiKeyInput.trim());
@@ -204,19 +204,19 @@ export default function ScanInvoiceScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.apiKeySection}>
             <Ionicons name="key-outline" size={48} color={COLORS.primary} />
-            <Text style={styles.apiKeyTitle}>OpenAI API Key Required</Text>
+            <Text style={styles.apiKeyTitle}>Gemini API Key Required</Text>
             <Text style={styles.apiKeyDescription}>
-              To parse grocery invoices, PantryPal uses OpenAI's GPT-4 Vision AI.
-              You need to provide your own API key.
+              To parse grocery invoices, PantryPal uses Google's Gemini AI.
+              Gemini offers a free tier with no credit card required.
             </Text>
             <Text style={styles.apiKeyHint}>
-              Get your key from: platform.openai.com/api-keys
+              Get your free key from: aistudio.google.com/apikey
             </Text>
             <TextInput
               style={styles.apiKeyInput}
               value={apiKeyInput}
               onChangeText={setApiKeyInput}
-              placeholder="sk-..."
+              placeholder="AIzaSy..."
               placeholderTextColor={COLORS.textLight}
               autoCapitalize="none"
               autoCorrect={false}

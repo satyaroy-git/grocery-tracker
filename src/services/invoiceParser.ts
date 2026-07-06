@@ -46,27 +46,39 @@ IMPORTANT RULES:
 - Recognize common Indian grocery items and categorize appropriately
 - Items like "Atta" → "Grains & Cereals", "Ghee" → "Dairy", "Haldi" → "Spices & Condiments"
 
-Return a JSON object with this structure:
-{
-  "storeName": "detected store name or null",
-  "invoiceDate": "date if visible in YYYY-MM-DD format or null",
-  "totalAmount": total bill amount as number or null,
-  "items": [
-    {
-      "name": "Item Name",
-      "quantity": 1,
-      "unit": "kg",
-      "category": "Category",
-      "price": 50,
-      "brand": "Brand or null"
-    }
-  ]
-}
+Extract every item you find and return them in the structured format requested.`;
 
-Return ONLY valid JSON, no markdown formatting, no code blocks.`;
+// JSON Schema Gemini uses to constrain its response (guarantees valid, parseable JSON)
+const RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    storeName: { type: 'STRING', nullable: true },
+    invoiceDate: { type: 'STRING', nullable: true },
+    totalAmount: { type: 'NUMBER', nullable: true },
+    items: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          quantity: { type: 'NUMBER' },
+          unit: { type: 'STRING' },
+          category: { type: 'STRING' },
+          price: { type: 'NUMBER', nullable: true },
+          brand: { type: 'STRING', nullable: true },
+        },
+        required: ['name', 'quantity', 'unit', 'category'],
+      },
+    },
+  },
+  required: ['items'],
+};
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /**
- * Parse a grocery invoice image using OpenAI GPT-4 Vision API
+ * Parse a grocery invoice image using the Gemini API (multimodal vision)
  */
 export async function parseInvoiceImage(imageUri: string): Promise<InvoiceParseResult> {
   try {
@@ -75,7 +87,7 @@ export async function parseInvoiceImage(imageUri: string): Promise<InvoiceParseR
       return {
         success: false,
         items: [],
-        error: 'OpenAI API key not configured. Please set it in Settings.',
+        error: 'Gemini API key not configured. Please set it in Settings.',
       };
     }
 
@@ -87,83 +99,36 @@ export async function parseInvoiceImage(imageUri: string): Promise<InvoiceParseR
     // Determine image MIME type from URI
     const mimeType = getMimeType(imageUri);
 
-    // Call OpenAI GPT-4 Vision API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: INVOICE_PARSE_PROMPT,
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Please parse this grocery invoice image and extract all items with their details.',
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${base64Image}`,
-                  detail: 'high',
+    const response = await fetch(
+      `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: INVOICE_PARSE_PROMPT },
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64Image,
+                  },
                 },
-              },
-            ],
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: 'application/json',
+            responseSchema: RESPONSE_SCHEMA,
           },
-        ],
-        max_tokens: 4096,
-        temperature: 0.1, // Low temperature for accurate extraction
-      }),
-    });
+        }),
+      }
+    );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      const errorMsg = errorData?.error?.message || `API request failed with status ${response.status}`;
-      return {
-        success: false,
-        items: [],
-        error: `OpenAI API Error: ${errorMsg}`,
-      };
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return {
-        success: false,
-        items: [],
-        error: 'No response from AI model.',
-      };
-    }
-
-    // Parse the JSON response
-    const parsed = parseJsonResponse(content);
-    if (!parsed) {
-      return {
-        success: false,
-        items: [],
-        error: 'Failed to parse AI response. The invoice might be unclear.',
-      };
-    }
-
-    // Validate and clean the items
-    const validatedItems = validateAndCleanItems(parsed.items || []);
-
-    return {
-      success: true,
-      items: validatedItems,
-      storeName: parsed.storeName || undefined,
-      invoiceDate: parsed.invoiceDate || undefined,
-      totalAmount: parsed.totalAmount || undefined,
-    };
+    return await handleGeminiResponse(response);
   } catch (error: any) {
     console.error('Invoice parsing error:', error);
     return {
@@ -175,7 +140,7 @@ export async function parseInvoiceImage(imageUri: string): Promise<InvoiceParseR
 }
 
 /**
- * Parse invoice from text (for copy-pasted invoice text)
+ * Parse invoice from text (for copy-pasted invoice text) using Gemini
  */
 export async function parseInvoiceText(invoiceText: string): Promise<InvoiceParseResult> {
   try {
@@ -184,72 +149,36 @@ export async function parseInvoiceText(invoiceText: string): Promise<InvoicePars
       return {
         success: false,
         items: [],
-        error: 'OpenAI API key not configured. Please set it in Settings.',
+        error: 'Gemini API key not configured. Please set it in Settings.',
       };
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: INVOICE_PARSE_PROMPT,
+    const response = await fetch(
+      `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `${INVOICE_PARSE_PROMPT}\n\nHere is the invoice/order text to parse:\n\n${invoiceText}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: 'application/json',
+            responseSchema: RESPONSE_SCHEMA,
           },
-          {
-            role: 'user',
-            content: `Please parse this grocery invoice/order text and extract all items:\n\n${invoiceText}`,
-          },
-        ],
-        max_tokens: 4096,
-        temperature: 0.1,
-      }),
-    });
+        }),
+      }
+    );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      const errorMsg = errorData?.error?.message || `API request failed with status ${response.status}`;
-      return {
-        success: false,
-        items: [],
-        error: `OpenAI API Error: ${errorMsg}`,
-      };
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return {
-        success: false,
-        items: [],
-        error: 'No response from AI model.',
-      };
-    }
-
-    const parsed = parseJsonResponse(content);
-    if (!parsed) {
-      return {
-        success: false,
-        items: [],
-        error: 'Failed to parse AI response.',
-      };
-    }
-
-    const validatedItems = validateAndCleanItems(parsed.items || []);
-
-    return {
-      success: true,
-      items: validatedItems,
-      storeName: parsed.storeName || undefined,
-      invoiceDate: parsed.invoiceDate || undefined,
-      totalAmount: parsed.totalAmount || undefined,
-    };
+    return await handleGeminiResponse(response);
   } catch (error: any) {
     console.error('Invoice text parsing error:', error);
     return {
@@ -258,6 +187,61 @@ export async function parseInvoiceText(invoiceText: string): Promise<InvoicePars
       error: `Failed to parse invoice: ${error.message || 'Unknown error'}`,
     };
   }
+}
+
+/**
+ * Shared response handling for both image and text Gemini calls
+ */
+async function handleGeminiResponse(response: Response): Promise<InvoiceParseResult> {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    const errorMsg = errorData?.error?.message || `API request failed with status ${response.status}`;
+    return {
+      success: false,
+      items: [],
+      error: `Gemini API Error: ${errorMsg}`,
+    };
+  }
+
+  const data = await response.json();
+
+  // Check for content blocked by safety filters or other non-STOP finish reasons
+  const candidate = data.candidates?.[0];
+  if (!candidate) {
+    return {
+      success: false,
+      items: [],
+      error: 'No response from Gemini. The invoice might be unclear or blocked by safety filters.',
+    };
+  }
+
+  const content = candidate.content?.parts?.[0]?.text;
+  if (!content) {
+    return {
+      success: false,
+      items: [],
+      error: 'Gemini returned an empty response.',
+    };
+  }
+
+  const parsed = parseJsonResponse(content);
+  if (!parsed) {
+    return {
+      success: false,
+      items: [],
+      error: 'Failed to parse AI response. The invoice might be unclear.',
+    };
+  }
+
+  const validatedItems = validateAndCleanItems(parsed.items || []);
+
+  return {
+    success: true,
+    items: validatedItems,
+    storeName: parsed.storeName || undefined,
+    invoiceDate: parsed.invoiceDate || undefined,
+    totalAmount: parsed.totalAmount || undefined,
+  };
 }
 
 /**
