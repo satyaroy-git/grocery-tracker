@@ -48,6 +48,12 @@ export interface ConsumptionLog {
   quantity: number;
   type: 'manual' | 'auto' | 'restock';
   note: string | null;
+  // Amount paid for this specific purchase event. Only ever set on 'restock'
+  // entries (the initial purchase when an item is created, or a later
+  // restock where a price was entered). This is what expenditure insights
+  // are actually calculated from - NOT items.price, which is just a
+  // "most recently known price" snapshot for quick display.
+  price: number | null;
   createdAt: string;
 }
 
@@ -102,6 +108,7 @@ export async function initDatabase(): Promise<void> {
       quantity REAL NOT NULL,
       type TEXT NOT NULL DEFAULT 'manual',
       note TEXT,
+      price REAL,
       createdAt TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (itemId) REFERENCES items(id) ON DELETE CASCADE
     );
@@ -153,14 +160,20 @@ export async function initDatabase(): Promise<void> {
 // above only applies to brand-new databases, so existing users need this to
 // pick up the new columns without losing their data.
 async function migrateSchema(): Promise<void> {
-  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(items)`);
-  const columnNames = new Set(columns.map((c) => c.name));
+  const itemColumns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(items)`);
+  const itemColumnNames = new Set(itemColumns.map((c) => c.name));
 
-  if (!columnNames.has('price')) {
+  if (!itemColumnNames.has('price')) {
     await db.execAsync(`ALTER TABLE items ADD COLUMN price REAL;`);
   }
-  if (!columnNames.has('expiryDate')) {
+  if (!itemColumnNames.has('expiryDate')) {
     await db.execAsync(`ALTER TABLE items ADD COLUMN expiryDate TEXT;`);
+  }
+
+  const logColumns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(consumption_logs)`);
+  const logColumnNames = new Set(logColumns.map((c) => c.name));
+  if (!logColumnNames.has('price')) {
+    await db.execAsync(`ALTER TABLE consumption_logs ADD COLUMN price REAL;`);
   }
 }
 
@@ -220,7 +233,22 @@ export async function createItem(input: CreateItemInput): Promise<number> {
       input.expiryDate ?? null,
     ]
   );
-  return result.lastInsertRowId;
+  const itemId = result.lastInsertRowId;
+
+  // Record the initial purchase as a 'restock' log entry (quantity=0 delta
+  // to stock since it's already reflected in currentQuantity above) so this
+  // first purchase counts toward expenditure totals the same way every
+  // later restock does. Only logged when a price was actually provided AND
+  // there's a meaningful quantity - an item added with 0 quantity and no
+  // price shouldn't create a log entry.
+  if (input.price !== undefined && input.price !== null && input.price > 0) {
+    await db.runAsync(
+      `INSERT INTO consumption_logs (itemId, quantity, type, note, price) VALUES (?, ?, 'restock', ?, ?)`,
+      [itemId, 0, 'Initial purchase', input.price]
+    );
+  }
+
+  return itemId;
 }
 
 export async function createItemsBatch(items: CreateItemInput[]): Promise<number[]> {
@@ -277,6 +305,18 @@ export async function restockItem(id: number, quantity: number): Promise<void> {
   );
 }
 
+// Updates items.price to the most recently paid price, so the "Purchase
+// Details" card on ItemDetailScreen always shows the latest known price.
+// This is purely a display convenience - expenditure totals are computed
+// from consumption_logs.price (the actual purchase ledger), never from this
+// snapshot field, so it never affects Insights calculations.
+export async function updateItemPrice(id: number, price: number): Promise<void> {
+  await db.runAsync(
+    `UPDATE items SET price = ?, updatedAt = datetime('now') WHERE id = ?`,
+    [price, id]
+  );
+}
+
 export async function deductQuantity(id: number, quantity: number): Promise<void> {
   await db.runAsync(
     `UPDATE items SET currentQuantity = MAX(0, currentQuantity - ?), updatedAt = datetime('now') WHERE id = ?`,
@@ -290,15 +330,22 @@ export async function deductQuantity(id: number, quantity: number): Promise<void
 // consumption events. For 'restock' entries, the caller is expected to have
 // already adjusted the quantity via restockItem() BEFORE calling this - otherwise
 // stock would be double-counted (once by restockItem, once by this function).
+//
+// `price` should only ever be passed for 'restock' entries - it's the amount
+// paid for that specific purchase. This is what expenditure totals
+// (getExpenditureSummary, getSpendByCategory, getMonthlySpendTrend) are
+// actually computed from, so every priced purchase - not just the first one
+// when an item is created - is correctly reflected in Insights.
 export async function logConsumption(
   itemId: number,
   quantity: number,
   type: 'manual' | 'auto' | 'restock' = 'manual',
-  note?: string
+  note?: string,
+  price?: number | null
 ): Promise<void> {
   await db.runAsync(
-    `INSERT INTO consumption_logs (itemId, quantity, type, note) VALUES (?, ?, ?, ?)`,
-    [itemId, quantity, type, note || null]
+    `INSERT INTO consumption_logs (itemId, quantity, type, note, price) VALUES (?, ?, ?, ?, ?)`,
+    [itemId, quantity, type, note || null, price ?? null]
   );
   if (type !== 'restock') {
     await deductQuantity(itemId, quantity);
@@ -338,46 +385,43 @@ export async function getAllRecentConsumptionLogs(limit: number = 30): Promise<C
 
 // --- Expenditure insights ---
 //
-// Spend is derived from items.price, which is recorded at whatever price the
-// item had when it was added/edited/scanned (not tracked historically per
-// restock). This is a reasonable approximation for a lightweight pantry app:
-// it answers "how much have I spent on items currently/recently added" rather
-// than requiring a full purchase-ledger. Only items with a price actually set
-// (price IS NOT NULL) count toward these totals - items added without a price
-// are excluded rather than treated as free.
+// Spend is derived from consumption_logs.price - a real purchase ledger with
+// one entry per priced purchase event (initial item creation AND every later
+// restock where a price was entered). This replaces an earlier, incorrect
+// approach that summed items.price directly: that field only ever holds the
+// MOST RECENT price for an item and is keyed off the item's original
+// createdAt timestamp, so restocking an existing item with a new price never
+// showed up in "this month" spend, and buying the same item twice only ever
+// counted the latest price once - both undercounting actual expenditure.
+// Only logged purchases with a price actually set count toward these totals.
 
 export interface ExpenditureSummary {
   totalSpend: number;
   thisMonthSpend: number;
   lastMonthSpend: number;
-  itemsWithPriceCount: number;
-  itemsWithoutPriceCount: number;
+  purchaseCount: number;
 }
 
 export async function getExpenditureSummary(): Promise<ExpenditureSummary> {
   const totalRow = await db.getFirstAsync<{ total: number | null; cnt: number }>(
-    `SELECT SUM(price) as total, COUNT(*) as cnt FROM items WHERE price IS NOT NULL`
+    `SELECT SUM(price) as total, COUNT(*) as cnt FROM consumption_logs WHERE type = 'restock' AND price IS NOT NULL`
   );
   const thisMonthRow = await db.getFirstAsync<{ total: number | null }>(
-    `SELECT SUM(price) as total FROM items 
-     WHERE price IS NOT NULL AND createdAt >= datetime('now', 'start of month')`
+    `SELECT SUM(price) as total FROM consumption_logs 
+     WHERE type = 'restock' AND price IS NOT NULL AND createdAt >= datetime('now', 'start of month')`
   );
   const lastMonthRow = await db.getFirstAsync<{ total: number | null }>(
-    `SELECT SUM(price) as total FROM items 
-     WHERE price IS NOT NULL 
+    `SELECT SUM(price) as total FROM consumption_logs 
+     WHERE type = 'restock' AND price IS NOT NULL
        AND createdAt >= datetime('now', 'start of month', '-1 month') 
        AND createdAt < datetime('now', 'start of month')`
-  );
-  const withoutPriceRow = await db.getFirstAsync<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM items WHERE price IS NULL`
   );
 
   return {
     totalSpend: totalRow?.total || 0,
     thisMonthSpend: thisMonthRow?.total || 0,
     lastMonthSpend: lastMonthRow?.total || 0,
-    itemsWithPriceCount: totalRow?.cnt || 0,
-    itemsWithoutPriceCount: withoutPriceRow?.cnt || 0,
+    purchaseCount: totalRow?.cnt || 0,
   };
 }
 
@@ -388,11 +432,14 @@ export interface CategorySpend {
 }
 
 export async function getSpendByCategory(): Promise<CategorySpend[]> {
+  // Join through items to get each purchase's category, since category
+  // lives on items, not on the log entry itself.
   const rows = await db.getAllAsync<{ category: string; total: number; itemCount: number }>(
-    `SELECT category, SUM(price) as total, COUNT(*) as itemCount 
-     FROM items 
-     WHERE price IS NOT NULL 
-     GROUP BY category 
+    `SELECT items.category as category, SUM(consumption_logs.price) as total, COUNT(*) as itemCount
+     FROM consumption_logs
+     JOIN items ON items.id = consumption_logs.itemId
+     WHERE consumption_logs.type = 'restock' AND consumption_logs.price IS NOT NULL
+     GROUP BY items.category
      ORDER BY total DESC`
   );
   return rows;
@@ -403,8 +450,9 @@ export interface MonthlySpend {
   total: number;
 }
 
-// Last N months of spend based on items.createdAt, oldest first (for charting
-// left-to-right chronologically, same convention as getWeeklyConsumptionBreakdown).
+// Last N months of spend based on consumption_logs.createdAt (i.e. when each
+// purchase actually happened), oldest first (for charting left-to-right
+// chronologically, same convention as getWeeklyConsumptionBreakdown).
 export async function getMonthlySpendTrend(monthsCount: number = 6): Promise<MonthlySpend[]> {
   const buckets: MonthlySpend[] = [];
 
@@ -418,8 +466,8 @@ export async function getMonthlySpendTrend(monthsCount: number = 6): Promise<Mon
 
     const row = await db.getFirstAsync<{ total: number | null }>(
       `SELECT SUM(price) as total
-       FROM items
-       WHERE price IS NOT NULL
+       FROM consumption_logs
+       WHERE type = 'restock' AND price IS NOT NULL
          AND createdAt >= datetime('now', 'start of month', '-${i} months')
          AND createdAt < datetime('now', 'start of month', ?)`,
       [upperModifier]

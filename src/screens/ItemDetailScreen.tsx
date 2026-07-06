@@ -279,6 +279,7 @@ export default function ItemDetailScreen() {
                   {log.type === 'restock' ? '+' : '-'}
                   {log.quantity} {item.unit}
                   {log.type === 'auto' ? ' (auto)' : ''}
+                  {log.price !== null && log.price !== undefined ? ` · ₹${log.price}` : ''}
                 </Text>
                 {log.note && <Text style={styles.logNote}>{log.note}</Text>}
               </View>

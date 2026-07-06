@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { getItemById, restockItem, logConsumption } from '../database';
+import { getItemById, restockItem, logConsumption, updateItemPrice } from '../database';
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 
@@ -29,6 +29,11 @@ export default function RestockScreen() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'add' | 'set'>('add');
   const [quantity, setQuantity] = useState('');
+  // Optional - the amount paid for this restock. Recorded on the
+  // consumption_logs entry (not just items.price) so it's correctly
+  // included in expenditure/Insights totals, no matter how many times an
+  // item gets restocked.
+  const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -61,6 +66,11 @@ export default function RestockScreen() {
       Alert.alert('Error', 'Please enter a valid quantity.');
       return;
     }
+    // Price is optional, but if the user typed something, it must be valid
+    if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
+      return;
+    }
 
     const finalAmount = getFinalAmount();
     if (mode === 'set' && finalAmount < item.currentQuantity) {
@@ -83,6 +93,8 @@ export default function RestockScreen() {
     try {
       const finalAmount = getFinalAmount();
       const addedAmount = finalAmount - item!.currentQuantity;
+      const enteredPrice = price.trim() ? parseFloat(price) : null;
+
       // restockItem() ADDS its argument to the current quantity, so we must pass
       // the delta (addedAmount), not the final target amount, or stock gets
       // corrupted (e.g. "set total to 10" would incorrectly add 10 on top of
@@ -91,8 +103,18 @@ export default function RestockScreen() {
         await restockItem(item!.id, addedAmount);
       }
       if (addedAmount > 0) {
-        await logConsumption(item!.id, addedAmount, 'restock');
+        // Pass the price through so it's recorded on the log entry itself -
+        // this is what expenditure totals are actually computed from, so a
+        // priced restock is correctly counted every single time, not just
+        // when the item was first created.
+        await logConsumption(item!.id, addedAmount, 'restock', undefined, enteredPrice);
       }
+      // Also update items.price as a "most recently paid" snapshot, purely
+      // for quick display on ItemDetailScreen's Purchase Details card.
+      if (enteredPrice !== null && enteredPrice > 0) {
+        await updateItemPrice(item!.id, enteredPrice);
+      }
+
       Alert.alert(
         'Success',
         `Restocked ${item!.name} to ${finalAmount} ${item!.unit}`,
@@ -181,6 +203,22 @@ export default function RestockScreen() {
           />
         </View>
 
+        {/* Price (optional) - amount paid for this restock */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Price Paid (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={price}
+            onChangeText={setPrice}
+            placeholder="e.g. 199"
+            placeholderTextColor={COLORS.textLight}
+            keyboardType="decimal-pad"
+          />
+          <Text style={styles.priceHint}>
+            This will be added to your expenditure insights.
+          </Text>
+        </View>
+
         {/* Preview */}
         {quantity && parseFloat(quantity) > 0 && (
           <View style={styles.previewCard}>
@@ -205,6 +243,14 @@ export default function RestockScreen() {
                 {finalAmount} {item.unit}
               </Text>
             </View>
+            {price.trim() && !isNaN(parseFloat(price)) && (
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Price Paid:</Text>
+                <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                  ₹{parseFloat(price)}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -285,6 +331,11 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
     color: COLORS.text,
+  },
+  priceHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textLight,
+    marginTop: SPACING.xs,
   },
   toggleContainer: {
     flexDirection: 'row',

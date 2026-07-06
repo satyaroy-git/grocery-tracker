@@ -183,11 +183,10 @@ export default function InsightsScreen() {
             </View>
           </View>
 
-          {expenditure.itemsWithoutPriceCount > 0 && (
+          {expenditure.purchaseCount > 0 && (
             <Text style={styles.spendCaveat}>
-              Based on {expenditure.itemsWithPriceCount} item{expenditure.itemsWithPriceCount === 1 ? '' : 's'} with a
-              price set. {expenditure.itemsWithoutPriceCount} item{expenditure.itemsWithoutPriceCount === 1 ? '' : 's'}{' '}
-              without a price {expenditure.itemsWithoutPriceCount === 1 ? 'is' : 'are'} excluded.
+              Based on {expenditure.purchaseCount} priced purchase{expenditure.purchaseCount === 1 ? '' : 's'}{' '}
+              (initial purchases and restocks where a price was entered).
             </Text>
           )}
 
@@ -239,9 +238,9 @@ export default function InsightsScreen() {
             </>
           )}
 
-          {expenditure.itemsWithPriceCount === 0 && (
+          {expenditure.purchaseCount === 0 && (
             <Text style={styles.emptyText}>
-              No spend data yet. Add a price when creating or editing items to see expenditure insights here.
+              No spend data yet. Add a price when creating an item or restocking to see expenditure insights here.
             </Text>
           )}
         </View>

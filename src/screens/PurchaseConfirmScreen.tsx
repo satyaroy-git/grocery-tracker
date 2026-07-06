@@ -20,6 +20,7 @@ import {
   restockItem,
   getItemById,
   logConsumption,
+  updateItemPrice,
 } from '../database';
 import { ShoppingListItem, GroceryItemWithStatus } from '../database';
 import { ShoppingStackParamList } from '../navigation/types';
@@ -34,6 +35,9 @@ export default function PurchaseConfirmScreen() {
   const [shoppingItem, setShoppingItem] = useState<ShoppingListItem | null>(null);
   const [linkedItem, setLinkedItem] = useState<GroceryItemWithStatus | null>(null);
   const [newQuantity, setNewQuantity] = useState('');
+  // Optional - the amount paid for this purchase. Recorded on the restock
+  // log entry so it's correctly included in expenditure/Insights totals.
+  const [price, setPrice] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,6 +79,10 @@ export default function PurchaseConfirmScreen() {
       Alert.alert('Error', 'Please enter a valid quantity.');
       return;
     }
+    if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -83,13 +91,23 @@ export default function PurchaseConfirmScreen() {
       if (linkedItem && newQuantity) {
         const qty = parseFloat(newQuantity);
         const addedAmount = qty - linkedItem.currentQuantity;
+        const enteredPrice = price.trim() ? parseFloat(price) : null;
         // restockItem() ADDS its argument to the current quantity, so pass the
         // delta (addedAmount), not the final target quantity `qty`.
         if (addedAmount !== 0) {
           await restockItem(linkedItem.id, addedAmount);
         }
         if (addedAmount > 0) {
-          await logConsumption(linkedItem.id, addedAmount, 'restock', 'Purchased from shopping list');
+          await logConsumption(
+            linkedItem.id,
+            addedAmount,
+            'restock',
+            'Purchased from shopping list',
+            enteredPrice
+          );
+        }
+        if (enteredPrice !== null && enteredPrice > 0) {
+          await updateItemPrice(linkedItem.id, enteredPrice);
         }
       }
 
@@ -157,6 +175,22 @@ export default function PurchaseConfirmScreen() {
               />
             </View>
 
+            {/* Price (optional) - amount paid for this purchase */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Price Paid (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={price}
+                onChangeText={setPrice}
+                placeholder="e.g. 199"
+                placeholderTextColor={COLORS.textLight}
+                keyboardType="decimal-pad"
+              />
+              <Text style={styles.priceHint}>
+                This will be added to your expenditure insights.
+              </Text>
+            </View>
+
             {newQuantity && parseFloat(newQuantity) > 0 && (
               <View style={styles.previewCard}>
                 <View style={styles.previewRow}>
@@ -171,6 +205,14 @@ export default function PurchaseConfirmScreen() {
                     {parseFloat(newQuantity)} {linkedItem.unit}
                   </Text>
                 </View>
+                {price.trim() && !isNaN(parseFloat(price)) && (
+                  <View style={styles.previewRow}>
+                    <Text style={styles.previewLabel}>Price Paid:</Text>
+                    <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                      ₹{parseFloat(price)}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -271,6 +313,11 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
     color: COLORS.text,
+  },
+  priceHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textLight,
+    marginTop: SPACING.xs,
   },
   previewCard: {
     backgroundColor: COLORS.successBg,
