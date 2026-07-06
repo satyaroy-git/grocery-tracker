@@ -319,6 +319,104 @@ export async function getAllRecentConsumptionLogs(limit: number = 30): Promise<C
   );
 }
 
+// --- Expenditure insights ---
+//
+// Spend is derived from items.price, which is recorded at whatever price the
+// item had when it was added/edited/scanned (not tracked historically per
+// restock). This is a reasonable approximation for a lightweight pantry app:
+// it answers "how much have I spent on items currently/recently added" rather
+// than requiring a full purchase-ledger. Only items with a price actually set
+// (price IS NOT NULL) count toward these totals - items added without a price
+// are excluded rather than treated as free.
+
+export interface ExpenditureSummary {
+  totalSpend: number;
+  thisMonthSpend: number;
+  lastMonthSpend: number;
+  itemsWithPriceCount: number;
+  itemsWithoutPriceCount: number;
+}
+
+export async function getExpenditureSummary(): Promise<ExpenditureSummary> {
+  const totalRow = await db.getFirstAsync<{ total: number | null; cnt: number }>(
+    `SELECT SUM(price) as total, COUNT(*) as cnt FROM items WHERE price IS NOT NULL`
+  );
+  const thisMonthRow = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(price) as total FROM items 
+     WHERE price IS NOT NULL AND createdAt >= datetime('now', 'start of month')`
+  );
+  const lastMonthRow = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(price) as total FROM items 
+     WHERE price IS NOT NULL 
+       AND createdAt >= datetime('now', 'start of month', '-1 month') 
+       AND createdAt < datetime('now', 'start of month')`
+  );
+  const withoutPriceRow = await db.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) as cnt FROM items WHERE price IS NULL`
+  );
+
+  return {
+    totalSpend: totalRow?.total || 0,
+    thisMonthSpend: thisMonthRow?.total || 0,
+    lastMonthSpend: lastMonthRow?.total || 0,
+    itemsWithPriceCount: totalRow?.cnt || 0,
+    itemsWithoutPriceCount: withoutPriceRow?.cnt || 0,
+  };
+}
+
+export interface CategorySpend {
+  category: string;
+  total: number;
+  itemCount: number;
+}
+
+export async function getSpendByCategory(): Promise<CategorySpend[]> {
+  const rows = await db.getAllAsync<{ category: string; total: number; itemCount: number }>(
+    `SELECT category, SUM(price) as total, COUNT(*) as itemCount 
+     FROM items 
+     WHERE price IS NOT NULL 
+     GROUP BY category 
+     ORDER BY total DESC`
+  );
+  return rows;
+}
+
+export interface MonthlySpend {
+  month: string; // e.g. 'Mar' - label only, not sortable across years
+  total: number;
+}
+
+// Last N months of spend based on items.createdAt, oldest first (for charting
+// left-to-right chronologically, same convention as getWeeklyConsumptionBreakdown).
+export async function getMonthlySpendTrend(monthsCount: number = 6): Promise<MonthlySpend[]> {
+  const buckets: MonthlySpend[] = [];
+
+  for (let i = monthsCount - 1; i >= 0; i--) {
+    // Build the upper-bound modifier as a signed offset rather than a fixed
+    // "-N months" string, since (i - 1) can be -1 (i.e. "+1 months" for the
+    // most recent/current bucket) - concatenating a literal '-' prefix would
+    // produce an invalid double-negative like "--1 months" in that case.
+    const upperOffset = i - 1;
+    const upperModifier = upperOffset <= 0 ? `+${Math.abs(upperOffset)} months` : `-${upperOffset} months`;
+
+    const row = await db.getFirstAsync<{ total: number | null }>(
+      `SELECT SUM(price) as total
+       FROM items
+       WHERE price IS NOT NULL
+         AND createdAt >= datetime('now', 'start of month', '-${i} months')
+         AND createdAt < datetime('now', 'start of month', ?)`,
+      [upperModifier]
+    );
+    const monthDate = new Date();
+    monthDate.setDate(1);
+    monthDate.setMonth(monthDate.getMonth() - i);
+    const label = monthDate.toLocaleDateString('en-IN', { month: 'short' });
+    buckets.push({ month: label, total: row?.total || 0 });
+  }
+
+  return buckets;
+}
+
 export async function getWeeklyConsumption(itemId: number): Promise<number> {
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(quantity) as total FROM consumption_logs 

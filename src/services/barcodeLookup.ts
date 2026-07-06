@@ -1,4 +1,5 @@
-import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
+import { UNITS_OF_MEASUREMENT } from '../constants/categories';
+import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
 export interface BarcodeProductInfo {
   found: boolean;
@@ -19,6 +20,16 @@ const VALID_UNIT_VALUES = new Set(UNITS_OF_MEASUREMENT.map((u) => u.value));
 // set of Indian grocery/FMCG products (Blinkit/Instamart/BigBasket-stocked
 // brands included). No API key required.
 // Docs: https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/
+//
+// IMPORTANT: unlike the legacy v0 API (which returns HTTP 200 with a
+// {status: 0} body for unknown barcodes), the v2 endpoint used here returns
+// an HTTP 404 for barcodes it doesn't recognize. The original implementation
+// only checked `response.ok` and treated any non-2xx as a generic network
+// failure, so EVERY unrecognized barcode (which, for most Indian FMCG/kirana
+// products not yet in the crowdsourced database, is common) was reported as
+// "Lookup failed" instead of the friendlier, expected "Product not found -
+// please fill in details manually". This is very likely why scanning felt
+// broken - most real-world scans were silently hitting this branch.
 const OFF_API_BASE = 'https://world.openfoodfacts.org/api/v2/product';
 
 /**
@@ -45,6 +56,17 @@ export async function lookupBarcode(barcode: string): Promise<BarcodeProductInfo
       },
     });
 
+    // A 404 from this endpoint means "barcode not in database", not a real
+    // network/server error - treat it the same as a not-found result rather
+    // than surfacing it as a failure.
+    if (response.status === 404) {
+      return {
+        found: false,
+        barcode,
+        error: "This product isn't in the Open Food Facts database yet. Please fill in the details manually below.",
+      };
+    }
+
     if (!response.ok) {
       return {
         found: false,
@@ -55,7 +77,8 @@ export async function lookupBarcode(barcode: string): Promise<BarcodeProductInfo
 
     const data = await response.json();
 
-    // Open Food Facts returns status: 0 when the barcode isn't in their database
+    // Some non-404 responses can still carry status: 0 (e.g. malformed barcode) -
+    // keep this check as a second safety net.
     if (data.status === 0 || !data.product) {
       return {
         found: false,
@@ -84,7 +107,8 @@ export async function lookupBarcode(barcode: string): Promise<BarcodeProductInfo
       name,
       brand,
       category,
-      unit,
+      // Fall back to a name-based unit guess if OFF didn't provide a parseable quantity/unit
+      unit: unit || (name ? guessUnitFromName(name, quantity || 1) : undefined),
       quantity,
       imageUrl: product.image_front_small_url || undefined,
     };
@@ -140,5 +164,9 @@ function guessCategoryFromOFF(offCategories: string, name: string): string {
   if (/detergent|clean|dishwash/i.test(text)) return 'Cleaning Supplies';
   if (/pet-food|pet-care/i.test(text)) return 'Pet Care';
 
-  return DEFAULT_CATEGORIES.includes('Other') ? 'Other' : DEFAULT_CATEGORIES[0];
+  // Fall back to the shared name-based classifier (same one used by manual
+  // entry and invoice scanning) before giving up and returning 'Other',
+  // since OFF's categories field is sometimes empty/unhelpful even when the
+  // product name itself is a clear match.
+  return safeCategoryGuess(name);
 }

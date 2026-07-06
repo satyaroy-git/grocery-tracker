@@ -35,6 +35,7 @@ export const UNITS_OF_MEASUREMENT = [
   { label: 'Pieces (pcs)', value: 'pcs' },
   { label: 'Number (Nos)', value: 'nos' },
   { label: 'Dozen (dz)', value: 'dz' },
+  { label: 'Half Dozen', value: 'half_dz' },
   { label: 'Packets (pkt)', value: 'pkt' },
   { label: 'Pouch', value: 'pouch' },
   { label: 'Sachet', value: 'sachet' },
@@ -50,6 +51,19 @@ export const UNITS_OF_MEASUREMENT = [
   { label: 'Strip', value: 'strip' },
   { label: 'Pair', value: 'pair' },
   { label: 'Set', value: 'set' },
+  { label: 'Bar', value: 'bar' },
+  { label: 'Slab', value: 'slab' },
+  { label: 'Cup', value: 'cup' },
+  { label: 'Container', value: 'container' },
+  { label: 'Loaf', value: 'loaf' },
+  { label: 'Piece (large cut)', value: 'piece' },
+  { label: 'Ream', value: 'ream' },
+  { label: 'Pound (lb)', value: 'lb' },
+  { label: 'Ounce (oz)', value: 'oz' },
+  { label: 'Fluid Ounce (fl oz)', value: 'fl_oz' },
+  { label: 'Gallon', value: 'gallon' },
+  { label: 'Quart', value: 'quart' },
+  { label: 'Pint', value: 'pint' },
 ];
 
 export const CONSUMPTION_FREQUENCIES = [

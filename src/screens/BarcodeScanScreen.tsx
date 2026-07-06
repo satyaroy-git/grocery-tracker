@@ -20,6 +20,7 @@ import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categorie
 import { createItem } from '../database';
 import { lookupBarcode, BarcodeProductInfo } from '../services/barcodeLookup';
 import DateField from '../components/DateField';
+import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
 type ScreenState = 'scanning' | 'looking-up' | 'review' | 'saving';
 
@@ -38,7 +39,13 @@ export default function BarcodeScanScreen() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  // Once the lookup sets a category/unit (found=true), or the user manually
+  // picks one, auto-suggestion from typing stops overriding it.
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [unitTouched, setUnitTouched] = useState(false);
   const [unit, setUnit] = useState(UNITS_OF_MEASUREMENT[0].value);
+  const [customUnit, setCustomUnit] = useState('');
+  const [showCustomUnit, setShowCustomUnit] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [currentQuantity, setCurrentQuantity] = useState('1');
   const [threshold, setThreshold] = useState('0');
@@ -59,15 +66,40 @@ export default function BarcodeScanScreen() {
       if (result.brand && !result.name) setName(result.brand);
       if (result.category && DEFAULT_CATEGORIES.includes(result.category)) {
         setCategory(result.category);
+        setCategoryTouched(true); // lookup provided a category - don't let typing override it
       }
-      if (result.unit) setUnit(result.unit);
+      if (result.unit) {
+        setUnit(result.unit);
+        setUnitTouched(true);
+      }
       if (result.quantity) setCurrentQuantity(String(result.quantity));
     } else {
-      // Not found - start with a blank form but let the user know why
+      // Not found - start with a blank form so name-based auto-suggestion can kick in
       setName('');
+      setCategoryTouched(false);
+      setUnitTouched(false);
     }
 
     setScreenState('review');
+  };
+
+  // Auto-populate category/unit as the user types, same behavior as
+  // AddItemScreen/EditItemScreen - most useful here when a barcode isn't
+  // found in the database and the user is filling the form in manually.
+  const handleNameChange = (text: string) => {
+    setName(text);
+    if (!text.trim()) return;
+
+    if (!categoryTouched) {
+      const guessedCategory = safeCategoryGuess(text);
+      if (guessedCategory !== 'Other') {
+        setCategory(guessedCategory);
+      }
+    }
+    if (!unitTouched && !showCustomUnit) {
+      const guessedUnit = guessUnitFromName(text, currentQuantity ? parseFloat(currentQuantity) || 1 : 1);
+      setUnit(guessedUnit);
+    }
   };
 
   const handleRescan = () => {
@@ -75,7 +107,11 @@ export default function BarcodeScanScreen() {
     setLookupResult(null);
     setName('');
     setCategory(DEFAULT_CATEGORIES[0]);
+    setCategoryTouched(false);
     setUnit(UNITS_OF_MEASUREMENT[0].value);
+    setUnitTouched(false);
+    setCustomUnit('');
+    setShowCustomUnit(false);
     setCurrentQuantity('1');
     setThreshold('0');
     setPrice('');
@@ -96,17 +132,23 @@ export default function BarcodeScanScreen() {
       Alert.alert('Error', 'Please enter a valid threshold.');
       return;
     }
+    if (showCustomUnit && !customUnit.trim()) {
+      Alert.alert('Error', 'Please enter a custom unit, or pick one from the list.');
+      return;
+    }
     if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
       Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
       return;
     }
+
+    const finalUnit = showCustomUnit ? customUnit.trim() : unit;
 
     setSaving(true);
     try {
       await createItem({
         name: name.trim(),
         category,
-        unit,
+        unit: finalUnit,
         currentQuantity: parseFloat(currentQuantity),
         threshold: parseFloat(threshold),
         consumptionMode: 'manual',
@@ -223,7 +265,7 @@ export default function BarcodeScanScreen() {
           <TextInput
             style={styles.input}
             value={name}
-            onChangeText={setName}
+            onChangeText={handleNameChange}
             placeholder="e.g. Rice, Milk, Eggs"
             placeholderTextColor={COLORS.textLight}
           />
@@ -248,6 +290,7 @@ export default function BarcodeScanScreen() {
                   onPress={() => {
                     setCategory(cat);
                     setShowCategoryPicker(false);
+                    setCategoryTouched(true);
                   }}
                 >
                   <Text
@@ -271,31 +314,64 @@ export default function BarcodeScanScreen() {
             style={styles.pickerButton}
             onPress={() => setShowUnitPicker(!showUnitPicker)}
           >
-            <Text style={styles.pickerButtonText}>{selectedUnitLabel}</Text>
+            <Text style={styles.pickerButtonText}>
+              {showCustomUnit ? 'Custom' : selectedUnitLabel}
+            </Text>
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           {showUnitPicker && (
-            <View style={styles.pickerOptions}>
+            <ScrollView style={styles.pickerOptions} nestedScrollEnabled>
               {UNITS_OF_MEASUREMENT.map((u) => (
                 <TouchableOpacity
                   key={u.value}
-                  style={[styles.pickerOption, unit === u.value && styles.pickerOptionSelected]}
+                  style={[
+                    styles.pickerOption,
+                    unit === u.value && !showCustomUnit && styles.pickerOptionSelected,
+                  ]}
                   onPress={() => {
                     setUnit(u.value);
+                    setShowCustomUnit(false);
                     setShowUnitPicker(false);
+                    setUnitTouched(true);
                   }}
                 >
                   <Text
                     style={[
                       styles.pickerOptionText,
-                      unit === u.value && styles.pickerOptionTextSelected,
+                      unit === u.value && !showCustomUnit && styles.pickerOptionTextSelected,
                     ]}
                   >
                     {u.label}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+              <TouchableOpacity
+                style={[styles.pickerOption, showCustomUnit && styles.pickerOptionSelected]}
+                onPress={() => {
+                  setShowCustomUnit(true);
+                  setShowUnitPicker(false);
+                  setUnitTouched(true);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.pickerOptionText,
+                    showCustomUnit && styles.pickerOptionTextSelected,
+                  ]}
+                >
+                  + Custom Unit
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+          {showCustomUnit && (
+            <TextInput
+              style={[styles.input, { marginTop: SPACING.sm }]}
+              value={customUnit}
+              onChangeText={setCustomUnit}
+              placeholder="Enter custom unit (e.g. crate, drum)"
+              placeholderTextColor={COLORS.textLight}
+            />
           )}
         </View>
 

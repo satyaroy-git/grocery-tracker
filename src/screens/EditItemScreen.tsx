@@ -23,6 +23,7 @@ import { getItemById, updateItem, deleteItem } from '../database';
 import { ConsumptionMode, ConsumptionFrequency, GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 import DateField from '../components/DateField';
+import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
 type EditItemRouteProp = RouteProp<InventoryStackParamList, 'EditItem'>;
 
@@ -36,7 +37,16 @@ export default function EditItemScreen() {
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [customCategory, setCustomCategory] = useState('');
   const [showCustomCategory, setShowCustomCategory] = useState(false);
+  // Same "touched" pattern as AddItemScreen: auto-suggestion only fires while
+  // these are false, and turns off permanently once the user manually picks
+  // a category/unit from the dropdown (so it never clobbers an explicit
+  // choice, whether that choice was loaded from the saved item or picked
+  // fresh after editing the name).
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [unitTouched, setUnitTouched] = useState(false);
   const [unit, setUnit] = useState(UNITS_OF_MEASUREMENT[0].value);
+  const [customUnit, setCustomUnit] = useState('');
+  const [showCustomUnit, setShowCustomUnit] = useState(false);
   const [currentQuantity, setCurrentQuantity] = useState('');
   const [threshold, setThreshold] = useState('');
   const [consumptionMode, setConsumptionMode] = useState<ConsumptionMode>('manual');
@@ -65,7 +75,13 @@ export default function EditItemScreen() {
           setShowCustomCategory(true);
           setCustomCategory(item.category);
         }
-        setUnit(item.unit);
+        if (UNITS_OF_MEASUREMENT.some((u) => u.value === item.unit)) {
+          setUnit(item.unit);
+          setShowCustomUnit(false);
+        } else {
+          setShowCustomUnit(true);
+          setCustomUnit(item.unit);
+        }
         setCurrentQuantity(item.currentQuantity.toString());
         setThreshold(item.threshold.toString());
         setConsumptionMode(item.consumptionMode);
@@ -105,6 +121,10 @@ export default function EditItemScreen() {
       Alert.alert('Error', 'Please enter a valid consumption rate.');
       return;
     }
+    if (showCustomUnit && !customUnit.trim()) {
+      Alert.alert('Error', 'Please enter a custom unit, or pick one from the list.');
+      return;
+    }
     // Price is optional, but if the user typed something, it must be a valid non-negative number
     if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
       Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
@@ -114,10 +134,11 @@ export default function EditItemScreen() {
     setSaving(true);
     try {
       const finalCategory = showCustomCategory ? customCategory.trim() : category;
+      const finalUnit = showCustomUnit ? customUnit.trim() : unit;
       await updateItem(itemId, {
         name: name.trim(),
         category: finalCategory,
-        unit,
+        unit: finalUnit,
         currentQuantity: parseFloat(currentQuantity),
         threshold: parseFloat(threshold),
         consumptionMode,
@@ -159,6 +180,24 @@ export default function EditItemScreen() {
   const selectedUnitLabel =
     UNITS_OF_MEASUREMENT.find((u) => u.value === unit)?.label || unit;
 
+  // Re-engage auto-suggestion only if the user actively edits the name to
+  // something different, mirroring AddItemScreen's behavior.
+  const handleNameChange = (text: string) => {
+    setName(text);
+    if (!text.trim()) return;
+
+    if (!categoryTouched && !showCustomCategory) {
+      const guessedCategory = safeCategoryGuess(text);
+      if (guessedCategory !== 'Other') {
+        setCategory(guessedCategory);
+      }
+    }
+    if (!unitTouched && !showCustomUnit) {
+      const guessedUnit = guessUnitFromName(text, currentQuantity ? parseFloat(currentQuantity) || 1 : 1);
+      setUnit(guessedUnit);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -179,7 +218,7 @@ export default function EditItemScreen() {
           <TextInput
             style={styles.input}
             value={name}
-            onChangeText={setName}
+            onChangeText={handleNameChange}
             placeholder="e.g. Rice, Milk, Eggs"
             placeholderTextColor={COLORS.textLight}
           />
@@ -210,6 +249,7 @@ export default function EditItemScreen() {
                     setCategory(cat);
                     setShowCustomCategory(false);
                     setShowCategoryPicker(false);
+                    setCategoryTouched(true);
                   }}
                 >
                   <Text
@@ -227,6 +267,7 @@ export default function EditItemScreen() {
                 onPress={() => {
                   setShowCustomCategory(true);
                   setShowCategoryPicker(false);
+                  setCategoryTouched(true);
                 }}
               >
                 <Text
@@ -258,31 +299,64 @@ export default function EditItemScreen() {
             style={styles.pickerButton}
             onPress={() => setShowUnitPicker(!showUnitPicker)}
           >
-            <Text style={styles.pickerButtonText}>{selectedUnitLabel}</Text>
+            <Text style={styles.pickerButtonText}>
+              {showCustomUnit ? 'Custom' : selectedUnitLabel}
+            </Text>
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           {showUnitPicker && (
-            <View style={styles.pickerOptions}>
+            <ScrollView style={styles.pickerOptions} nestedScrollEnabled>
               {UNITS_OF_MEASUREMENT.map((u) => (
                 <TouchableOpacity
                   key={u.value}
-                  style={[styles.pickerOption, unit === u.value && styles.pickerOptionSelected]}
+                  style={[
+                    styles.pickerOption,
+                    unit === u.value && !showCustomUnit && styles.pickerOptionSelected,
+                  ]}
                   onPress={() => {
                     setUnit(u.value);
+                    setShowCustomUnit(false);
                     setShowUnitPicker(false);
+                    setUnitTouched(true);
                   }}
                 >
                   <Text
                     style={[
                       styles.pickerOptionText,
-                      unit === u.value && styles.pickerOptionTextSelected,
+                      unit === u.value && !showCustomUnit && styles.pickerOptionTextSelected,
                     ]}
                   >
                     {u.label}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+              <TouchableOpacity
+                style={[styles.pickerOption, showCustomUnit && styles.pickerOptionSelected]}
+                onPress={() => {
+                  setShowCustomUnit(true);
+                  setShowUnitPicker(false);
+                  setUnitTouched(true);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.pickerOptionText,
+                    showCustomUnit && styles.pickerOptionTextSelected,
+                  ]}
+                >
+                  + Custom Unit
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+          {showCustomUnit && (
+            <TextInput
+              style={[styles.input, { marginTop: SPACING.sm }]}
+              value={customUnit}
+              onChangeText={setCustomUnit}
+              placeholder="Enter custom unit (e.g. crate, drum)"
+              placeholderTextColor={COLORS.textLight}
+            />
           )}
         </View>
 

@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { CreateItemInput } from '../database';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 import { getApiKey } from './config';
+import { guessCategoryFromName, guessUnitFromName } from '../utils/itemClassifier';
 
 // Types for parsed invoice data
 export interface ParsedInvoiceItem {
@@ -370,47 +371,11 @@ function validateAndCleanItems(items: any[]): ParsedInvoiceItem[] {
     });
 }
 
-function guessUnit(name: string, quantity: number): string {
-  const lower = name.toLowerCase();
-  // Items almost always counted individually, regardless of quantity size
-  if (/egg|lemon|coconut|corn|cucumber|capsicum|brinjal|banana(?!\s?chips)/i.test(lower)) return 'nos';
-  if (lower.includes('milk') || lower.includes('oil') || lower.includes('juice')) return 'L';
-  if (lower.includes('water')) return 'L';
-  if (quantity >= 100 && quantity <= 1000) return 'g'; // likely grams
-  if (quantity > 1000) return 'mL';
-  return 'pcs';
-}
-
-function guessCategory(name: string): string {
-  const lower = name.toLowerCase();
-
-  if (/milk|curd|paneer|cheese|butter|yogurt|dahi/i.test(lower)) return 'Dairy';
-  if (/apple|banana|mango|orange|grape|papaya|fruit|lemon|watermelon|pineapple/i.test(lower)) return 'Fruits';
-  if (/onion|tomato|potato|carrot|spinach|capsicum|vegetable|sabzi|brinjal|cucumber|corn/i.test(lower)) return 'Vegetables';
-  if (/rice|atta|flour|wheat|poha|suji|maida/i.test(lower)) return 'Grains & Cereals';
-  if (/dal|lentil|chana|rajma|moong|toor|urad/i.test(lower)) return 'Pulses & Dals';
-  if (/ghee|cooking oil|mustard oil|sunflower oil|olive oil|vanaspati/i.test(lower)) return 'Oils & Ghee';
-  if (/oats|cornflakes|muesli|cereal/i.test(lower)) return 'Breakfast & Cereals';
-  if (/chips|biscuit|cookie|namkeen|snack|kurkure/i.test(lower)) return 'Snacks';
-  if (/chocolate|candy|toffee|sweet|mithai/i.test(lower)) return 'Chocolates & Sweets';
-  if (/tea|coffee/i.test(lower)) return 'Tea & Coffee';
-  if (/juice|soda|water|drink|cola|beverage/i.test(lower)) return 'Beverages';
-  if (/ketchup|sauce|jam|mayonnaise|spread/i.test(lower)) return 'Sauces & Spreads';
-  if (/salt|sugar|turmeric|haldi|jeera|cumin|masala|spice/i.test(lower)) return 'Spices & Condiments';
-  if (/almond|cashew|raisin|walnut|pista|dry fruit|nuts/i.test(lower)) return 'Dry Fruits & Nuts';
-  if (/chicken|mutton|fish|egg|prawn|meat/i.test(lower)) return 'Meat & Seafood';
-  if (/bread|bun|cake|pastry|bakery/i.test(lower)) return 'Bakery';
-  if (/frozen|ice cream|kulfi/i.test(lower)) return 'Frozen Foods';
-  if (/diaper|baby wipes|baby food|formula/i.test(lower)) return 'Baby Care';
-  if (/vitamin|supplement|medicine|bandage|sanitizer/i.test(lower)) return 'Health & Wellness';
-  if (/soap|shampoo|toothpaste|cream|lotion|deo|razor/i.test(lower)) return 'Personal Care';
-  if (/detergent|dishwash|cleaner|mop|toilet clean/i.test(lower)) return 'Cleaning Supplies';
-  if (/pet food|dog|cat litter/i.test(lower)) return 'Pet Care';
-  if (/tissue|trash|foil|plastic wrap|container/i.test(lower)) return 'Kitchen & Home';
-  if (/detergent|cleaner|mop|trash/i.test(lower)) return 'Household';
-
-  return 'Other';
-}
+// guessUnit/guessCategory used to be private copies of this logic - now
+// delegating to the shared utility in utils/itemClassifier.ts so manual item
+// entry (Add/Edit/Barcode screens) and AI parsing stay in sync.
+const guessUnit = guessUnitFromName;
+const guessCategory = guessCategoryFromName;
 
 function suggestThreshold(item: ParsedInvoiceItem): number {
   // Suggest a reasonable low-stock threshold based on the item.

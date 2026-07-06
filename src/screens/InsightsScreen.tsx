@@ -14,8 +14,17 @@ import {
   getAllItems,
   getAllRecentConsumptionLogs,
   getWeeklyConsumptionBreakdown,
+  getExpenditureSummary,
+  getSpendByCategory,
+  getMonthlySpendTrend,
 } from '../database';
-import { GroceryItemWithStatus, ConsumptionLog } from '../database';
+import {
+  GroceryItemWithStatus,
+  ConsumptionLog,
+  ExpenditureSummary,
+  CategorySpend,
+  MonthlySpend,
+} from '../database';
 
 export default function InsightsScreen() {
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
@@ -23,6 +32,9 @@ export default function InsightsScreen() {
   const [weeklyData, setWeeklyData] = useState<{ week: string; total: number }[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expenditure, setExpenditure] = useState<ExpenditureSummary | null>(null);
+  const [categorySpend, setCategorySpend] = useState<CategorySpend[]>([]);
+  const [monthlySpend, setMonthlySpend] = useState<MonthlySpend[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,12 +50,18 @@ export default function InsightsScreen() {
 
   const loadData = async () => {
     try {
-      const [allItems, logs] = await Promise.all([
+      const [allItems, logs, expSummary, catSpend, monthTrend] = await Promise.all([
         getAllItems(),
         getAllRecentConsumptionLogs(30),
+        getExpenditureSummary(),
+        getSpendByCategory(),
+        getMonthlySpendTrend(6),
       ]);
       setItems(allItems);
       setRecentLogs(logs);
+      setExpenditure(expSummary);
+      setCategorySpend(catSpend);
+      setMonthlySpend(monthTrend);
       if (allItems.length > 0 && !selectedItemId) {
         setSelectedItemId(allItems[0].id);
       }
@@ -110,6 +128,7 @@ export default function InsightsScreen() {
   };
 
   const maxWeeklyValue = weeklyData.length > 0 ? Math.max(...weeklyData.map((d) => d.total)) : 1;
+  const maxMonthlySpend = monthlySpend.length > 0 ? Math.max(...monthlySpend.map((d) => d.total), 1) : 1;
   const selectedItem = items.find((i) => i.id === selectedItemId);
 
   if (loading) {
@@ -138,6 +157,95 @@ export default function InsightsScreen() {
           <Text style={styles.summaryLabel}>This Month</Text>
         </View>
       </View>
+
+      {/* Expenditure Summary */}
+      {expenditure && (
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="wallet-outline" size={20} color={COLORS.success} />
+            <Text style={styles.cardTitle}>Expenditure</Text>
+          </View>
+
+          <View style={styles.spendSummaryRow}>
+            <View style={styles.spendSummaryItem}>
+              <Text style={styles.spendSummaryValue}>₹{expenditure.thisMonthSpend.toFixed(0)}</Text>
+              <Text style={styles.spendSummaryLabel}>This Month</Text>
+            </View>
+            <View style={styles.spendSummaryDivider} />
+            <View style={styles.spendSummaryItem}>
+              <Text style={styles.spendSummaryValue}>₹{expenditure.lastMonthSpend.toFixed(0)}</Text>
+              <Text style={styles.spendSummaryLabel}>Last Month</Text>
+            </View>
+            <View style={styles.spendSummaryDivider} />
+            <View style={styles.spendSummaryItem}>
+              <Text style={styles.spendSummaryValue}>₹{expenditure.totalSpend.toFixed(0)}</Text>
+              <Text style={styles.spendSummaryLabel}>All Time</Text>
+            </View>
+          </View>
+
+          {expenditure.itemsWithoutPriceCount > 0 && (
+            <Text style={styles.spendCaveat}>
+              Based on {expenditure.itemsWithPriceCount} item{expenditure.itemsWithPriceCount === 1 ? '' : 's'} with a
+              price set. {expenditure.itemsWithoutPriceCount} item{expenditure.itemsWithoutPriceCount === 1 ? '' : 's'}{' '}
+              without a price {expenditure.itemsWithoutPriceCount === 1 ? 'is' : 'are'} excluded.
+            </Text>
+          )}
+
+          {/* Monthly spend trend bar chart */}
+          {monthlySpend.some((m) => m.total > 0) && (
+            <>
+              <Text style={styles.subChartTitle}>Last 6 Months</Text>
+              <View style={styles.chartContainer}>
+                {monthlySpend.map((data, index) => (
+                  <View key={index} style={styles.barColumn}>
+                    <Text style={styles.barValue}>₹{data.total.toFixed(0)}</Text>
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFillSpend,
+                          { height: `${(data.total / maxMonthlySpend) * 100}%` },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barLabel}>{data.month}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Spend by category */}
+          {categorySpend.length > 0 && (
+            <>
+              <Text style={styles.subChartTitle}>By Category</Text>
+              {categorySpend.slice(0, 6).map((cat, index) => (
+                <View key={index} style={styles.categorySpendRow}>
+                  <Text style={styles.categorySpendName} numberOfLines={1}>
+                    {cat.category}
+                  </Text>
+                  <View style={styles.categorySpendBarTrack}>
+                    <View
+                      style={[
+                        styles.categorySpendBarFill,
+                        {
+                          width: `${(cat.total / (categorySpend[0]?.total || 1)) * 100}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.categorySpendValue}>₹{cat.total.toFixed(0)}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {expenditure.itemsWithPriceCount === 0 && (
+            <Text style={styles.emptyText}>
+              No spend data yet. Add a price when creating or editing items to see expenditure insights here.
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Weekly Chart */}
       <View style={styles.card}>
@@ -374,6 +482,79 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     paddingVertical: SPACING.lg,
+  },
+  spendSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+  },
+  spendSummaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  spendSummaryDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: COLORS.border,
+  },
+  spendSummaryValue: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '700',
+    color: COLORS.success,
+  },
+  spendSummaryLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  spendCaveat: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textLight,
+    marginTop: SPACING.sm,
+    lineHeight: 16,
+  },
+  subChartTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  barFillSpend: {
+    width: '100%',
+    backgroundColor: COLORS.success,
+    borderRadius: BORDER_RADIUS.sm,
+    minHeight: 4,
+  },
+  categorySpendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  categorySpendName: {
+    width: 90,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.text,
+  },
+  categorySpendBarTrack: {
+    flex: 1,
+    height: 10,
+    backgroundColor: COLORS.border,
+    borderRadius: BORDER_RADIUS.sm,
+    overflow: 'hidden',
+  },
+  categorySpendBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.success,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  categorySpendValue: {
+    width: 60,
+    textAlign: 'right',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
   },
   rankingItem: {
     flexDirection: 'row',
