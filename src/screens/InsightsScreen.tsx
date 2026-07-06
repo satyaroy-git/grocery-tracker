@@ -25,6 +25,7 @@ import {
   CategorySpend,
   MonthlySpend,
 } from '../database';
+import { formatMoney, formatQuantity } from '../utils/numberFormat';
 
 export default function InsightsScreen() {
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
@@ -168,17 +169,17 @@ export default function InsightsScreen() {
 
           <View style={styles.spendSummaryRow}>
             <View style={styles.spendSummaryItem}>
-              <Text style={styles.spendSummaryValue}>₹{expenditure.thisMonthSpend.toFixed(0)}</Text>
+              <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.thisMonthSpend)}</Text>
               <Text style={styles.spendSummaryLabel}>This Month</Text>
             </View>
             <View style={styles.spendSummaryDivider} />
             <View style={styles.spendSummaryItem}>
-              <Text style={styles.spendSummaryValue}>₹{expenditure.lastMonthSpend.toFixed(0)}</Text>
+              <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.lastMonthSpend)}</Text>
               <Text style={styles.spendSummaryLabel}>Last Month</Text>
             </View>
             <View style={styles.spendSummaryDivider} />
             <View style={styles.spendSummaryItem}>
-              <Text style={styles.spendSummaryValue}>₹{expenditure.totalSpend.toFixed(0)}</Text>
+              <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.totalSpend)}</Text>
               <Text style={styles.spendSummaryLabel}>All Time</Text>
             </View>
           </View>
@@ -197,7 +198,7 @@ export default function InsightsScreen() {
               <View style={styles.chartContainer}>
                 {monthlySpend.map((data, index) => (
                   <View key={index} style={styles.barColumn}>
-                    <Text style={styles.barValue}>₹{data.total.toFixed(0)}</Text>
+                    <Text style={styles.barValue}>₹{formatMoney(data.total)}</Text>
                     <View style={styles.barTrack}>
                       <View
                         style={[
@@ -232,7 +233,7 @@ export default function InsightsScreen() {
                       ]}
                     />
                   </View>
-                  <Text style={styles.categorySpendValue}>₹{cat.total.toFixed(0)}</Text>
+                  <Text style={styles.categorySpendValue}>₹{formatMoney(cat.total)}</Text>
                 </View>
               ))}
             </>
@@ -283,7 +284,7 @@ export default function InsightsScreen() {
           <View style={styles.chartContainer}>
             {weeklyData.map((data, index) => (
               <View key={index} style={styles.barColumn}>
-                <Text style={styles.barValue}>{data.total.toFixed(1)}</Text>
+                <Text style={styles.barValue}>{formatQuantity(data.total, 2)}</Text>
                 <View style={styles.barTrack}>
                   <View
                     style={[
@@ -317,7 +318,7 @@ export default function InsightsScreen() {
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
               <Text style={styles.rankName}>{item.name}</Text>
-              <Text style={styles.rankValue}>{item.total.toFixed(1)}</Text>
+              <Text style={styles.rankValue}>{formatQuantity(item.total, 2)}</Text>
             </View>
           ))
         )}
@@ -337,7 +338,7 @@ export default function InsightsScreen() {
               <View style={styles.alertInfo}>
                 <Text style={styles.alertName}>{item.name}</Text>
                 <Text style={styles.alertDetail}>
-                  {item.currentQuantity} {item.unit} remaining
+                  {formatQuantity(item.currentQuantity)} {item.unit} remaining
                 </Text>
               </View>
               <View style={styles.alertBadge}>

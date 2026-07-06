@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { roundQuantity, roundMoney } from '../utils/numberFormat';
 
 // Types
 export type ConsumptionMode = 'manual' | 'auto';
@@ -224,12 +225,12 @@ export async function createItem(input: CreateItemInput): Promise<number> {
       input.name,
       input.category,
       input.unit,
-      input.currentQuantity,
-      input.threshold,
+      roundQuantity(input.currentQuantity),
+      roundQuantity(input.threshold),
       input.consumptionMode,
       input.autoConsumptionRate,
       input.autoConsumptionFrequency,
-      input.price ?? null,
+      input.price != null ? roundMoney(input.price) : null,
       input.expiryDate ?? null,
     ]
   );
@@ -267,12 +268,12 @@ export async function updateItem(id: number, input: Partial<CreateItemInput>): P
   if (input.name !== undefined) { fields.push('name = ?'); values.push(input.name); }
   if (input.category !== undefined) { fields.push('category = ?'); values.push(input.category); }
   if (input.unit !== undefined) { fields.push('unit = ?'); values.push(input.unit); }
-  if (input.currentQuantity !== undefined) { fields.push('currentQuantity = ?'); values.push(input.currentQuantity); }
-  if (input.threshold !== undefined) { fields.push('threshold = ?'); values.push(input.threshold); }
+  if (input.currentQuantity !== undefined) { fields.push('currentQuantity = ?'); values.push(roundQuantity(input.currentQuantity)); }
+  if (input.threshold !== undefined) { fields.push('threshold = ?'); values.push(roundQuantity(input.threshold)); }
   if (input.consumptionMode !== undefined) { fields.push('consumptionMode = ?'); values.push(input.consumptionMode); }
   if (input.autoConsumptionRate !== undefined) { fields.push('autoConsumptionRate = ?'); values.push(input.autoConsumptionRate); }
   if (input.autoConsumptionFrequency !== undefined) { fields.push('autoConsumptionFrequency = ?'); values.push(input.autoConsumptionFrequency); }
-  if (input.price !== undefined) { fields.push('price = ?'); values.push(input.price); }
+  if (input.price !== undefined) { fields.push('price = ?'); values.push(input.price != null ? roundMoney(input.price) : null); }
   if (input.expiryDate !== undefined) { fields.push('expiryDate = ?'); values.push(input.expiryDate); }
 
   if (fields.length === 0) return;
@@ -299,9 +300,20 @@ export async function getAllItems(): Promise<GroceryItemWithStatus[]> {
 }
 
 export async function restockItem(id: number, quantity: number): Promise<void> {
+  // Previously this did `currentQuantity = currentQuantity + ?` entirely in
+  // SQL. Repeated float additions/subtractions on the same row (e.g. add
+  // 0.5kg, later log 0.3kg used, restock 0.2kg more...) accumulate binary
+  // floating-point noise over time - e.g. landing on 1.2999999999999998
+  // instead of 1.3. Reading the current value, adding in JS, and rounding
+  // before writing back an absolute value keeps every stored quantity clean.
+  const row = await db.getFirstAsync<{ currentQuantity: number }>(
+    'SELECT currentQuantity FROM items WHERE id = ?',
+    [id]
+  );
+  const newQuantity = roundQuantity((row?.currentQuantity ?? 0) + quantity);
   await db.runAsync(
-    `UPDATE items SET currentQuantity = currentQuantity + ?, updatedAt = datetime('now') WHERE id = ?`,
-    [quantity, id]
+    `UPDATE items SET currentQuantity = ?, updatedAt = datetime('now') WHERE id = ?`,
+    [newQuantity, id]
   );
 }
 
@@ -313,14 +325,20 @@ export async function restockItem(id: number, quantity: number): Promise<void> {
 export async function updateItemPrice(id: number, price: number): Promise<void> {
   await db.runAsync(
     `UPDATE items SET price = ?, updatedAt = datetime('now') WHERE id = ?`,
-    [price, id]
+    [roundMoney(price), id]
   );
 }
 
 export async function deductQuantity(id: number, quantity: number): Promise<void> {
+  // Same float-noise fix as restockItem() above - round after computing in JS.
+  const row = await db.getFirstAsync<{ currentQuantity: number }>(
+    'SELECT currentQuantity FROM items WHERE id = ?',
+    [id]
+  );
+  const newQuantity = Math.max(0, roundQuantity((row?.currentQuantity ?? 0) - quantity));
   await db.runAsync(
-    `UPDATE items SET currentQuantity = MAX(0, currentQuantity - ?), updatedAt = datetime('now') WHERE id = ?`,
-    [quantity, id]
+    `UPDATE items SET currentQuantity = ?, updatedAt = datetime('now') WHERE id = ?`,
+    [newQuantity, id]
   );
 }
 
@@ -343,12 +361,14 @@ export async function logConsumption(
   note?: string,
   price?: number | null
 ): Promise<void> {
+  const roundedQuantity = roundQuantity(quantity);
+  const roundedPrice = price != null ? roundMoney(price) : null;
   await db.runAsync(
     `INSERT INTO consumption_logs (itemId, quantity, type, note, price) VALUES (?, ?, ?, ?, ?)`,
-    [itemId, quantity, type, note || null, price ?? null]
+    [itemId, roundedQuantity, type, note || null, roundedPrice]
   );
   if (type !== 'restock') {
-    await deductQuantity(itemId, quantity);
+    await deductQuantity(itemId, roundedQuantity);
   }
 }
 
@@ -530,7 +550,7 @@ export async function addToShoppingList(
 ): Promise<number> {
   const result = await db.runAsync(
     `INSERT INTO shopping_list (name, category, unit, quantityNeeded, itemId) VALUES (?, ?, ?, ?, ?)`,
-    [name, category, unit, quantityNeeded, itemId || null]
+    [name, category, unit, roundQuantity(quantityNeeded), itemId || null]
   );
   return result.lastInsertRowId;
 }
@@ -551,11 +571,17 @@ export async function removeFromShoppingList(id: number): Promise<void> {
   await db.runAsync('DELETE FROM shopping_list WHERE id = ?', [id]);
 }
 
-export async function generateShoppingListFromLowStock(): Promise<void> {
+// Returns the list of items actually added, so callers (ShoppingListScreen)
+// can report how many were added. Previously this returned Promise<void>
+// while the caller called `.length` on the result - that would throw a
+// TypeError ("Cannot read properties of undefined") every time the
+// "Auto-Generate" button was tapped.
+export async function generateShoppingListFromLowStock(): Promise<ShoppingListItem[]> {
   const lowItems = await db.getAllAsync<GroceryItem>(
     'SELECT * FROM items WHERE currentQuantity <= threshold'
   );
 
+  const added: ShoppingListItem[] = [];
   for (const item of lowItems) {
     // Check if item already exists in shopping list
     const existing = await db.getFirstAsync<{ id: number }>(
@@ -563,10 +589,21 @@ export async function generateShoppingListFromLowStock(): Promise<void> {
       [item.id]
     );
     if (!existing) {
-      const neededQty = item.threshold * 2 - item.currentQuantity; // Restock to 2x threshold
-      await addToShoppingList(item.name, item.category, item.unit, Math.max(neededQty, 1), item.id);
+      const neededQty = roundQuantity(item.threshold * 2 - item.currentQuantity); // Restock to 2x threshold
+      const newId = await addToShoppingList(item.name, item.category, item.unit, Math.max(neededQty, 1), item.id);
+      added.push({
+        id: newId,
+        name: item.name,
+        quantityNeeded: Math.max(neededQty, 1),
+        unit: item.unit,
+        category: item.category,
+        isPurchased: false,
+        itemId: item.id,
+        createdAt: new Date().toISOString(),
+      });
     }
   }
+  return added;
 }
 
 export async function getShoppingListAsText(): Promise<string> {

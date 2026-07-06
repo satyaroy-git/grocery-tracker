@@ -24,6 +24,7 @@ import {
 } from '../database';
 import { ShoppingListItem } from '../database';
 import { ShoppingStackParamList } from '../navigation/types';
+import { formatQuantity } from '../utils/numberFormat';
 
 type ShoppingNavProp = NativeStackNavigationProp<ShoppingStackParamList, 'ShoppingList'>;
 
@@ -145,7 +146,7 @@ export default function ShoppingListScreen() {
           {item.name}
         </Text>
         <Text style={styles.itemDetail}>
-          {item.quantityNeeded} {item.unit} • {item.category}
+          {formatQuantity(item.quantityNeeded)} {item.unit} • {item.category}
         </Text>
       </View>
       <TouchableOpacity onPress={() => handleRemoveItem(item)}>
@@ -204,7 +205,7 @@ export default function ShoppingListScreen() {
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           refreshing={refreshing}

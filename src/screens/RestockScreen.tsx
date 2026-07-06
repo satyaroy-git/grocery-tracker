@@ -17,8 +17,10 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constant
 import { getItemById, restockItem, logConsumption, updateItemPrice } from '../database';
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
+import { formatQuantity, formatMoney, roundMoney } from '../utils/numberFormat';
 
 type RestockRouteProp = RouteProp<InventoryStackParamList, 'Restock'>;
+type PriceEntryMode = 'total' | 'perUnit';
 
 export default function RestockScreen() {
   const navigation = useNavigation();
@@ -29,11 +31,13 @@ export default function RestockScreen() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'add' | 'set'>('add');
   const [quantity, setQuantity] = useState('');
-  // Optional - the amount paid for this restock. Recorded on the
-  // consumption_logs entry (not just items.price) so it's correctly
-  // included in expenditure/Insights totals, no matter how many times an
-  // item gets restocked.
+  // Price can be entered either as a flat total for this restock, or as a
+  // per-unit rate that gets multiplied by the quantity being added - the
+  // final total price is calculated live either way and is always what
+  // actually gets recorded (never the per-unit rate itself).
+  const [priceEntryMode, setPriceEntryMode] = useState<PriceEntryMode>('total');
   const [price, setPrice] = useState('');
+  const [pricePerUnit, setPricePerUnit] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -56,8 +60,42 @@ export default function RestockScreen() {
     if (!item || !quantity) return item?.currentQuantity || 0;
     const qty = parseFloat(quantity);
     if (isNaN(qty)) return item.currentQuantity;
-    if (mode === 'add') return item.currentQuantity + qty;
-    return qty;
+    if (mode === 'add') return roundQuantityLocal(item.currentQuantity + qty);
+    return roundQuantityLocal(qty);
+  };
+
+  // Local rounding helper (screen-side preview only - the actual persisted
+  // rounding happens in database/index.ts regardless of what's shown here).
+  function roundQuantityLocal(value: number): number {
+    return Math.round((value + Number.EPSILON) * 1000) / 1000;
+  }
+
+  // The quantity actually being ADDED to stock in this restock action -
+  // this is the basis for the per-unit price calculation (NOT the final
+  // total quantity), since the price paid only applies to what's being
+  // newly purchased right now, not stock that was already on hand.
+  const getAddedAmount = (): number => {
+    if (!item) return 0;
+    return getFinalAmount() - item.currentQuantity;
+  };
+
+  // The final total price to actually record for this restock, computed
+  // live from whichever entry mode the user picked:
+  // - 'total': the amount typed IS the total (used as-is)
+  // - 'perUnit': total = pricePerUnit x quantity being added
+  const getCalculatedTotalPrice = (): number | null => {
+    if (priceEntryMode === 'total') {
+      if (!price.trim()) return null;
+      const parsed = parseFloat(price);
+      return isNaN(parsed) ? null : roundMoney(parsed);
+    }
+    // perUnit mode
+    if (!pricePerUnit.trim()) return null;
+    const rate = parseFloat(pricePerUnit);
+    if (isNaN(rate)) return null;
+    const addedAmount = getAddedAmount();
+    if (addedAmount <= 0) return null;
+    return roundMoney(rate * addedAmount);
   };
 
   const handleRestock = async () => {
@@ -67,8 +105,12 @@ export default function RestockScreen() {
       return;
     }
     // Price is optional, but if the user typed something, it must be valid
-    if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+    if (priceEntryMode === 'total' && price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
       Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
+      return;
+    }
+    if (priceEntryMode === 'perUnit' && pricePerUnit.trim() && (isNaN(parseFloat(pricePerUnit)) || parseFloat(pricePerUnit) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price per unit, or leave it blank.');
       return;
     }
 
@@ -92,8 +134,8 @@ export default function RestockScreen() {
     setSubmitting(true);
     try {
       const finalAmount = getFinalAmount();
-      const addedAmount = finalAmount - item!.currentQuantity;
-      const enteredPrice = price.trim() ? parseFloat(price) : null;
+      const addedAmount = roundQuantityLocal(finalAmount - item!.currentQuantity);
+      const calculatedPrice = getCalculatedTotalPrice();
 
       // restockItem() ADDS its argument to the current quantity, so we must pass
       // the delta (addedAmount), not the final target amount, or stock gets
@@ -103,21 +145,23 @@ export default function RestockScreen() {
         await restockItem(item!.id, addedAmount);
       }
       if (addedAmount > 0) {
-        // Pass the price through so it's recorded on the log entry itself -
-        // this is what expenditure totals are actually computed from, so a
-        // priced restock is correctly counted every single time, not just
-        // when the item was first created.
-        await logConsumption(item!.id, addedAmount, 'restock', undefined, enteredPrice);
+        // Pass the calculated total price through so it's recorded on the
+        // log entry itself - this is what expenditure totals are actually
+        // computed from, so a priced restock is correctly counted every
+        // single time, not just when the item was first created. Whether
+        // the user typed a flat total or a per-unit rate, what's stored
+        // here is always the resolved TOTAL price for this purchase.
+        await logConsumption(item!.id, addedAmount, 'restock', undefined, calculatedPrice);
       }
       // Also update items.price as a "most recently paid" snapshot, purely
       // for quick display on ItemDetailScreen's Purchase Details card.
-      if (enteredPrice !== null && enteredPrice > 0) {
-        await updateItemPrice(item!.id, enteredPrice);
+      if (calculatedPrice !== null && calculatedPrice > 0) {
+        await updateItemPrice(item!.id, calculatedPrice);
       }
 
       Alert.alert(
         'Success',
-        `Restocked ${item!.name} to ${finalAmount} ${item!.unit}`,
+        `Restocked ${item!.name} to ${formatQuantity(finalAmount)} ${item!.unit}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
@@ -136,6 +180,8 @@ export default function RestockScreen() {
   }
 
   const finalAmount = getFinalAmount();
+  const addedAmount = getAddedAmount();
+  const calculatedPrice = getCalculatedTotalPrice();
 
   return (
     <KeyboardAvoidingView
@@ -149,7 +195,7 @@ export default function RestockScreen() {
           <View style={styles.stockRow}>
             <Ionicons name="cube-outline" size={24} color={COLORS.primary} />
             <Text style={styles.stockValue}>
-              {item.currentQuantity} {item.unit}
+              {formatQuantity(item.currentQuantity)} {item.unit}
             </Text>
           </View>
           <Text style={styles.stockLabel}>Current Stock</Text>
@@ -206,14 +252,63 @@ export default function RestockScreen() {
         {/* Price (optional) - amount paid for this restock */}
         <View style={styles.field}>
           <Text style={styles.label}>Price Paid (optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={price}
-            onChangeText={setPrice}
-            placeholder="e.g. 199"
-            placeholderTextColor={COLORS.textLight}
-            keyboardType="decimal-pad"
-          />
+
+          {/* Total vs Per-Unit entry mode toggle */}
+          <View style={styles.priceModeToggle}>
+            <TouchableOpacity
+              style={[styles.priceModeButton, priceEntryMode === 'total' && styles.priceModeButtonActive]}
+              onPress={() => setPriceEntryMode('total')}
+            >
+              <Text
+                style={[
+                  styles.priceModeText,
+                  priceEntryMode === 'total' && styles.priceModeTextActive,
+                ]}
+              >
+                Total Price
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.priceModeButton, priceEntryMode === 'perUnit' && styles.priceModeButtonActive]}
+              onPress={() => setPriceEntryMode('perUnit')}
+            >
+              <Text
+                style={[
+                  styles.priceModeText,
+                  priceEntryMode === 'perUnit' && styles.priceModeTextActive,
+                ]}
+              >
+                Price per {item.unit}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {priceEntryMode === 'total' ? (
+            <TextInput
+              style={styles.input}
+              value={price}
+              onChangeText={setPrice}
+              placeholder="e.g. 199"
+              placeholderTextColor={COLORS.textLight}
+              keyboardType="decimal-pad"
+            />
+          ) : (
+            <TextInput
+              style={styles.input}
+              value={pricePerUnit}
+              onChangeText={setPricePerUnit}
+              placeholder={`e.g. 50 per ${item.unit}`}
+              placeholderTextColor={COLORS.textLight}
+              keyboardType="decimal-pad"
+            />
+          )}
+
+          {priceEntryMode === 'perUnit' && addedAmount > 0 && pricePerUnit.trim() && calculatedPrice !== null && (
+            <Text style={styles.priceCalcText}>
+              ₹{pricePerUnit} × {formatQuantity(addedAmount)} {item.unit} = ₹{formatMoney(calculatedPrice)}
+            </Text>
+          )}
+
           <Text style={styles.priceHint}>
             This will be added to your expenditure insights.
           </Text>
@@ -226,28 +321,28 @@ export default function RestockScreen() {
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Current:</Text>
               <Text style={styles.previewValue}>
-                {item.currentQuantity} {item.unit}
+                {formatQuantity(item.currentQuantity)} {item.unit}
               </Text>
             </View>
             {mode === 'add' && (
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Adding:</Text>
                 <Text style={[styles.previewValue, { color: COLORS.success }]}>
-                  +{parseFloat(quantity)} {item.unit}
+                  +{formatQuantity(parseFloat(quantity) || 0)} {item.unit}
                 </Text>
               </View>
             )}
             <View style={[styles.previewRow, styles.previewTotal]}>
               <Text style={styles.previewLabel}>Final Amount:</Text>
               <Text style={[styles.previewValue, styles.previewFinal]}>
-                {finalAmount} {item.unit}
+                {formatQuantity(finalAmount)} {item.unit}
               </Text>
             </View>
-            {price.trim() && !isNaN(parseFloat(price)) && (
+            {calculatedPrice !== null && (
               <View style={styles.previewRow}>
-                <Text style={styles.previewLabel}>Price Paid:</Text>
+                <Text style={styles.previewLabel}>Total Price:</Text>
                 <Text style={[styles.previewValue, { color: COLORS.success }]}>
-                  ₹{parseFloat(price)}
+                  ₹{formatMoney(calculatedPrice)}
                 </Text>
               </View>
             )}
@@ -335,6 +430,39 @@ const styles = StyleSheet.create({
   priceHint: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.textLight,
+    marginTop: SPACING.xs,
+  },
+  priceModeToggle: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  priceModeButton: {
+    flex: 1,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  priceModeButtonActive: {
+    backgroundColor: COLORS.primaryLight + '25',
+    borderColor: COLORS.primary,
+  },
+  priceModeText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  priceModeTextActive: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  priceCalcText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.success,
+    fontWeight: '600',
     marginTop: SPACING.xs,
   },
   toggleContainer: {

@@ -5,8 +5,13 @@ export type InventoryStackParamList = {
   AddItem: undefined;
   EditItem: { itemId: number };
   ItemDetail: { itemId: number };
-  LogUsage: { itemId: number; itemName: string };
-  Restock: { itemId: number; itemName: string };
+  // itemId is optional - LogUsageScreen supports both being opened directly
+  // (no preselected item, user searches/picks one) and being opened from
+  // ItemDetailScreen for a specific item. Only itemId is needed since the
+  // screen reloads full item details itself; itemName was never actually
+  // passed by any caller and was never required.
+  LogUsage: { itemId?: number } | undefined;
+  Restock: { itemId: number };
   ScanInvoice: undefined;
   BarcodeScan: undefined;
 };
@@ -14,7 +19,7 @@ export type InventoryStackParamList = {
 export type ShoppingStackParamList = {
   ShoppingList: undefined;
   AddShoppingItem: undefined;
-  PurchaseConfirm: { itemId: number };
+  PurchaseConfirm: { shoppingItemId: number };
 };
 
 export type DashboardStackParamList = {

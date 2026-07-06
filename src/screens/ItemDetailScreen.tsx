@@ -16,6 +16,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constant
 import { getItemById, deleteItem, getConsumptionLogs } from '../database';
 import { GroceryItemWithStatus, ConsumptionLog } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
+import { formatMoney, formatQuantity } from '../utils/numberFormat';
 
 type ItemDetailRouteProp = RouteProp<InventoryStackParamList, 'ItemDetail'>;
 type ItemDetailNavProp = NativeStackNavigationProp<InventoryStackParamList, 'ItemDetail'>;
@@ -164,10 +165,10 @@ export default function ItemDetailScreen() {
         <Text style={styles.cardTitle}>Stock Level</Text>
         <View style={styles.quantityRow}>
           <Text style={styles.quantityValue}>
-            {item.currentQuantity} {item.unit}
+            {formatQuantity(item.currentQuantity)} {item.unit}
           </Text>
           <Text style={styles.thresholdText}>
-            Threshold: {item.threshold} {item.unit}
+            Threshold: {formatQuantity(item.threshold)} {item.unit}
           </Text>
         </View>
         <View style={styles.progressBar}>
@@ -196,7 +197,7 @@ export default function ItemDetailScreen() {
             <View style={styles.detailRow}>
               <Ionicons name="pricetag-outline" size={18} color={COLORS.textSecondary} />
               <Text style={styles.detailLabel}>Price</Text>
-              <Text style={styles.detailValue}>₹{item.price}</Text>
+              <Text style={styles.detailValue}>₹{formatMoney(item.price)}</Text>
             </View>
           )}
           {item.expiryDate !== null && (
@@ -277,9 +278,9 @@ export default function ItemDetailScreen() {
               <View style={styles.logInfo}>
                 <Text style={styles.logText}>
                   {log.type === 'restock' ? '+' : '-'}
-                  {log.quantity} {item.unit}
+                  {formatQuantity(log.quantity)} {item.unit}
                   {log.type === 'auto' ? ' (auto)' : ''}
-                  {log.price !== null && log.price !== undefined ? ` · ₹${log.price}` : ''}
+                  {log.price !== null && log.price !== undefined ? ` · ₹${formatMoney(log.price)}` : ''}
                 </Text>
                 {log.note && <Text style={styles.logNote}>{log.note}</Text>}
               </View>

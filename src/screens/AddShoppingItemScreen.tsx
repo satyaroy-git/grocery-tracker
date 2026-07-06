@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,18 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
-import { addToShoppingList } from '../database';
+import {
+  addToShoppingList,
+  getCustomCategories,
+  addCustomCategory,
+  getCustomUnits,
+  addCustomUnit,
+} from '../database';
+import SelectModal from '../components/SelectModal';
+import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
 export default function AddShoppingItemScreen() {
   const navigation = useNavigation();
@@ -23,9 +31,69 @@ export default function AddShoppingItemScreen() {
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [unit, setUnit] = useState(UNITS_OF_MEASUREMENT[0].value);
   const [quantityNeeded, setQuantityNeeded] = useState('');
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showUnitPicker, setShowUnitPicker] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showUnitModal, setShowUnitModal] = useState(false);
+  // Same persisted custom category/unit pattern as AddItemScreen/EditItemScreen/
+  // BarcodeScanScreen, so the picker (and its full scrollable list, plus
+  // "+ Add New") is consistent across every screen in the app, not just Pantry.
+  const [extraCategories, setExtraCategories] = useState<string[]>([]);
+  const [extraUnits, setExtraUnits] = useState<{ value: string; label: string }[]>([]);
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [unitTouched, setUnitTouched] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const loadExtras = useCallback(async () => {
+    try {
+      const [cats, units] = await Promise.all([getCustomCategories(), getCustomUnits()]);
+      setExtraCategories(cats);
+      setExtraUnits(units);
+    } catch (error) {
+      console.error('Failed to load custom categories/units:', error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadExtras();
+    }, [loadExtras])
+  );
+
+  const allCategoryOptions = [...DEFAULT_CATEGORIES, ...extraCategories].map((c) => ({
+    label: c,
+    value: c,
+  }));
+  const allUnitOptions = [...UNITS_OF_MEASUREMENT, ...extraUnits];
+
+  const handleAddCustomCategory = async (value: string) => {
+    await addCustomCategory(value);
+    setExtraCategories((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    setCategory(value);
+    setCategoryTouched(true);
+  };
+
+  const handleAddCustomUnit = async (value: string) => {
+    await addCustomUnit(value);
+    setExtraUnits((prev) => (prev.some((u) => u.value === value) ? prev : [...prev, { value, label: value }]));
+    setUnit(value);
+    setUnitTouched(true);
+  };
+
+  // Same auto-populate-as-you-type behavior as AddItemScreen, for consistency.
+  const handleNameChange = (text: string) => {
+    setName(text);
+    if (!text.trim()) return;
+
+    if (!categoryTouched) {
+      const guessedCategory = safeCategoryGuess(text);
+      if (guessedCategory !== 'Other') {
+        setCategory(guessedCategory);
+      }
+    }
+    if (!unitTouched) {
+      const guessedUnit = guessUnitFromName(text, quantityNeeded ? parseFloat(quantityNeeded) || 1 : 1);
+      setUnit(guessedUnit);
+    }
+  };
 
   const handleAdd = async () => {
     if (!name.trim()) {
@@ -49,7 +117,7 @@ export default function AddShoppingItemScreen() {
   };
 
   const selectedUnitLabel =
-    UNITS_OF_MEASUREMENT.find((u) => u.value === unit)?.label || unit;
+    allUnitOptions.find((u) => u.value === unit)?.label || unit;
 
   return (
     <KeyboardAvoidingView
@@ -63,7 +131,7 @@ export default function AddShoppingItemScreen() {
           <TextInput
             style={styles.input}
             value={name}
-            onChangeText={setName}
+            onChangeText={handleNameChange}
             placeholder="What do you need to buy?"
             placeholderTextColor={COLORS.textLight}
           />
@@ -74,34 +142,11 @@ export default function AddShoppingItemScreen() {
           <Text style={styles.label}>Category</Text>
           <TouchableOpacity
             style={styles.pickerButton}
-            onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+            onPress={() => setShowCategoryModal(true)}
           >
             <Text style={styles.pickerButtonText}>{category}</Text>
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          {showCategoryPicker && (
-            <View style={styles.pickerOptions}>
-              {DEFAULT_CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.pickerOption, category === cat && styles.pickerOptionSelected]}
-                  onPress={() => {
-                    setCategory(cat);
-                    setShowCategoryPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerOptionText,
-                      category === cat && styles.pickerOptionTextSelected,
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </View>
 
         {/* Unit */}
@@ -109,35 +154,42 @@ export default function AddShoppingItemScreen() {
           <Text style={styles.label}>Unit</Text>
           <TouchableOpacity
             style={styles.pickerButton}
-            onPress={() => setShowUnitPicker(!showUnitPicker)}
+            onPress={() => setShowUnitModal(true)}
           >
             <Text style={styles.pickerButtonText}>{selectedUnitLabel}</Text>
             <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          {showUnitPicker && (
-            <View style={styles.pickerOptions}>
-              {UNITS_OF_MEASUREMENT.map((u) => (
-                <TouchableOpacity
-                  key={u.value}
-                  style={[styles.pickerOption, unit === u.value && styles.pickerOptionSelected]}
-                  onPress={() => {
-                    setUnit(u.value);
-                    setShowUnitPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerOptionText,
-                      unit === u.value && styles.pickerOptionTextSelected,
-                    ]}
-                  >
-                    {u.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </View>
+
+        <SelectModal
+          visible={showCategoryModal}
+          title="Select Category"
+          options={allCategoryOptions}
+          selectedValue={category}
+          onSelect={(value) => {
+            setCategory(value);
+            setCategoryTouched(true);
+          }}
+          onClose={() => setShowCategoryModal(false)}
+          onAddCustom={handleAddCustomCategory}
+          addCustomLabel="+ Add New Category"
+          addCustomPlaceholder="e.g. Floor Cleaner, Toothpaste"
+        />
+
+        <SelectModal
+          visible={showUnitModal}
+          title="Select Unit"
+          options={allUnitOptions}
+          selectedValue={unit}
+          onSelect={(value) => {
+            setUnit(value);
+            setUnitTouched(true);
+          }}
+          onClose={() => setShowUnitModal(false)}
+          onAddCustom={handleAddCustomUnit}
+          addCustomLabel="+ Add New Unit"
+          addCustomPlaceholder="e.g. crate, drum, number"
+        />
 
         {/* Quantity */}
         <View style={styles.field}>
@@ -208,30 +260,6 @@ const styles = StyleSheet.create({
   pickerButtonText: {
     fontSize: FONT_SIZES.lg,
     color: COLORS.text,
-  },
-  pickerOptions: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: SPACING.xs,
-    maxHeight: 200,
-  },
-  pickerOption: {
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  pickerOptionSelected: {
-    backgroundColor: COLORS.primaryLight + '20',
-  },
-  pickerOptionText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-  },
-  pickerOptionTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '600',
   },
   addButton: {
     backgroundColor: COLORS.primary,

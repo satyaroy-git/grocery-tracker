@@ -24,8 +24,10 @@ import {
 } from '../database';
 import { ShoppingListItem, GroceryItemWithStatus } from '../database';
 import { ShoppingStackParamList } from '../navigation/types';
+import { formatQuantity, formatMoney, roundMoney } from '../utils/numberFormat';
 
 type PurchaseConfirmRouteProp = RouteProp<ShoppingStackParamList, 'PurchaseConfirm'>;
+type PriceEntryMode = 'total' | 'perUnit';
 
 export default function PurchaseConfirmScreen() {
   const navigation = useNavigation();
@@ -35,9 +37,12 @@ export default function PurchaseConfirmScreen() {
   const [shoppingItem, setShoppingItem] = useState<ShoppingListItem | null>(null);
   const [linkedItem, setLinkedItem] = useState<GroceryItemWithStatus | null>(null);
   const [newQuantity, setNewQuantity] = useState('');
-  // Optional - the amount paid for this purchase. Recorded on the restock
-  // log entry so it's correctly included in expenditure/Insights totals.
+  // Price can be entered as a flat total or a per-unit rate (multiplied by
+  // the quantity being added), same as RestockScreen - the resolved total
+  // is always what's actually recorded on the purchase log.
+  const [priceEntryMode, setPriceEntryMode] = useState<PriceEntryMode>('total');
   const [price, setPrice] = useState('');
+  const [pricePerUnit, setPricePerUnit] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -79,8 +84,12 @@ export default function PurchaseConfirmScreen() {
       Alert.alert('Error', 'Please enter a valid quantity.');
       return;
     }
-    if (price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+    if (priceEntryMode === 'total' && price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
       Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
+      return;
+    }
+    if (priceEntryMode === 'perUnit' && pricePerUnit.trim() && (isNaN(parseFloat(pricePerUnit)) || parseFloat(pricePerUnit) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price per unit, or leave it blank.');
       return;
     }
 
@@ -90,8 +99,16 @@ export default function PurchaseConfirmScreen() {
 
       if (linkedItem && newQuantity) {
         const qty = parseFloat(newQuantity);
-        const addedAmount = qty - linkedItem.currentQuantity;
-        const enteredPrice = price.trim() ? parseFloat(price) : null;
+        const addedAmount = Math.round((qty - linkedItem.currentQuantity + Number.EPSILON) * 1000) / 1000;
+
+        // Resolve the final total price from whichever entry mode was used.
+        let calculatedPrice: number | null = null;
+        if (priceEntryMode === 'total') {
+          calculatedPrice = price.trim() ? roundMoney(parseFloat(price)) : null;
+        } else if (pricePerUnit.trim() && addedAmount > 0) {
+          calculatedPrice = roundMoney(parseFloat(pricePerUnit) * addedAmount);
+        }
+
         // restockItem() ADDS its argument to the current quantity, so pass the
         // delta (addedAmount), not the final target quantity `qty`.
         if (addedAmount !== 0) {
@@ -103,11 +120,11 @@ export default function PurchaseConfirmScreen() {
             addedAmount,
             'restock',
             'Purchased from shopping list',
-            enteredPrice
+            calculatedPrice
           );
         }
-        if (enteredPrice !== null && enteredPrice > 0) {
-          await updateItemPrice(linkedItem.id, enteredPrice);
+        if (calculatedPrice !== null && calculatedPrice > 0) {
+          await updateItemPrice(linkedItem.id, calculatedPrice);
         }
       }
 
@@ -151,7 +168,7 @@ export default function PurchaseConfirmScreen() {
           <Text style={styles.headerTitle}>Confirm Purchase</Text>
           <Text style={styles.itemName}>{shoppingItem.name}</Text>
           <Text style={styles.itemDetail}>
-            {shoppingItem.quantityNeeded} {shoppingItem.unit} • {shoppingItem.category}
+            {formatQuantity(shoppingItem.quantityNeeded)} {shoppingItem.unit} • {shoppingItem.category}
           </Text>
         </View>
 
@@ -160,7 +177,7 @@ export default function PurchaseConfirmScreen() {
           <View style={styles.restockSection}>
             <Text style={styles.sectionTitle}>Update Stock</Text>
             <Text style={styles.currentStock}>
-              Current stock: {linkedItem.currentQuantity} {linkedItem.unit}
+              Current stock: {formatQuantity(linkedItem.currentQuantity)} {linkedItem.unit}
             </Text>
 
             <View style={styles.field}>
@@ -178,43 +195,99 @@ export default function PurchaseConfirmScreen() {
             {/* Price (optional) - amount paid for this purchase */}
             <View style={styles.field}>
               <Text style={styles.label}>Price Paid (optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={price}
-                onChangeText={setPrice}
-                placeholder="e.g. 199"
-                placeholderTextColor={COLORS.textLight}
-                keyboardType="decimal-pad"
-              />
+
+              <View style={styles.priceModeToggle}>
+                <TouchableOpacity
+                  style={[styles.priceModeButton, priceEntryMode === 'total' && styles.priceModeButtonActive]}
+                  onPress={() => setPriceEntryMode('total')}
+                >
+                  <Text
+                    style={[
+                      styles.priceModeText,
+                      priceEntryMode === 'total' && styles.priceModeTextActive,
+                    ]}
+                  >
+                    Total Price
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.priceModeButton, priceEntryMode === 'perUnit' && styles.priceModeButtonActive]}
+                  onPress={() => setPriceEntryMode('perUnit')}
+                >
+                  <Text
+                    style={[
+                      styles.priceModeText,
+                      priceEntryMode === 'perUnit' && styles.priceModeTextActive,
+                    ]}
+                  >
+                    Price per {linkedItem.unit}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {priceEntryMode === 'total' ? (
+                <TextInput
+                  style={styles.input}
+                  value={price}
+                  onChangeText={setPrice}
+                  placeholder="e.g. 199"
+                  placeholderTextColor={COLORS.textLight}
+                  keyboardType="decimal-pad"
+                />
+              ) : (
+                <TextInput
+                  style={styles.input}
+                  value={pricePerUnit}
+                  onChangeText={setPricePerUnit}
+                  placeholder={`e.g. 50 per ${linkedItem.unit}`}
+                  placeholderTextColor={COLORS.textLight}
+                  keyboardType="decimal-pad"
+                />
+              )}
+
               <Text style={styles.priceHint}>
                 This will be added to your expenditure insights.
               </Text>
             </View>
 
-            {newQuantity && parseFloat(newQuantity) > 0 && (
-              <View style={styles.previewCard}>
-                <View style={styles.previewRow}>
-                  <Text style={styles.previewLabel}>Current:</Text>
-                  <Text style={styles.previewValue}>
-                    {linkedItem.currentQuantity} {linkedItem.unit}
-                  </Text>
-                </View>
-                <View style={styles.previewRow}>
-                  <Text style={styles.previewLabel}>After purchase:</Text>
-                  <Text style={[styles.previewValue, { color: COLORS.success }]}>
-                    {parseFloat(newQuantity)} {linkedItem.unit}
-                  </Text>
-                </View>
-                {price.trim() && !isNaN(parseFloat(price)) && (
+            {newQuantity && parseFloat(newQuantity) > 0 && (() => {
+              const addedAmount = Math.round((parseFloat(newQuantity) - linkedItem.currentQuantity + Number.EPSILON) * 1000) / 1000;
+              const calculatedPrice =
+                priceEntryMode === 'total'
+                  ? (price.trim() && !isNaN(parseFloat(price)) ? roundMoney(parseFloat(price)) : null)
+                  : (pricePerUnit.trim() && !isNaN(parseFloat(pricePerUnit)) && addedAmount > 0
+                      ? roundMoney(parseFloat(pricePerUnit) * addedAmount)
+                      : null);
+              return (
+                <View style={styles.previewCard}>
                   <View style={styles.previewRow}>
-                    <Text style={styles.previewLabel}>Price Paid:</Text>
-                    <Text style={[styles.previewValue, { color: COLORS.success }]}>
-                      ₹{parseFloat(price)}
+                    <Text style={styles.previewLabel}>Current:</Text>
+                    <Text style={styles.previewValue}>
+                      {formatQuantity(linkedItem.currentQuantity)} {linkedItem.unit}
                     </Text>
                   </View>
-                )}
-              </View>
-            )}
+                  <View style={styles.previewRow}>
+                    <Text style={styles.previewLabel}>After purchase:</Text>
+                    <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                      {formatQuantity(parseFloat(newQuantity))} {linkedItem.unit}
+                    </Text>
+                  </View>
+                  {priceEntryMode === 'perUnit' && addedAmount > 0 && pricePerUnit.trim() && calculatedPrice !== null && (
+                    <Text style={styles.priceCalcText}>
+                      ₹{pricePerUnit} × {formatQuantity(addedAmount)} {linkedItem.unit} = ₹{formatMoney(calculatedPrice)}
+                    </Text>
+                  )}
+                  {calculatedPrice !== null && (
+                    <View style={styles.previewRow}>
+                      <Text style={styles.previewLabel}>Total Price:</Text>
+                      <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                        ₹{formatMoney(calculatedPrice)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
           </View>
         )}
 
@@ -317,6 +390,39 @@ const styles = StyleSheet.create({
   priceHint: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.textLight,
+    marginTop: SPACING.xs,
+  },
+  priceModeToggle: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  priceModeButton: {
+    flex: 1,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  priceModeButtonActive: {
+    backgroundColor: COLORS.primaryLight + '25',
+    borderColor: COLORS.primary,
+  },
+  priceModeText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  priceModeTextActive: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  priceCalcText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.success,
+    fontWeight: '600',
     marginTop: SPACING.xs,
   },
   previewCard: {

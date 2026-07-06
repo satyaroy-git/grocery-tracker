@@ -29,6 +29,7 @@ import {
 } from '../services/invoiceParser';
 import { hasApiKey, setApiKey } from '../services/config';
 import DateField from '../components/DateField';
+import { formatMoney } from '../utils/numberFormat';
 
 type ParseMode = 'image' | 'text';
 type ScreenState = 'input' | 'parsing' | 'review' | 'saving' | 'done';
@@ -367,7 +368,7 @@ export default function ScanInvoiceScreen() {
           )}
           <Text style={styles.itemCount}>
             {editableItems.length} items found
-            {parseResult.totalAmount ? ` | Total: ₹${parseResult.totalAmount}` : ''}
+            {parseResult.totalAmount ? ` | Total: ₹${formatMoney(parseResult.totalAmount)}` : ''}
           </Text>
           <Text style={styles.editHint}>
             Edit name, quantity, amount, unit, or category on any item below.

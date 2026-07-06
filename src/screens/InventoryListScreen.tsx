@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { getAllItems, GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
+import { formatQuantity } from '../utils/numberFormat';
 
 type NavProp = NativeStackNavigationProp<InventoryStackParamList, 'InventoryList'>;
 
@@ -100,7 +101,7 @@ export default function InventoryListScreen() {
       </View>
       <View style={styles.itemRight}>
         <Text style={[styles.itemQuantity, { color: getStatusColor(item.status) }]}>
-          {item.currentQuantity} {item.unit}
+          {formatQuantity(item.currentQuantity)} {item.unit}
         </Text>
         <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
       </View>

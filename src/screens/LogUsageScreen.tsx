@@ -14,11 +14,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { getAllItems, getItemById, deductQuantity, logConsumption } from '../database';
+import { getAllItems, getItemById, logConsumption } from '../database';
 import { GroceryItemWithStatus } from '../database';
-import { DashboardStackParamList } from '../navigation/types';
+import { InventoryStackParamList } from '../navigation/types';
+import { formatQuantity } from '../utils/numberFormat';
 
-type LogUsageRouteProp = RouteProp<DashboardStackParamList, 'LogUsage'>;
+// FIX: LogUsage is registered under InventoryStack (see InventoryStack.tsx),
+// not DashboardStack - it never actually had a 'LogUsage' key, so this typed
+// route.params as `unknown` and made `route.params?.itemId` a type error.
+type LogUsageRouteProp = RouteProp<InventoryStackParamList, 'LogUsage'>;
 
 const QUICK_AMOUNTS = [0.25, 0.5, 1, 2];
 
@@ -63,7 +67,7 @@ export default function LogUsageScreen() {
   );
 
   const remainingStock = selectedItem
-    ? Math.max(0, selectedItem.currentQuantity - (parseFloat(amount) || 0))
+    ? Math.max(0, Math.round((selectedItem.currentQuantity - (parseFloat(amount) || 0) + Number.EPSILON) * 1000) / 1000)
     : null;
 
   const handleLogUsage = async () => {
@@ -89,7 +93,11 @@ export default function LogUsageScreen() {
     setSubmitting(true);
     try {
       const qty = parseFloat(amount);
-      await deductQuantity(selectedItem!.id, qty);
+      // BUG FIX: logConsumption() already calls deductQuantity() internally
+      // for any non-'restock' type (see database/index.ts). Calling
+      // deductQuantity() explicitly here AND inside logConsumption() deducted
+      // the amount TWICE - e.g. logging 0.2L used against 1L stock produced
+      // 1 - 0.2 - 0.2 = 0.6L instead of the correct 1 - 0.2 = 0.8L.
       await logConsumption(selectedItem!.id, qty, 'manual', note || undefined);
       Alert.alert('Success', `Logged ${qty} ${selectedItem!.unit} of ${selectedItem!.name}`, [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -160,7 +168,7 @@ export default function LogUsageScreen() {
                   >
                     <Text style={styles.dropdownItemName}>{item.name}</Text>
                     <Text style={styles.dropdownItemDetail}>
-                      {item.currentQuantity} {item.unit}
+                      {formatQuantity(item.currentQuantity)} {item.unit}
                     </Text>
                   </TouchableOpacity>
                 ))
@@ -174,7 +182,7 @@ export default function LogUsageScreen() {
           <View style={styles.selectedInfo}>
             <Text style={styles.selectedName}>{selectedItem.name}</Text>
             <Text style={styles.selectedStock}>
-              Current Stock: {selectedItem.currentQuantity} {selectedItem.unit}
+              Current Stock: {formatQuantity(selectedItem.currentQuantity)} {selectedItem.unit}
             </Text>
           </View>
         )}
@@ -230,13 +238,13 @@ export default function LogUsageScreen() {
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Current Stock:</Text>
               <Text style={styles.previewValue}>
-                {selectedItem.currentQuantity} {selectedItem.unit}
+                {formatQuantity(selectedItem.currentQuantity)} {selectedItem.unit}
               </Text>
             </View>
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Usage:</Text>
               <Text style={[styles.previewValue, { color: COLORS.danger }]}>
-                -{parseFloat(amount)} {selectedItem.unit}
+                -{formatQuantity(parseFloat(amount) || 0)} {selectedItem.unit}
               </Text>
             </View>
             <View style={[styles.previewRow, styles.previewTotal]}>
@@ -247,7 +255,7 @@ export default function LogUsageScreen() {
                   { color: remainingStock! <= selectedItem.threshold ? COLORS.danger : COLORS.success },
                 ]}
               >
-                {remainingStock} {selectedItem.unit}
+                {formatQuantity(remainingStock!)} {selectedItem.unit}
               </Text>
             </View>
           </View>
