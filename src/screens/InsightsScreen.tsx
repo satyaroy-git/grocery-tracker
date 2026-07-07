@@ -146,18 +146,30 @@ export default function InsightsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Summary Cards */}
+      {/* NOTE: these count "Log Usage" events only (type !== 'restock'), NOT
+          purchases/restocks - a user who has only scanned invoices / restocked
+          items but never logged usage will correctly see 0 here even though
+          Expenditure below shows real purchase activity. Labeled "Usage"
+          explicitly (was just "This Week"/"This Month") to avoid this reading
+          as a bug when it's really just an empty state. */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
           <Ionicons name="calendar-outline" size={24} color={COLORS.primary} />
           <Text style={styles.summaryValue}>{getThisWeekConsumption()}</Text>
-          <Text style={styles.summaryLabel}>This Week</Text>
+          <Text style={styles.summaryLabel}>Usage This Week</Text>
         </View>
         <View style={styles.summaryCard}>
           <Ionicons name="stats-chart-outline" size={24} color={COLORS.secondary} />
           <Text style={styles.summaryValue}>{getThisMonthConsumption()}</Text>
-          <Text style={styles.summaryLabel}>This Month</Text>
+          <Text style={styles.summaryLabel}>Usage This Month</Text>
         </View>
       </View>
+      {getThisMonthConsumption() === 0 && (
+        <Text style={styles.usageHint}>
+          These count items logged via "Log Usage" (consumption), not purchases/restocks.
+          Open an item and tap "Log Usage" to start tracking usage here.
+        </Text>
+      )}
 
       {/* Expenditure Summary */}
       {expenditure && (
@@ -392,6 +404,13 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
+  },
+  usageHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+    lineHeight: 16,
   },
   card: {
     backgroundColor: COLORS.surface,
