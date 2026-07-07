@@ -30,6 +30,9 @@ export type DashboardStackParamList = {
 export type SettingsStackParamList = {
   SettingsMain: undefined;
   Onboarding: undefined;
+  SignIn: undefined;
+  SignUp: undefined;
+  Household: undefined;
 };
 
 export type RootTabParamList = {

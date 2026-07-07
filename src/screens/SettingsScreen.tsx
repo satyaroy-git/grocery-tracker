@@ -14,6 +14,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { ALERT_FREQUENCIES } from '../constants/categories';
 import { getSettings, updateSettings, resetDatabase } from '../database';
 import { AppSettings, ConsumptionMode, AlertFrequency, ThemeMode } from '../database';
@@ -30,6 +31,7 @@ type SettingsNavProp = NativeStackNavigationProp<SettingsStackParamList, 'Settin
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavProp>();
   const { colors, themeMode: activeThemeMode, setThemeMode } = useTheme();
+  const { isAuthenticated, displayName, signOut } = useAuth();
   const styles = createStyles(colors);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -279,6 +281,56 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Cloud & Household */}
+      <View style={styles.section}>
+        <View style={styles.cardHeaderRow}>
+          <Ionicons name="cloud-outline" size={20} color={colors.accent} />
+          <Text style={styles.sectionTitle}>Cloud & Household</Text>
+        </View>
+        {isAuthenticated ? (
+          <>
+            <View style={styles.switchRow}>
+              <View>
+                <Text style={styles.switchLabel}>Signed in as</Text>
+                <Text style={styles.sectionDescription}>{displayName}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.signOutChip}
+                onPress={() => {
+                  Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Sign Out', style: 'destructive', onPress: signOut },
+                  ]);
+                }}
+              >
+                <Text style={styles.signOutChipText}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.householdButton}
+              onPress={() => navigation.navigate('Household' as never)}
+            >
+              <Ionicons name="people-outline" size={20} color={colors.primary} />
+              <Text style={styles.householdButtonText}>Manage Household</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={styles.sectionDescription}>
+              Sign in to sync your pantry across devices and share with household members.
+            </Text>
+            <TouchableOpacity
+              style={styles.signInButton}
+              onPress={() => navigation.navigate('SignIn' as never)}
+            >
+              <Ionicons name="log-in-outline" size={20} color={colors.surface} />
+              <Text style={styles.signInButtonText}>Sign In / Create Account</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
       {/* About */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
@@ -502,7 +554,53 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: FONT_SIZES.sm,
     color: colors.danger,
     marginTop: SPACING.sm,
-    textAlign: 'center',
-    opacity: 0.8,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  signOutChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  signOutChipText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: colors.danger,
+  },
+  householdButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: SPACING.sm,
+  },
+  householdButtonText: {
+    flex: 1,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  signInButton: {
+    backgroundColor: colors.primary,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  signInButtonText: {
+    color: colors.surface,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '700',
   },
 });

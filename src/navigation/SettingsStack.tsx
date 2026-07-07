@@ -6,6 +6,9 @@ import { SettingsStackParamList } from './types';
 
 import SettingsScreen from '../screens/SettingsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import SignInScreen from '../screens/SignInScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+import HouseholdScreen from '../screens/HouseholdScreen';
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
@@ -37,6 +40,21 @@ export default function SettingsStack() {
         name="Onboarding"
         component={OnboardingRouteScreen}
         options={{ title: 'Welcome Guide' }}
+      />
+      <Stack.Screen
+        name="SignIn"
+        component={SignInScreen}
+        options={{ title: 'Sign In' }}
+      />
+      <Stack.Screen
+        name="SignUp"
+        component={SignUpScreen}
+        options={{ title: 'Create Account' }}
+      />
+      <Stack.Screen
+        name="Household"
+        component={HouseholdScreen}
+        options={{ title: 'Household' }}
       />
     </Stack.Navigator>
   );

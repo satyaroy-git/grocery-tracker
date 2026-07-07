@@ -8,6 +8,7 @@ import { initDatabase } from './src/database';
 import RootNavigator from './src/navigation/RootNavigator';
 import { LIGHT_COLORS } from './src/constants/theme';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { AuthProvider } from './src/context/AuthContext';
 import { setupNotifications, scheduleExpiryAlerts, processRecurringItems } from './src/services/notifications';
 
 // Configure how notifications are presented when the app is in the foreground
@@ -86,7 +87,9 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
