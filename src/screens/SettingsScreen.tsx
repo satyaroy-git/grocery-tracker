@@ -96,6 +96,16 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleToggleRecipeSuggestions = async (value: boolean) => {
+    if (!settings) return;
+    try {
+      const updated = await updateSettings({ recipeSuggestionsEnabled: value });
+      setSettings(updated);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update settings.');
+    }
+  };
+
   const handleResetData = () => {
     Alert.alert(
       'Reset All Data',
@@ -248,6 +258,26 @@ export default function SettingsScreen() {
               हिंदी
             </Text>
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Recipe Suggestions */}
+      <View style={styles.section}>
+        <View style={styles.cardHeaderRow}>
+          <Ionicons name="restaurant-outline" size={20} color={colors.secondary} />
+          <Text style={styles.sectionTitle}>Recipe Suggestions</Text>
+        </View>
+        <Text style={styles.sectionDescription}>
+          Get daily meal ideas (breakfast, lunch, dinner, snacks) based on what's in your pantry. Powered by AI.
+        </Text>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Enable Suggestions</Text>
+          <Switch
+            value={settings.recipeSuggestionsEnabled}
+            onValueChange={handleToggleRecipeSuggestions}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={settings.recipeSuggestionsEnabled ? colors.primary : colors.textLight}
+          />
         </View>
       </View>
 

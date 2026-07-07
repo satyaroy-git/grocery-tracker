@@ -9,9 +9,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
+import { DashboardStackParamList } from '../navigation/types';
 import {
   getAllItems,
   getAllRecentConsumptionLogs,
@@ -31,7 +34,8 @@ import { formatMoney, formatQuantity } from '../utils/numberFormat';
 
 export default function InsightsScreen() {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
   const styles = createStyles(colors);
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [recentLogs, setRecentLogs] = useState<ConsumptionLog[]>([]);
@@ -175,6 +179,27 @@ export default function InsightsScreen() {
           )}
         </View>
       </View>
+
+      {/* Recipe Suggestions Card */}
+      <TouchableOpacity
+        style={styles.recipeCard}
+        onPress={() => navigation.navigate('RecipeSuggestions')}
+      >
+        <View style={styles.recipeCardContent}>
+          <Ionicons name="restaurant" size={28} color={colors.secondary} />
+          <View style={styles.recipeCardText}>
+            <Text style={styles.recipeCardTitle}>
+              {language === 'hi' ? 'आज क्या बनाएं?' : "What to Cook Today?"}
+            </Text>
+            <Text style={styles.recipeCardSubtitle}>
+              {language === 'hi'
+                ? 'AI से अपनी पैंट्री के आधार पर रेसिपी पाएं'
+                : 'Get AI recipe suggestions from your pantry'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+        </View>
+      </TouchableOpacity>
 
       {/* Expenditure Summary */}
       {expenditure && (
@@ -416,6 +441,33 @@ const createStyles = (colors: ThemeColors) =>
     fontWeight: '600',
     color: colors.warning,
     marginTop: SPACING.xs,
+  },
+  recipeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.secondary + '40',
+    ...SHADOWS.sm,
+  },
+  recipeCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  recipeCardText: {
+    flex: 1,
+  },
+  recipeCardTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  recipeCardSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   card: {
     backgroundColor: colors.surface,

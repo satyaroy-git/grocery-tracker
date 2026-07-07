@@ -69,6 +69,7 @@ export interface AppSettings {
   themeMode: ThemeMode;
   notificationsEnabled: boolean;
   language: string;
+  recipeSuggestionsEnabled: boolean;
 }
 
 export interface RecurringItem {
@@ -174,6 +175,7 @@ export async function initDatabase(): Promise<void> {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('themeMode', 'system');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('notificationsEnabled', 'true');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('language', 'en');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('recipeSuggestionsEnabled', 'true');
   `);
 
   // Create recurring_items table (safe to run on every launch - IF NOT EXISTS)
@@ -708,6 +710,7 @@ export async function getSettings(): Promise<AppSettings> {
     themeMode: (settings.themeMode as ThemeMode) || 'system',
     notificationsEnabled: settings.notificationsEnabled !== 'false',
     language: settings.language || 'en',
+    recipeSuggestionsEnabled: settings.recipeSuggestionsEnabled !== 'false',
   };
 }
 
@@ -746,6 +749,12 @@ export async function updateSettings(updates: Partial<AppSettings>): Promise<App
     await db.runAsync(
       "INSERT OR REPLACE INTO settings (key, value) VALUES ('language', ?)",
       [updates.language]
+    );
+  }
+  if (updates.recipeSuggestionsEnabled !== undefined) {
+    await db.runAsync(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('recipeSuggestionsEnabled', ?)",
+      [updates.recipeSuggestionsEnabled.toString()]
     );
   }
   // Return the fresh settings so callers (e.g. SettingsScreen) can update UI state directly

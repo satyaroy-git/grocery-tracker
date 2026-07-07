@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { DashboardStackParamList } from './types';
 
 import InsightsScreen from '../screens/InsightsScreen';
+import RecipeSuggestionsScreen from '../screens/RecipeSuggestionsScreen';
 
 const Stack = createNativeStackNavigator<DashboardStackParamList>();
 
@@ -21,6 +22,11 @@ export default function DashboardStack() {
         name="Insights"
         component={InsightsScreen}
         options={{ title: 'Insights' }}
+      />
+      <Stack.Screen
+        name="RecipeSuggestions"
+        component={RecipeSuggestionsScreen}
+        options={{ title: 'Recipe Suggestions' }}
       />
     </Stack.Navigator>
   );
