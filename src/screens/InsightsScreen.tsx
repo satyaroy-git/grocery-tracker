@@ -148,31 +148,31 @@ export default function InsightsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* Summary Cards */}
-      {/* NOTE: these count "Log Usage" events only (type !== 'restock'), NOT
-          purchases/restocks - a user who has only scanned invoices / restocked
-          items but never logged usage will correctly see 0 here even though
-          Expenditure below shows real purchase activity. Labeled "Usage"
-          explicitly (was just "This Week"/"This Month") to avoid this reading
-          as a bug when it's really just an empty state. */}
+      {/* Summary Cards - Pantry Health at a Glance */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Ionicons name="calendar-outline" size={24} color={colors.primary} />
-          <Text style={styles.summaryValue}>{getThisWeekConsumption()}</Text>
-          <Text style={styles.summaryLabel}>Usage This Week</Text>
+          <Ionicons name="cube-outline" size={24} color={colors.primary} />
+          <Text style={styles.summaryValue}>{items.length}</Text>
+          <Text style={styles.summaryLabel}>Total Items</Text>
+          {items.filter((i) => i.status === 'low' || i.status === 'empty').length > 0 && (
+            <Text style={styles.summaryAlert}>
+              {items.filter((i) => i.status === 'low' || i.status === 'empty').length} low stock
+            </Text>
+          )}
         </View>
         <View style={styles.summaryCard}>
-          <Ionicons name="stats-chart-outline" size={24} color={colors.secondary} />
-          <Text style={styles.summaryValue}>{getThisMonthConsumption()}</Text>
-          <Text style={styles.summaryLabel}>Usage This Month</Text>
+          <Ionicons name="alert-circle-outline" size={24} color={colors.warning} />
+          <Text style={styles.summaryValue}>
+            {items.filter((i) => i.daysUntilExpiry !== null && i.daysUntilExpiry >= 0 && i.daysUntilExpiry <= 7).length}
+          </Text>
+          <Text style={styles.summaryLabel}>Expiring Soon</Text>
+          {items.filter((i) => i.isExpired).length > 0 && (
+            <Text style={[styles.summaryAlert, { color: colors.danger }]}>
+              {items.filter((i) => i.isExpired).length} expired
+            </Text>
+          )}
         </View>
       </View>
-      {getThisMonthConsumption() === 0 && (
-        <Text style={styles.usageHint}>
-          These count items logged via "Log Usage" (consumption), not purchases/restocks.
-          Open an item and tap "Log Usage" to start tracking usage here.
-        </Text>
-      )}
 
       {/* Expenditure Summary */}
       {expenditure && (
@@ -409,12 +409,11 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
-  usageHint: {
+  summaryAlert: {
     fontSize: FONT_SIZES.xs,
-    color: colors.textLight,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-    lineHeight: 16,
+    fontWeight: '600',
+    color: colors.warning,
+    marginTop: SPACING.xs,
   },
   card: {
     backgroundColor: colors.surface,
