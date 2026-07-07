@@ -86,50 +86,68 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
   ]
 }`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 2048,
-          },
-        }),
-      }
-    );
+    // Try gemini-2.0-flash first, fall back to gemini-1.5-flash if rate limited
+    const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    let lastError = '';
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(
-        errorData?.error?.message || `Gemini API error: ${response.status}`
+    for (const model of models) {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 2048,
+            },
+          }),
+        }
       );
+
+      if (response.status === 429) {
+        // Rate limited on this model - try the next one
+        const errorData = await response.json().catch(() => null);
+        lastError = errorData?.error?.message || 'Rate limit exceeded';
+        continue;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          errorData?.error?.message || `Gemini API error: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      const textContent =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      // Parse the JSON response (strip any markdown code blocks if present)
+      const cleaned = textContent
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      const parsed = JSON.parse(cleaned);
+
+      if (!parsed.meals || !Array.isArray(parsed.meals)) {
+        throw new Error('Invalid response format from AI');
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+
+      return {
+        date: today,
+        meals: parsed.meals as RecipeSuggestion[],
+      };
     }
 
-    const data = await response.json();
-    const textContent =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    // Parse the JSON response (strip any markdown code blocks if present)
-    const cleaned = textContent
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
-
-    const parsed = JSON.parse(cleaned);
-
-    if (!parsed.meals || !Array.isArray(parsed.meals)) {
-      throw new Error('Invalid response format from AI');
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-
-    return {
-      date: today,
-      meals: parsed.meals as RecipeSuggestion[],
-    };
+    // All models rate limited
+    throw new Error(
+      'Gemini API rate limit reached. The free tier has a limited number of requests per minute. Please wait 1-2 minutes and try again.\n\nTip: If this happens frequently, upgrade to a paid Gemini plan at https://ai.google.dev/pricing'
+    );
   } catch (error: any) {
     throw new Error(error.message || 'Failed to generate recipe suggestions');
   }
