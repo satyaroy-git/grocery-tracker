@@ -86,8 +86,9 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
   ]
 }`;
 
-    // Try gemini-2.0-flash first, fall back to gemini-1.5-flash if rate limited
-    const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    // Try gemini-2.5-flash first (same model used for invoice scanning),
+    // fall back to gemini-2.0-flash-lite if rate limited
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash-lite'];
     let lastError = '';
 
     for (const model of models) {
