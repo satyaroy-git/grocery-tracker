@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,24 +7,31 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../i18n';
 import { getAllItems, deleteAllItems, GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 import { formatQuantity } from '../utils/numberFormat';
 
 type NavProp = NativeStackNavigationProp<InventoryStackParamList, 'InventoryList'>;
+type SortMode = 'name' | 'category' | 'stock' | 'expiry';
+type FilterMode = 'all' | 'low' | 'expiring' | 'expired';
 
 export default function InventoryListScreen() {
   const navigation = useNavigation<NavProp>();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('name');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
 
   const loadItems = useCallback(async () => {
     try {
@@ -34,6 +41,50 @@ export default function InventoryListScreen() {
       console.error('Failed to load items:', error);
     }
   }, []);
+
+  // Apply filter + sort
+  const displayItems = useMemo(() => {
+    let filtered = items;
+
+    // Filter
+    switch (filterMode) {
+      case 'low':
+        filtered = items.filter((i) => i.status === 'low' || i.status === 'empty');
+        break;
+      case 'expiring':
+        filtered = items.filter((i) => i.isExpiringSoon && !i.isExpired);
+        break;
+      case 'expired':
+        filtered = items.filter((i) => i.isExpired);
+        break;
+    }
+
+    // Sort
+    const sorted = [...filtered];
+    switch (sortMode) {
+      case 'name':
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'category':
+        sorted.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+        break;
+      case 'stock':
+        // Lowest stock first (most urgent)
+        sorted.sort((a, b) => a.currentQuantity - b.currentQuantity);
+        break;
+      case 'expiry':
+        // Soonest expiry first; items without expiry go last
+        sorted.sort((a, b) => {
+          if (!a.expiryDate && !b.expiryDate) return 0;
+          if (!a.expiryDate) return 1;
+          if (!b.expiryDate) return -1;
+          return a.expiryDate.localeCompare(b.expiryDate);
+        });
+        break;
+    }
+
+    return sorted;
+  }, [items, sortMode, filterMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -160,8 +211,54 @@ export default function InventoryListScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Sort & Filter Bar */}
+      {items.length > 0 && (
+        <View style={styles.filterSection}>
+          {/* Filter chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {([
+              { key: 'all' as FilterMode, label: t.filterAll },
+              { key: 'low' as FilterMode, label: t.filterLowStock },
+              { key: 'expiring' as FilterMode, label: t.filterExpiringSoon },
+              { key: 'expired' as FilterMode, label: t.filterExpired },
+            ]).map((f) => (
+              <TouchableOpacity
+                key={f.key}
+                style={[styles.filterChip, filterMode === f.key && styles.filterChipActive]}
+                onPress={() => setFilterMode(f.key)}
+              >
+                <Text style={[styles.filterChipText, filterMode === f.key && styles.filterChipTextActive]}>
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Sort chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            <Text style={styles.sortLabel}>{t.sortBy}:</Text>
+            {([
+              { key: 'name' as SortMode, label: t.sortName },
+              { key: 'category' as SortMode, label: t.sortCategory },
+              { key: 'stock' as SortMode, label: t.sortStockLevel },
+              { key: 'expiry' as SortMode, label: t.sortExpiry },
+            ]).map((s) => (
+              <TouchableOpacity
+                key={s.key}
+                style={[styles.sortChip, sortMode === s.key && styles.sortChipActive]}
+                onPress={() => setSortMode(s.key)}
+              >
+                <Text style={[styles.sortChipText, sortMode === s.key && styles.sortChipTextActive]}>
+                  {s.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <FlatList
-        data={items}
+        data={displayItems}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -171,9 +268,13 @@ export default function InventoryListScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="cube-outline" size={64} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>Your pantry is empty</Text>
+            <Text style={styles.emptyTitle}>
+              {filterMode !== 'all' ? `No ${filterMode} items` : t.pantryEmpty}
+            </Text>
             <Text style={styles.emptySubtitle}>
-              Add items manually, scan a barcode, or scan a grocery invoice
+              {filterMode !== 'all'
+                ? 'Try changing the filter above'
+                : t.pantryEmptySubtitle}
             </Text>
           </View>
         }
@@ -212,6 +313,64 @@ const createStyles = (colors: ThemeColors) =>
   },
   headerButton: {
     paddingHorizontal: SPACING.sm,
+  },
+  filterSection: {
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    gap: SPACING.xs,
+  },
+  filterChip: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: colors.surface,
+    fontWeight: '700',
+  },
+  sortLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginRight: SPACING.xs,
+  },
+  sortChip: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: colors.background,
+  },
+  sortChipActive: {
+    backgroundColor: colors.primaryLight + '30',
+  },
+  sortChipText: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  sortChipTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   listContent: {
     padding: SPACING.md,

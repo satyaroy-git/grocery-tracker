@@ -68,6 +68,7 @@ export interface AppSettings {
   onboardingComplete: boolean;
   themeMode: ThemeMode;
   notificationsEnabled: boolean;
+  language: string;
 }
 
 export interface RecurringItem {
@@ -172,6 +173,7 @@ export async function initDatabase(): Promise<void> {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('onboardingComplete', 'false');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('themeMode', 'system');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('notificationsEnabled', 'true');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('language', 'en');
   `);
 
   // Create recurring_items table (safe to run on every launch - IF NOT EXISTS)
@@ -705,6 +707,7 @@ export async function getSettings(): Promise<AppSettings> {
     onboardingComplete: settings.onboardingComplete === 'true',
     themeMode: (settings.themeMode as ThemeMode) || 'system',
     notificationsEnabled: settings.notificationsEnabled !== 'false',
+    language: settings.language || 'en',
   };
 }
 
@@ -737,6 +740,12 @@ export async function updateSettings(updates: Partial<AppSettings>): Promise<App
     await db.runAsync(
       "INSERT OR REPLACE INTO settings (key, value) VALUES ('notificationsEnabled', ?)",
       [updates.notificationsEnabled.toString()]
+    );
+  }
+  if (updates.language !== undefined) {
+    await db.runAsync(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('language', ?)",
+      [updates.language]
     );
   }
   // Return the fresh settings so callers (e.g. SettingsScreen) can update UI state directly

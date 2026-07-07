@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../i18n';
 import { SPACING } from '../constants/theme';
 import { getSettings } from '../database';
 import { RootTabParamList } from './types';
@@ -23,6 +24,7 @@ const MIN_TAB_BAR_CONTENT_HEIGHT = 56;
 
 export default function RootNavigator() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
@@ -89,22 +91,22 @@ export default function RootNavigator() {
       <Tab.Screen
         name="InventoryTab"
         component={InventoryStack}
-        options={{ tabBarLabel: 'Pantry' }}
+        options={{ tabBarLabel: t.tabPantry }}
       />
       <Tab.Screen
         name="ShoppingTab"
         component={ShoppingStack}
-        options={{ tabBarLabel: 'Shopping' }}
+        options={{ tabBarLabel: t.tabShopping }}
       />
       <Tab.Screen
         name="DashboardTab"
         component={DashboardStack}
-        options={{ tabBarLabel: 'Insights' }}
+        options={{ tabBarLabel: t.tabInsights }}
       />
       <Tab.Screen
         name="SettingsTab"
         component={SettingsStack}
-        options={{ tabBarLabel: 'Settings' }}
+        options={{ tabBarLabel: t.tabSettings }}
       />
     </Tab.Navigator>
   );

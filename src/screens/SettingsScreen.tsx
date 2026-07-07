@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation, Language } from '../i18n';
 import { ALERT_FREQUENCIES } from '../constants/categories';
 import { getSettings, updateSettings, resetDatabase } from '../database';
 import { AppSettings, ConsumptionMode, AlertFrequency, ThemeMode } from '../database';
@@ -32,6 +33,7 @@ export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavProp>();
   const { colors, themeMode: activeThemeMode, setThemeMode } = useTheme();
   const { isAuthenticated, displayName, signOut } = useAuth();
+  const { t, language, setLanguage } = useTranslation();
   const styles = createStyles(colors);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,6 +224,30 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             );
           })}
+        </View>
+      </View>
+
+      {/* Language */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t.language}</Text>
+        <Text style={styles.sectionDescription}>{t.selectLanguage}</Text>
+        <View style={styles.themeRow}>
+          <TouchableOpacity
+            style={[styles.themeOption, language === 'en' && styles.themeOptionActive]}
+            onPress={() => setLanguage('en')}
+          >
+            <Text style={[styles.themeOptionText, language === 'en' && styles.themeOptionTextActive]}>
+              English
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.themeOption, language === 'hi' && styles.themeOptionActive]}
+            onPress={() => setLanguage('hi')}
+          >
+            <Text style={[styles.themeOptionText, language === 'hi' && styles.themeOptionTextActive]}>
+              हिंदी
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
