@@ -22,9 +22,9 @@ import { AppSettings, ConsumptionMode, AlertFrequency, ThemeMode } from '../data
 import { SettingsStackParamList } from '../navigation/types';
 
 const THEME_OPTIONS: { label: string; value: ThemeMode; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'Light', value: 'light', icon: 'sunny-outline' },
-  { label: 'Dark', value: 'dark', icon: 'moon-outline' },
-  { label: 'System', value: 'system', icon: 'phone-portrait-outline' },
+  { label: 'light', value: 'light', icon: 'sunny-outline' },
+  { label: 'dark', value: 'dark', icon: 'moon-outline' },
+  { label: 'system', value: 'system', icon: 'phone-portrait-outline' },
 ];
 
 type SettingsNavProp = NativeStackNavigationProp<SettingsStackParamList, 'SettingsMain'>;
@@ -136,7 +136,7 @@ export default function SettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Default Consumption Mode */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Default Consumption Mode</Text>
+        <Text style={styles.sectionTitle}>{t.consumptionModeDefault}</Text>
         <Text style={styles.sectionDescription}>
           Set the default mode for new items
         </Text>
@@ -200,7 +200,7 @@ export default function SettingsScreen() {
 
       {/* Appearance / Theme */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.sectionTitle}>{t.appearance}</Text>
         <Text style={styles.sectionDescription}>
           Choose how PantryPal looks. "System" follows your device's setting.
         </Text>
@@ -219,7 +219,7 @@ export default function SettingsScreen() {
                   color={isActive ? colors.surface : colors.textSecondary}
                 />
                 <Text style={[styles.themeOptionText, isActive && styles.themeOptionTextActive]}>
-                  {opt.label}
+                  {t[opt.label as keyof typeof t]}
                 </Text>
               </TouchableOpacity>
             );
@@ -253,12 +253,12 @@ export default function SettingsScreen() {
 
       {/* Notifications */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Text style={styles.sectionTitle}>{t.notifications}</Text>
         <Text style={styles.sectionDescription}>
-          Get alerts for expiring items (7 days before) and when stock runs low.
+          {t.notificationsDescription}
         </Text>
         <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Enable Notifications</Text>
+          <Text style={styles.switchLabel}>{t.enableNotifications}</Text>
           <Switch
             value={settings.notificationsEnabled}
             onValueChange={handleToggleNotifications}
@@ -270,7 +270,7 @@ export default function SettingsScreen() {
 
       {/* Alert Frequency */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Alert Frequency</Text>
+        <Text style={styles.sectionTitle}>{t.alertFrequency}</Text>
         <Text style={styles.sectionDescription}>
           How often to check and notify about low stock
         </Text>
@@ -311,13 +311,13 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <View style={styles.cardHeaderRow}>
           <Ionicons name="cloud-outline" size={20} color={colors.accent} />
-          <Text style={styles.sectionTitle}>Cloud & Household</Text>
+          <Text style={styles.sectionTitle}>{t.cloudHousehold}</Text>
         </View>
         {isAuthenticated ? (
           <>
             <View style={styles.switchRow}>
               <View>
-                <Text style={styles.switchLabel}>Signed in as</Text>
+                <Text style={styles.switchLabel}>{t.signedInAs}</Text>
                 <Text style={styles.sectionDescription}>{displayName}</Text>
               </View>
               <TouchableOpacity
@@ -329,7 +329,7 @@ export default function SettingsScreen() {
                   ]);
                 }}
               >
-                <Text style={styles.signOutChipText}>Sign Out</Text>
+                <Text style={styles.signOutChipText}>{t.signOut}</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -337,21 +337,21 @@ export default function SettingsScreen() {
               onPress={() => navigation.navigate('Household' as never)}
             >
               <Ionicons name="people-outline" size={20} color={colors.primary} />
-              <Text style={styles.householdButtonText}>Manage Household</Text>
+              <Text style={styles.householdButtonText}>{t.manageHousehold}</Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </>
         ) : (
           <>
             <Text style={styles.sectionDescription}>
-              Sign in to sync your pantry across devices and share with household members.
+              {t.cloudDescription}
             </Text>
             <TouchableOpacity
               style={styles.signInButton}
               onPress={() => navigation.navigate('SignIn' as never)}
             >
               <Ionicons name="log-in-outline" size={20} color={colors.surface} />
-              <Text style={styles.signInButtonText}>Sign In / Create Account</Text>
+              <Text style={styles.signInButtonText}>{t.signIn}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -359,7 +359,7 @@ export default function SettingsScreen() {
 
       {/* About */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={styles.sectionTitle}>{t.about}</Text>
         <View style={styles.aboutCard}>
           <Ionicons name="leaf-outline" size={32} color={colors.primary} />
           <Text style={styles.appName}>PantryPal</Text>
@@ -373,16 +373,16 @@ export default function SettingsScreen() {
           onPress={() => navigation.navigate('Onboarding')}
         >
           <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.replayGuideButtonText}>Replay Welcome Guide</Text>
+          <Text style={styles.replayGuideButtonText}>{t.replayGuide}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Danger Zone */}
       <View style={styles.dangerSection}>
-        <Text style={styles.dangerTitle}>Danger Zone</Text>
+        <Text style={styles.dangerTitle}>{t.dangerZone}</Text>
         <TouchableOpacity style={styles.dangerButton} onPress={handleResetData}>
           <Ionicons name="warning-outline" size={20} color={colors.danger} />
-          <Text style={styles.dangerButtonText}>Reset All Data</Text>
+          <Text style={styles.dangerButtonText}>{t.resetAllData}</Text>
         </TouchableOpacity>
         <Text style={styles.dangerDescription}>
           This will permanently delete all your items, logs, and settings.

@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../i18n';
 import {
   getAllItems,
   getAllRecentConsumptionLogs,
@@ -30,6 +31,7 @@ import { formatMoney, formatQuantity } from '../utils/numberFormat';
 
 export default function InsightsScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [recentLogs, setRecentLogs] = useState<ConsumptionLog[]>([]);
@@ -153,7 +155,7 @@ export default function InsightsScreen() {
         <View style={styles.summaryCard}>
           <Ionicons name="cube-outline" size={24} color={colors.primary} />
           <Text style={styles.summaryValue}>{items.length}</Text>
-          <Text style={styles.summaryLabel}>Total Items</Text>
+          <Text style={styles.summaryLabel}>{t.totalItems}</Text>
           {items.filter((i) => i.status === 'low' || i.status === 'empty').length > 0 && (
             <Text style={styles.summaryAlert}>
               {items.filter((i) => i.status === 'low' || i.status === 'empty').length} low stock
@@ -165,7 +167,7 @@ export default function InsightsScreen() {
           <Text style={styles.summaryValue}>
             {items.filter((i) => i.daysUntilExpiry !== null && i.daysUntilExpiry >= 0 && i.daysUntilExpiry <= 7).length}
           </Text>
-          <Text style={styles.summaryLabel}>Expiring Soon</Text>
+          <Text style={styles.summaryLabel}>{t.expiringSoon}</Text>
           {items.filter((i) => i.isExpired).length > 0 && (
             <Text style={[styles.summaryAlert, { color: colors.danger }]}>
               {items.filter((i) => i.isExpired).length} expired
@@ -179,23 +181,23 @@ export default function InsightsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Ionicons name="wallet-outline" size={20} color={colors.success} />
-            <Text style={styles.cardTitle}>Expenditure</Text>
+            <Text style={styles.cardTitle}>{t.expenditure}</Text>
           </View>
 
           <View style={styles.spendSummaryRow}>
             <View style={styles.spendSummaryItem}>
               <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.thisMonthSpend)}</Text>
-              <Text style={styles.spendSummaryLabel}>This Month</Text>
+              <Text style={styles.spendSummaryLabel}>{t.thisMonth}</Text>
             </View>
             <View style={styles.spendSummaryDivider} />
             <View style={styles.spendSummaryItem}>
               <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.lastMonthSpend)}</Text>
-              <Text style={styles.spendSummaryLabel}>Last Month</Text>
+              <Text style={styles.spendSummaryLabel}>{t.lastMonth}</Text>
             </View>
             <View style={styles.spendSummaryDivider} />
             <View style={styles.spendSummaryItem}>
               <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.totalSpend)}</Text>
-              <Text style={styles.spendSummaryLabel}>All Time</Text>
+              <Text style={styles.spendSummaryLabel}>{t.allTime}</Text>
             </View>
           </View>
 
@@ -209,7 +211,7 @@ export default function InsightsScreen() {
           {/* Monthly spend trend bar chart */}
           {monthlySpend.some((m) => m.total > 0) && (
             <>
-              <Text style={styles.subChartTitle}>Last 6 Months</Text>
+              <Text style={styles.subChartTitle}>{t.lastSixMonths}</Text>
               <View style={styles.chartContainer}>
                 {monthlySpend.map((data, index) => (
                   <View key={index} style={styles.barColumn}>
@@ -232,7 +234,7 @@ export default function InsightsScreen() {
           {/* Spend by category */}
           {categorySpend.length > 0 && (
             <>
-              <Text style={styles.subChartTitle}>By Category</Text>
+              <Text style={styles.subChartTitle}>{t.byCategory}</Text>
               {categorySpend.slice(0, 6).map((cat, index) => (
                 <View key={index} style={styles.categorySpendRow}>
                   <Text style={styles.categorySpendName} numberOfLines={1}>
@@ -264,7 +266,7 @@ export default function InsightsScreen() {
 
       {/* Weekly Chart */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Weekly Consumption</Text>
+        <Text style={styles.cardTitle}>{t.weeklyConsumption}</Text>
 
         {/* Item Selector */}
         {items.length > 0 && (
@@ -294,7 +296,7 @@ export default function InsightsScreen() {
 
         {/* Bar Chart */}
         {weeklyData.length === 0 ? (
-          <Text style={styles.emptyText}>No consumption data for this item yet</Text>
+          <Text style={styles.emptyText}>{t.noData}</Text>
         ) : (
           <View style={styles.chartContainer}>
             {weeklyData.map((data, index) => (
@@ -323,9 +325,9 @@ export default function InsightsScreen() {
 
       {/* Top Consumed */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Top Consumed (30 days)</Text>
+        <Text style={styles.cardTitle}>{t.topConsumed}</Text>
         {topConsumed.length === 0 ? (
-          <Text style={styles.emptyText}>No consumption data yet</Text>
+          <Text style={styles.emptyText}>{t.noData}</Text>
         ) : (
           topConsumed.map((item, index) => (
             <View key={index} style={styles.rankingItem}>
@@ -343,10 +345,10 @@ export default function InsightsScreen() {
       <View style={styles.card}>
         <View style={styles.cardHeaderRow}>
           <Ionicons name="warning-outline" size={20} color={colors.warning} />
-          <Text style={styles.cardTitle}>Fast-Moving Items</Text>
+          <Text style={styles.cardTitle}>{t.fastMoving}</Text>
         </View>
         {fastMoving.length === 0 ? (
-          <Text style={styles.emptyText}>No fast-moving items detected</Text>
+          <Text style={styles.emptyText}>{t.noData}</Text>
         ) : (
           fastMoving.map((item) => (
             <View key={item.id} style={styles.alertItem}>

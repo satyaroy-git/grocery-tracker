@@ -15,6 +15,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../i18n';
 import {
   getShoppingList,
   markAsPurchased,
@@ -32,6 +33,7 @@ type ShoppingNavProp = NativeStackNavigationProp<ShoppingStackParamList, 'Shoppi
 
 export default function ShoppingListScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const navigation = useNavigation<ShoppingNavProp>();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
@@ -176,19 +178,19 @@ export default function ShoppingListScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.actionBar} contentContainerStyle={styles.actionBarContent}>
         <TouchableOpacity style={styles.actionChip} onPress={handleAutoGenerate}>
           <Ionicons name="flash-outline" size={16} color={colors.primary} />
-          <Text style={styles.actionChipText}>Auto-Generate</Text>
+          <Text style={styles.actionChipText}>{t.autoGenerate}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionChip} onPress={handleShare}>
           <Ionicons name="share-outline" size={16} color={colors.primary} />
-          <Text style={styles.actionChipText}>Share</Text>
+          <Text style={styles.actionChipText}>{t.share}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionChip} onPress={handleClearDone}>
           <Ionicons name="trash-outline" size={16} color={colors.primary} />
-          <Text style={styles.actionChipText}>Clear Done</Text>
+          <Text style={styles.actionChipText}>{t.clearDone}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionChip} onPress={() => navigation.navigate('RecurringItems')}>
           <Ionicons name="repeat-outline" size={16} color={colors.primary} />
-          <Text style={styles.actionChipText}>Recurring</Text>
+          <Text style={styles.actionChipText}>{t.recurring}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -205,9 +207,9 @@ export default function ShoppingListScreen() {
       {items.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cart-outline" size={64} color={colors.textLight} />
-          <Text style={styles.emptyTitle}>Shopping list is empty</Text>
+          <Text style={styles.emptyTitle}>{t.shoppingEmpty}</Text>
           <Text style={styles.emptySubtitle}>
-            Add items manually or auto-generate from low stock
+            {t.shoppingEmptySubtitle}
           </Text>
         </View>
       ) : (
