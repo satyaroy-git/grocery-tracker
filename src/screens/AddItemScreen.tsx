@@ -31,10 +31,12 @@ import { ConsumptionMode, ConsumptionFrequency } from '../database';
 import DateField from '../components/DateField';
 import SelectModal from '../components/SelectModal';
 import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
+import { useTranslation } from '../i18n';
 
 export default function AddItemScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   const [name, setName] = useState('');
@@ -175,7 +177,7 @@ export default function AddItemScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Name */}
         <View style={styles.field}>
-          <Text style={styles.label}>Item Name</Text>
+          <Text style={styles.label}>{t.itemName}</Text>
           <TextInput
             style={styles.input}
             value={name}
@@ -190,7 +192,7 @@ export default function AddItemScreen() {
 
         {/* Category */}
         <View style={styles.field}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>{t.category}</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowCategoryModal(true)}
@@ -202,7 +204,7 @@ export default function AddItemScreen() {
 
         {/* Unit */}
         <View style={styles.field}>
-          <Text style={styles.label}>Unit of Measurement</Text>
+          <Text style={styles.label}>{t.unit}</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowUnitModal(true)}
@@ -244,7 +246,7 @@ export default function AddItemScreen() {
 
         {/* Quantity */}
         <View style={styles.field}>
-          <Text style={styles.label}>Current Quantity</Text>
+          <Text style={styles.label}>{t.currentQuantity}</Text>
           <TextInput
             style={styles.input}
             value={currentQuantity}
@@ -257,7 +259,7 @@ export default function AddItemScreen() {
 
         {/* Threshold */}
         <View style={styles.field}>
-          <Text style={styles.label}>Low Stock Threshold</Text>
+          <Text style={styles.label}>{t.lowStockThreshold}</Text>
           <TextInput
             style={styles.input}
             value={threshold}
@@ -270,7 +272,7 @@ export default function AddItemScreen() {
 
         {/* Price (optional) */}
         <View style={styles.field}>
-          <Text style={styles.label}>Price (optional)</Text>
+          <Text style={styles.label}>{t.priceOptional}</Text>
           <TextInput
             style={styles.input}
             value={price}
@@ -283,7 +285,7 @@ export default function AddItemScreen() {
 
         {/* Expiry Date (optional) */}
         <DateField
-          label="Expiry Date (optional)"
+          label={t.expiryOptional}
           value={expiryDate}
           onChange={setExpiryDate}
           placeholder="No expiry date set"
@@ -291,7 +293,7 @@ export default function AddItemScreen() {
 
         {/* Consumption Mode */}
         <View style={styles.field}>
-          <Text style={styles.label}>Consumption Mode</Text>
+          <Text style={styles.label}>{t.consumptionMode}</Text>
           <View style={styles.toggleContainer}>
             <TouchableOpacity
               style={[
@@ -311,7 +313,7 @@ export default function AddItemScreen() {
                   consumptionMode === 'manual' && styles.toggleTextActive,
                 ]}
               >
-                Manual
+                {t.manual}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -332,7 +334,7 @@ export default function AddItemScreen() {
                   consumptionMode === 'auto' && styles.toggleTextActive,
                 ]}
               >
-                Auto
+                {t.auto}
               </Text>
             </TouchableOpacity>
           </View>
@@ -353,7 +355,7 @@ export default function AddItemScreen() {
               />
             </View>
             <View style={styles.field}>
-              <Text style={styles.label}>Frequency</Text>
+              <Text style={styles.label}>{t.frequency}</Text>
               <View style={styles.frequencyRow}>
                 {CONSUMPTION_FREQUENCIES.map((freq) => (
                   <TouchableOpacity
@@ -386,7 +388,7 @@ export default function AddItemScreen() {
           disabled={saving}
         >
           <Ionicons name="checkmark" size={22} color={colors.surface} />
-          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Item'}</Text>
+          <Text style={styles.saveButtonText}>{saving ? 'Saving...' : t.saveItem}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

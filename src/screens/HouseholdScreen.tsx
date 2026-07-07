@@ -24,9 +24,11 @@ import {
   Household,
   HouseholdMember,
 } from '../services/household';
+import { useTranslation } from '../i18n';
 
 export default function HouseholdScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const { user, isAuthenticated } = useAuth();
 
@@ -151,7 +153,7 @@ export default function HouseholdScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="people-outline" size={64} color={colors.textLight} />
-        <Text style={styles.emptyTitle}>Sign in required</Text>
+        <Text style={styles.emptyTitle}>{t.signIn}</Text>
         <Text style={styles.emptySubtitle}>
           Please sign in from Settings to use household sharing.
         </Text>
@@ -171,7 +173,7 @@ export default function HouseholdScreen() {
           </View>
 
           <View style={styles.inviteCodeSection}>
-            <Text style={styles.inviteLabel}>Invite Code</Text>
+            <Text style={styles.inviteLabel}>{t.inviteCode}</Text>
             <View style={styles.inviteCodeRow}>
               <Text style={styles.inviteCode}>{household.invite_code}</Text>
               <TouchableOpacity style={styles.shareButton} onPress={handleShareCode}>
@@ -186,7 +188,7 @@ export default function HouseholdScreen() {
 
         {/* Members */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+          <Text style={styles.sectionTitle}>{t.members} ({members.length})</Text>
           {members.map((member) => (
             <View key={member.id} style={styles.memberRow}>
               <View style={styles.memberAvatar}>
@@ -208,7 +210,7 @@ export default function HouseholdScreen() {
         {/* Leave */}
         <TouchableOpacity style={styles.leaveButton} onPress={handleLeave}>
           <Ionicons name="exit-outline" size={20} color={colors.danger} />
-          <Text style={styles.leaveButtonText}>Leave Household</Text>
+          <Text style={styles.leaveButtonText}>{t.leaveHousehold}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -219,9 +221,9 @@ export default function HouseholdScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.emptyCard}>
         <Ionicons name="people-outline" size={64} color={colors.textLight} />
-        <Text style={styles.emptyTitle}>No Household</Text>
+        <Text style={styles.emptyTitle}>{t.noHousehold}</Text>
         <Text style={styles.emptySubtitle}>
-          Create a household to share your pantry with family, or join an existing one.
+          {t.noHouseholdSubtitle}
         </Text>
       </View>
 
@@ -230,12 +232,12 @@ export default function HouseholdScreen() {
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.primaryButton} onPress={() => setShowCreate(true)}>
             <Ionicons name="add-circle-outline" size={22} color={colors.surface} />
-            <Text style={styles.primaryButtonText}>Create Household</Text>
+            <Text style={styles.primaryButtonText}>{t.createHousehold}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowJoin(true)}>
             <Ionicons name="enter-outline" size={22} color={colors.primary} />
-            <Text style={styles.secondaryButtonText}>Join with Code</Text>
+            <Text style={styles.secondaryButtonText}>{t.joinWithCode}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -243,7 +245,7 @@ export default function HouseholdScreen() {
       {/* Create Form */}
       {showCreate && (
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Create Household</Text>
+          <Text style={styles.formTitle}>{t.createHousehold}</Text>
           <TextInput
             style={styles.input}
             value={householdName}
@@ -274,7 +276,7 @@ export default function HouseholdScreen() {
       {/* Join Form */}
       {showJoin && (
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Join Household</Text>
+          <Text style={styles.formTitle}>{t.joinWithCode}</Text>
           <TextInput
             style={[styles.input, styles.codeInput]}
             value={inviteCode}

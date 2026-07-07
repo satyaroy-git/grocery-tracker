@@ -16,9 +16,11 @@ import { useNavigation } from '@react-navigation/native';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../i18n';
 
 export default function SignInScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const navigation = useNavigation();
   const { signIn, signInGoogle } = useAuth();
@@ -90,16 +92,16 @@ export default function SignInScreen() {
           <View style={styles.iconCircle}>
             <Ionicons name="people" size={40} color={colors.primary} />
           </View>
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>{t.welcomeBack}</Text>
           <Text style={styles.subtitle}>
-            Sign in to sync your pantry with household members
+            {t.signInSubtitle}
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t.email}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
               <TextInput
@@ -116,7 +118,7 @@ export default function SignInScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t.password}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
               <TextInput
@@ -148,7 +150,7 @@ export default function SignInScreen() {
             ) : (
               <>
                 <Ionicons name="log-in-outline" size={20} color={colors.surface} />
-                <Text style={styles.signInButtonText}>Sign In</Text>
+                <Text style={styles.signInButtonText}>{t.signIn}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -167,21 +169,21 @@ export default function SignInScreen() {
             disabled={loading}
           >
             <Ionicons name="logo-google" size={20} color={colors.text} />
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
+            <Text style={styles.googleButtonText}>{t.continueWithGoogle}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account?</Text>
+          <Text style={styles.footerText}>{t.dontHaveAccount}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('SignUp' as never)}>
-            <Text style={styles.footerLink}>Sign Up</Text>
+            <Text style={styles.footerLink}>{t.signUp}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Skip option */}
         <TouchableOpacity style={styles.skipButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.skipButtonText}>Skip for now (use offline only)</Text>
+          <Text style={styles.skipButtonText}>{t.skipForNow}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

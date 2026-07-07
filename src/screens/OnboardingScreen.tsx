@@ -13,6 +13,7 @@ import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../con
 import { useTheme } from '../context/ThemeContext';
 import { ONBOARDING_TEMPLATES } from '../constants/categories';
 import { createItem, markOnboardingComplete } from '../database';
+import { useTranslation } from '../i18n';
 
 interface TemplateSelection {
   name: string;
@@ -34,6 +35,7 @@ interface OnboardingScreenProps {
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const [step, setStep] = useState(0);
   const [templates, setTemplates] = useState<TemplateSelection[]>(
@@ -222,7 +224,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipButtonText}>Skip</Text>
+          <Text style={styles.skipButtonText}>{t.skip}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[

@@ -19,12 +19,14 @@ import { getItemById, restockItem, logConsumption, updateItemPrice } from '../da
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 import { formatQuantity, formatMoney, roundMoney } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
 type RestockRouteProp = RouteProp<InventoryStackParamList, 'Restock'>;
 type PriceEntryMode = 'total' | 'perUnit';
 
 export default function RestockScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<RestockRouteProp>();
@@ -201,7 +203,7 @@ export default function RestockScreen() {
               {formatQuantity(item.currentQuantity)} {item.unit}
             </Text>
           </View>
-          <Text style={styles.stockLabel}>Current Stock</Text>
+          <Text style={styles.stockLabel}>{t.currentStock}</Text>
         </View>
 
         {/* Mode Toggle */}
@@ -254,7 +256,7 @@ export default function RestockScreen() {
 
         {/* Price (optional) - amount paid for this restock */}
         <View style={styles.field}>
-          <Text style={styles.label}>Price Paid (optional)</Text>
+          <Text style={styles.label}>{t.priceOptional}</Text>
 
           {/* Total vs Per-Unit entry mode toggle */}
           <View style={styles.priceModeToggle}>

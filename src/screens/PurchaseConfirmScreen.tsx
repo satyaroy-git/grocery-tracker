@@ -26,12 +26,14 @@ import {
 import { ShoppingListItem, GroceryItemWithStatus } from '../database';
 import { ShoppingStackParamList } from '../navigation/types';
 import { formatQuantity, formatMoney, roundMoney } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
 type PurchaseConfirmRouteProp = RouteProp<ShoppingStackParamList, 'PurchaseConfirm'>;
 type PriceEntryMode = 'total' | 'perUnit';
 
 export default function PurchaseConfirmScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<PurchaseConfirmRouteProp>();
@@ -168,7 +170,7 @@ export default function PurchaseConfirmScreen() {
         {/* Item Info */}
         <View style={styles.headerCard}>
           <Ionicons name="bag-check-outline" size={48} color={colors.success} />
-          <Text style={styles.headerTitle}>Confirm Purchase</Text>
+          <Text style={styles.headerTitle}>{t.confirmPurchase}</Text>
           <Text style={styles.itemName}>{shoppingItem.name}</Text>
           <Text style={styles.itemDetail}>
             {formatQuantity(shoppingItem.quantityNeeded)} {shoppingItem.unit} • {shoppingItem.category}
@@ -197,7 +199,7 @@ export default function PurchaseConfirmScreen() {
 
             {/* Price (optional) - amount paid for this purchase */}
             <View style={styles.field}>
-              <Text style={styles.label}>Price Paid (optional)</Text>
+              <Text style={styles.label}>{t.priceOptional}</Text>
 
               <View style={styles.priceModeToggle}>
                 <TouchableOpacity
@@ -302,7 +304,7 @@ export default function PurchaseConfirmScreen() {
         >
           <Ionicons name="checkmark-circle-outline" size={22} color={colors.surface} />
           <Text style={styles.confirmButtonText}>
-            {submitting ? 'Confirming...' : 'Confirm Purchase'}
+            {submitting ? 'Confirming...' : t.confirmPurchase}
           </Text>
         </TouchableOpacity>
 

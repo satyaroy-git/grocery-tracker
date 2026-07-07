@@ -25,6 +25,7 @@ import {
   RecurringFrequency,
 } from '../database';
 import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
+import { useTranslation } from '../i18n';
 
 const FREQUENCY_OPTIONS: { label: string; value: RecurringFrequency }[] = [
   { label: 'Daily', value: 'daily' },
@@ -35,6 +36,7 @@ const FREQUENCY_OPTIONS: { label: string; value: RecurringFrequency }[] = [
 
 export default function RecurringItemsScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const [items, setItems] = useState<RecurringItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -171,9 +173,9 @@ export default function RecurringItemsScreen() {
       {items.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="repeat-outline" size={64} color={colors.textLight} />
-          <Text style={styles.emptyTitle}>No recurring items</Text>
+          <Text style={styles.emptyTitle}>{t.recurringEmpty}</Text>
           <Text style={styles.emptySubtitle}>
-            Add items you buy regularly. They'll be auto-added to your shopping list on schedule.
+            {t.recurringEmptySubtitle}
           </Text>
         </View>
       ) : (
@@ -195,7 +197,7 @@ export default function RecurringItemsScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setShowAddModal(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Recurring Item</Text>
+              <Text style={styles.modalTitle}>{t.addRecurring}</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)} hitSlop={8}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -203,7 +205,7 @@ export default function RecurringItemsScreen() {
 
             <View style={styles.modalBody}>
               <View style={styles.field}>
-                <Text style={styles.label}>Item Name</Text>
+                <Text style={styles.label}>{t.itemName}</Text>
                 <TextInput
                   style={styles.input}
                   value={name}
@@ -215,7 +217,7 @@ export default function RecurringItemsScreen() {
 
               <View style={styles.fieldRow}>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.label}>Quantity</Text>
+                  <Text style={styles.label}>{t.quantityNeeded}</Text>
                   <TextInput
                     style={styles.input}
                     value={quantity}
@@ -225,18 +227,18 @@ export default function RecurringItemsScreen() {
                   />
                 </View>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.label}>Unit</Text>
+                  <Text style={styles.label}>{t.unit}</Text>
                   <Text style={styles.inputDisplay}>{getUnitLabel(unit)}</Text>
                 </View>
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.label}>Category</Text>
+                <Text style={styles.label}>{t.category}</Text>
                 <Text style={styles.inputDisplay}>{category}</Text>
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.label}>Frequency</Text>
+                <Text style={styles.label}>{t.frequency}</Text>
                 <View style={styles.frequencyRow}>
                   {FREQUENCY_OPTIONS.map((opt) => (
                     <TouchableOpacity
@@ -253,7 +255,7 @@ export default function RecurringItemsScreen() {
                           frequency === opt.value && styles.frequencyChipTextActive,
                         ]}
                       >
-                        {opt.label}
+                        {t[opt.value as keyof typeof t] || opt.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -262,7 +264,7 @@ export default function RecurringItemsScreen() {
 
               <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
                 <Ionicons name="repeat-outline" size={20} color={colors.surface} />
-                <Text style={styles.addButtonText}>Add Recurring Item</Text>
+                <Text style={styles.addButtonText}>{t.addRecurring}</Text>
               </TouchableOpacity>
             </View>
           </Pressable>

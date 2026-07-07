@@ -16,9 +16,11 @@ import { useNavigation } from '@react-navigation/native';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../i18n';
 
 export default function SignUpScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const navigation = useNavigation();
   const { signUp } = useAuth();
@@ -78,16 +80,16 @@ export default function SignUpScreen() {
           <View style={styles.iconCircle}>
             <Ionicons name="person-add" size={40} color={colors.primary} />
           </View>
-          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.title}>{t.createAccount}</Text>
           <Text style={styles.subtitle}>
-            Join to share your pantry with household members
+            {t.createAccountSubtitle}
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <View style={styles.field}>
-            <Text style={styles.label}>Display Name</Text>
+            <Text style={styles.label}>{t.displayName}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
               <TextInput
@@ -102,7 +104,7 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t.email}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
               <TextInput
@@ -119,7 +121,7 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t.password}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
               <TextInput
@@ -142,7 +144,7 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Confirm Password</Text>
+            <Text style={styles.label}>{t.confirmPassword}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
               <TextInput
@@ -167,7 +169,7 @@ export default function SignUpScreen() {
             ) : (
               <>
                 <Ionicons name="checkmark-circle-outline" size={20} color={colors.surface} />
-                <Text style={styles.signUpButtonText}>Create Account</Text>
+                <Text style={styles.signUpButtonText}>{t.createAccount}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -175,9 +177,9 @@ export default function SignUpScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account?</Text>
+          <Text style={styles.footerText}>{t.alreadyHaveAccount}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.footerLink}>Sign In</Text>
+            <Text style={styles.footerLink}>{t.signIn}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

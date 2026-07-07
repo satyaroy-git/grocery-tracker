@@ -18,6 +18,7 @@ import { getItemById, deleteItem, getConsumptionLogs } from '../database';
 import { GroceryItemWithStatus, ConsumptionLog } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 import { formatMoney, formatQuantity } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
 type ItemDetailRouteProp = RouteProp<InventoryStackParamList, 'ItemDetail'>;
 type ItemDetailNavProp = NativeStackNavigationProp<InventoryStackParamList, 'ItemDetail'>;
@@ -26,6 +27,7 @@ export default function ItemDetailScreen() {
   const navigation = useNavigation<ItemDetailNavProp>();
   const route = useRoute<ItemDetailRouteProp>();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const { itemId } = route.params;
 
@@ -170,13 +172,13 @@ export default function ItemDetailScreen() {
 
       {/* Quantity Section */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Stock Level</Text>
+        <Text style={styles.cardTitle}>{t.currentStock}</Text>
         <View style={styles.quantityRow}>
           <Text style={styles.quantityValue}>
             {formatQuantity(item.currentQuantity)} {item.unit}
           </Text>
           <Text style={styles.thresholdText}>
-            Threshold: {formatQuantity(item.threshold)} {item.unit}
+            {t.threshold}: {formatQuantity(item.threshold)} {item.unit}
           </Text>
         </View>
         <View style={styles.progressBar}>
@@ -200,11 +202,11 @@ export default function ItemDetailScreen() {
       {/* Price & Expiry - only rendered if at least one is set, since both are optional */}
       {(item.price !== null || item.expiryDate !== null) && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Purchase Details</Text>
+          <Text style={styles.cardTitle}>{t.purchaseDetails}</Text>
           {item.price !== null && (
             <View style={styles.detailRow}>
               <Ionicons name="pricetag-outline" size={18} color={colors.textSecondary} />
-              <Text style={styles.detailLabel}>Price</Text>
+              <Text style={styles.detailLabel}>{t.price}</Text>
               <Text style={styles.detailValue}>₹{formatMoney(item.price)}</Text>
             </View>
           )}
@@ -215,7 +217,7 @@ export default function ItemDetailScreen() {
                 size={18}
                 color={item.isExpired ? colors.danger : item.isExpiringSoon ? colors.warning : colors.textSecondary}
               />
-              <Text style={styles.detailLabel}>Expiry</Text>
+              <Text style={styles.detailLabel}>{t.expiry}</Text>
               <Text
                 style={[
                   styles.detailValue,
@@ -238,7 +240,7 @@ export default function ItemDetailScreen() {
 
       {/* Consumption Mode */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Consumption Mode</Text>
+        <Text style={styles.cardTitle}>{t.consumptionMode}</Text>
         <View style={styles.modeRow}>
           <Ionicons
             name={item.consumptionMode === 'auto' ? 'sync-outline' : 'hand-left-outline'}
@@ -246,7 +248,7 @@ export default function ItemDetailScreen() {
             color={colors.primary}
           />
           <Text style={styles.modeText}>
-            {item.consumptionMode === 'auto' ? 'Automatic' : 'Manual'}
+            {item.consumptionMode === 'auto' ? t.auto : t.manual}
           </Text>
         </View>
         {item.consumptionMode === 'auto' && item.autoConsumptionRate && (
@@ -263,22 +265,22 @@ export default function ItemDetailScreen() {
           onPress={() => navigation.navigate('LogUsage', { itemId: item.id })}
         >
           <Ionicons name="remove-circle-outline" size={22} color={colors.surface} />
-          <Text style={styles.actionButtonText}>Log Usage</Text>
+          <Text style={styles.actionButtonText}>{t.logUsage}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.success }]}
           onPress={() => navigation.navigate('Restock', { itemId: item.id })}
         >
           <Ionicons name="add-circle-outline" size={22} color={colors.surface} />
-          <Text style={styles.actionButtonText}>Restock</Text>
+          <Text style={styles.actionButtonText}>{t.restock}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Activity Log */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recent Activity</Text>
+        <Text style={styles.cardTitle}>{t.recentActivity}</Text>
         {logs.length === 0 ? (
-          <Text style={styles.emptyText}>No activity yet</Text>
+          <Text style={styles.emptyText}>{t.noActivity}</Text>
         ) : (
           logs.slice(0, 10).map((log) => (
             <View key={log.id} style={styles.logItem}>
@@ -305,11 +307,11 @@ export default function ItemDetailScreen() {
           onPress={() => navigation.navigate('EditItem', { itemId: item.id })}
         >
           <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-          <Text style={styles.editButtonText}>Edit Item</Text>
+          <Text style={styles.editButtonText}>{t.editItem}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
           <Ionicons name="trash-outline" size={20} color={colors.danger} />
-          <Text style={styles.deleteButtonText}>Delete</Text>
+          <Text style={styles.deleteButtonText}>{t.delete}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

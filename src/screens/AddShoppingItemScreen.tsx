@@ -24,10 +24,12 @@ import {
 } from '../database';
 import SelectModal from '../components/SelectModal';
 import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
+import { useTranslation } from '../i18n';
 
 export default function AddShoppingItemScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
 
   const [name, setName] = useState('');
@@ -130,7 +132,7 @@ export default function AddShoppingItemScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Name */}
         <View style={styles.field}>
-          <Text style={styles.label}>Item Name</Text>
+          <Text style={styles.label}>{t.itemName}</Text>
           <TextInput
             style={styles.input}
             value={name}
@@ -142,7 +144,7 @@ export default function AddShoppingItemScreen() {
 
         {/* Category */}
         <View style={styles.field}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>{t.category}</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowCategoryModal(true)}
@@ -154,7 +156,7 @@ export default function AddShoppingItemScreen() {
 
         {/* Unit */}
         <View style={styles.field}>
-          <Text style={styles.label}>Unit</Text>
+          <Text style={styles.label}>{t.unit}</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowUnitModal(true)}
@@ -196,7 +198,7 @@ export default function AddShoppingItemScreen() {
 
         {/* Quantity */}
         <View style={styles.field}>
-          <Text style={styles.label}>Quantity Needed</Text>
+          <Text style={styles.label}>{t.quantityNeeded}</Text>
           <TextInput
             style={styles.input}
             value={quantityNeeded}
@@ -215,7 +217,7 @@ export default function AddShoppingItemScreen() {
         >
           <Ionicons name="cart-outline" size={22} color={colors.surface} />
           <Text style={styles.addButtonText}>
-            {saving ? 'Adding...' : 'Add to Shopping List'}
+            {saving ? 'Adding...' : t.addToList}
           </Text>
         </TouchableOpacity>
       </ScrollView>

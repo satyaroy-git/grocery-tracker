@@ -19,6 +19,7 @@ import { getAllItems, getItemById, logConsumption } from '../database';
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 import { formatQuantity } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
 // FIX: LogUsage is registered under InventoryStack (see InventoryStack.tsx),
 // not DashboardStack - it never actually had a 'LogUsage' key, so this typed
@@ -29,6 +30,7 @@ const QUICK_AMOUNTS = [0.25, 0.5, 1, 2];
 
 export default function LogUsageScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<LogUsageRouteProp>();
@@ -272,7 +274,7 @@ export default function LogUsageScreen() {
         >
           <Ionicons name="remove-circle-outline" size={22} color={colors.surface} />
           <Text style={styles.logButtonText}>
-            {submitting ? 'Logging...' : 'Log Usage'}
+            {submitting ? 'Logging...' : t.logUsage}
           </Text>
         </TouchableOpacity>
       </ScrollView>
