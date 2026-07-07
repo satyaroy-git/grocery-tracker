@@ -24,6 +24,7 @@ import {
   Household,
   HouseholdMember,
 } from '../services/household';
+import { fullSync } from '../services/sync';
 import { useTranslation } from '../i18n';
 
 export default function HouseholdScreen() {
@@ -40,6 +41,7 @@ export default function HouseholdScreen() {
   const [householdName, setHouseholdName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -141,6 +143,25 @@ export default function HouseholdScreen() {
     } catch {}
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await fullSync();
+      if (result.error) {
+        Alert.alert('Sync Error', result.error);
+      } else {
+        Alert.alert(
+          'Sync Complete',
+          `Pushed ${result.pushed} item(s) to cloud, pulled ${result.pulled} item(s) from cloud.`
+        );
+      }
+    } catch (error: any) {
+      Alert.alert('Sync Error', error.message || 'Failed to sync.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -185,6 +206,22 @@ export default function HouseholdScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Sync Button */}
+        <TouchableOpacity
+          style={[styles.primaryButton, syncing && styles.buttonDisabled]}
+          onPress={handleSync}
+          disabled={syncing}
+        >
+          {syncing ? (
+            <ActivityIndicator size="small" color={colors.surface} />
+          ) : (
+            <>
+              <Ionicons name="sync-outline" size={22} color={colors.surface} />
+              <Text style={styles.primaryButtonText}>Sync Pantry</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {/* Members */}
         <View style={styles.card}>
