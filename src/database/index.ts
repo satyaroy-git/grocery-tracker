@@ -90,7 +90,8 @@ export async function initDatabase(): Promise<void> {
 
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
-    
+    PRAGMA foreign_keys = ON;
+
     CREATE TABLE IF NOT EXISTS items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -291,6 +292,22 @@ export async function updateItem(id: number, input: Partial<CreateItemInput>): P
 
 export async function deleteItem(id: number): Promise<void> {
   await db.runAsync('DELETE FROM items WHERE id = ?', [id]);
+}
+
+// Deletes every pantry item in one go (used by "Delete All" on the Pantry
+// screen). Relies on the same FK behavior as deleting a single item:
+// - consumption_logs rows cascade-delete (ON DELETE CASCADE), so usage/
+//   restock history for every deleted item is cleaned up too, not left
+//   orphaned.
+// - shopping_list rows that were linked to a deleted item have their
+//   itemId set to NULL (ON DELETE SET NULL) rather than being deleted -
+//   they remain on the shopping list as a plain unlinked entry, matching
+//   exactly what already happens when a single item is deleted via
+//   EditItemScreen's delete button.
+// Does NOT touch custom_categories/custom_units or app settings - this is
+// scoped to pantry items only, unlike the more destructive resetDatabase().
+export async function deleteAllItems(): Promise<void> {
+  await db.runAsync('DELETE FROM items');
 }
 
 export async function getItemById(id: number): Promise<GroceryItemWithStatus | null> {

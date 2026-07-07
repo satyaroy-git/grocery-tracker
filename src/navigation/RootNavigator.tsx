@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
+import { SPACING } from '../constants/theme';
 import { getSettings } from '../database';
 import { RootTabParamList } from './types';
 
@@ -13,8 +15,15 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
+// Standard Android 3-button nav bar is ~48dp; gesture nav is shorter. We
+// don't know which the device uses ahead of time, so this is just a sane
+// floor - insets.bottom (the real, accurate value for the current device)
+// is always added on top of it, not used instead of it.
+const MIN_TAB_BAR_CONTENT_HEIGHT = 56;
+
 export default function RootNavigator() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -42,9 +51,18 @@ export default function RootNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
+        // On Android SDK 54+ edge-to-edge is on by default, so content draws
+        // behind the system nav bar/gesture pill. @react-navigation/bottom-tabs
+        // v7 normally accounts for this itself, but we set it explicitly here
+        // too so the tab bar (and therefore the labels/icons in it) never sit
+        // underneath or get clipped by the system nav bar on any device/OS
+        // combination.
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+          height: MIN_TAB_BAR_CONTENT_HEIGHT + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: SPACING.xs,
         },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';

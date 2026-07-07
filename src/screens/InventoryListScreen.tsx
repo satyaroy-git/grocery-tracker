@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
-import { getAllItems, GroceryItemWithStatus } from '../database';
+import { getAllItems, deleteAllItems, GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 import { formatQuantity } from '../utils/numberFormat';
 
@@ -45,6 +46,52 @@ export default function InventoryListScreen() {
     await loadItems();
     setRefreshing(false);
   };
+
+  const handleDeleteAll = () => {
+    if (items.length === 0) {
+      Alert.alert('Info', 'Your pantry is already empty.');
+      return;
+    }
+    // Double confirmation for a destructive, irreversible bulk action -
+    // matches the severity level of "Reset All Data" on the Settings
+    // screen, but scoped only to pantry items (not shopping list, custom
+    // categories/units, or app settings).
+    Alert.alert(
+      'Delete All Items',
+      `This will permanently delete all ${items.length} item(s) from your pantry, along with their usage/restock history. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAllItems();
+              await loadItems();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete all items.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      // Header button needs access to the latest `items.length` (to show a
+      // friendly "already empty" message) and must be re-registered whenever
+      // the screen regains focus, since navigation.setOptions options are
+      // otherwise captured with whatever `items` was at mount time.
+      navigation.setOptions({
+        headerRight: () => (
+          <TouchableOpacity onPress={handleDeleteAll} hitSlop={8} style={styles.headerButton}>
+            <Ionicons name="trash-outline" size={22} color={colors.danger} />
+          </TouchableOpacity>
+        ),
+      });
+    }, [navigation, items, colors])
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -162,6 +209,9 @@ const createStyles = (colors: ThemeColors) =>
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  headerButton: {
+    paddingHorizontal: SPACING.sm,
   },
   listContent: {
     padding: SPACING.md,
