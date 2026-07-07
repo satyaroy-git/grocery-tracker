@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -172,7 +173,7 @@ export default function ShoppingListScreen() {
   return (
     <View style={styles.container}>
       {/* Action Bar */}
-      <View style={styles.actionBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.actionBar} contentContainerStyle={styles.actionBarContent}>
         <TouchableOpacity style={styles.actionChip} onPress={handleAutoGenerate}>
           <Ionicons name="flash-outline" size={16} color={colors.primary} />
           <Text style={styles.actionChipText}>Auto-Generate</Text>
@@ -189,7 +190,7 @@ export default function ShoppingListScreen() {
           <Ionicons name="repeat-outline" size={16} color={colors.primary} />
           <Text style={styles.actionChipText}>Recurring</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* Summary */}
       {items.length > 0 && (
@@ -247,8 +248,12 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     actionBar: {
+      flexGrow: 0,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+    },
+    actionBarContent: {
       flexDirection: 'row',
-      padding: SPACING.md,
       gap: SPACING.sm,
     },
     actionChip: {
