@@ -43,8 +43,11 @@ export default function SignInScreen() {
       const result = await signIn(email.trim(), password);
       if (!result.success) {
         Alert.alert('Sign In Failed', result.error || 'Please check your credentials and try again.');
+      } else {
+        // Sign in succeeded - go back to Settings which will now show
+        // the authenticated state (display name, manage household link)
+        navigation.goBack();
       }
-      // If success, AuthContext will update and navigation will respond
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Something went wrong.');
     } finally {
