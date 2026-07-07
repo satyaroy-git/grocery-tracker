@@ -100,8 +100,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.8,
-              maxOutputTokens: 2048,
+              temperature: 0.7,
+              maxOutputTokens: 4096,
             },
           }),
         }
@@ -125,16 +125,37 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
       const textContent =
         data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
+      if (!textContent) {
+        throw new Error('AI returned an empty response. Please try again.');
+      }
+
       // Parse the JSON response (strip any markdown code blocks if present)
       const cleaned = textContent
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
         .trim();
 
-      const parsed = JSON.parse(cleaned);
+      let parsed;
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch (parseErr) {
+        // If JSON is truncated, try to salvage what we can
+        // Attempt to find the last complete meal object
+        const lastBracket = cleaned.lastIndexOf('}');
+        if (lastBracket > 0) {
+          try {
+            const salvaged = cleaned.substring(0, lastBracket + 1) + ']}';
+            parsed = JSON.parse(salvaged);
+          } catch {
+            throw new Error('AI response was incomplete. Please try again — this usually works on a second attempt.');
+          }
+        } else {
+          throw new Error('AI response was incomplete. Please try again — this usually works on a second attempt.');
+        }
+      }
 
-      if (!parsed.meals || !Array.isArray(parsed.meals)) {
-        throw new Error('Invalid response format from AI');
+      if (!parsed.meals || !Array.isArray(parsed.meals) || parsed.meals.length === 0) {
+        throw new Error('AI returned an invalid format. Please try again.');
       }
 
       const today = new Date().toISOString().split('T')[0];
