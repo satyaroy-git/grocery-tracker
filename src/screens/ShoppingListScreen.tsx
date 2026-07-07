@@ -12,7 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import {
   getShoppingList,
   markAsPurchased,
@@ -29,6 +30,8 @@ import { formatQuantity } from '../utils/numberFormat';
 type ShoppingNavProp = NativeStackNavigationProp<ShoppingStackParamList, 'ShoppingList'>;
 
 export default function ShoppingListScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const navigation = useNavigation<ShoppingNavProp>();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +141,7 @@ export default function ShoppingListScreen() {
         <Ionicons
           name={item.isPurchased ? 'checkbox' : 'square-outline'}
           size={24}
-          color={item.isPurchased ? COLORS.success : COLORS.textSecondary}
+          color={item.isPurchased ? colors.success : colors.textSecondary}
         />
       </TouchableOpacity>
       <View style={styles.itemInfo}>
@@ -150,7 +153,7 @@ export default function ShoppingListScreen() {
         </Text>
       </View>
       <TouchableOpacity onPress={() => handleRemoveItem(item)}>
-        <Ionicons name="close-circle-outline" size={22} color={COLORS.textLight} />
+        <Ionicons name="close-circle-outline" size={22} color={colors.textLight} />
       </TouchableOpacity>
     </View>
   );
@@ -158,7 +161,7 @@ export default function ShoppingListScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -171,15 +174,15 @@ export default function ShoppingListScreen() {
       {/* Action Bar */}
       <View style={styles.actionBar}>
         <TouchableOpacity style={styles.actionChip} onPress={handleAutoGenerate}>
-          <Ionicons name="flash-outline" size={16} color={COLORS.primary} />
+          <Ionicons name="flash-outline" size={16} color={colors.primary} />
           <Text style={styles.actionChipText}>Auto-Generate</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionChip} onPress={handleShare}>
-          <Ionicons name="share-outline" size={16} color={COLORS.primary} />
+          <Ionicons name="share-outline" size={16} color={colors.primary} />
           <Text style={styles.actionChipText}>Share</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionChip} onPress={handleClearDone}>
-          <Ionicons name="trash-outline" size={16} color={COLORS.primary} />
+          <Ionicons name="trash-outline" size={16} color={colors.primary} />
           <Text style={styles.actionChipText}>Clear Done</Text>
         </TouchableOpacity>
       </View>
@@ -196,7 +199,7 @@ export default function ShoppingListScreen() {
       {/* List */}
       {items.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="cart-outline" size={64} color={COLORS.textLight} />
+          <Ionicons name="cart-outline" size={64} color={colors.textLight} />
           <Text style={styles.emptyTitle}>Shopping list is empty</Text>
           <Text style={styles.emptySubtitle}>
             Add items manually or auto-generate from low stock
@@ -221,117 +224,118 @@ export default function ShoppingListScreen() {
         style={styles.fab}
         onPress={() => navigation.navigate('AddShoppingItem')}
       >
-        <Ionicons name="add" size={28} color={COLORS.surface} />
+        <Ionicons name="add" size={28} color={colors.surface} />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  actionBar: {
-    flexDirection: 'row',
-    padding: SPACING.md,
-    gap: SPACING.sm,
-  },
-  actionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.primary + '40',
-    ...SHADOWS.sm,
-  },
-  actionChipText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.primary,
-    fontWeight: '500',
-  },
-  summary: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  summaryText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-  },
-  listContent: {
-    padding: SPACING.md,
-    paddingBottom: 100,
-  },
-  itemCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-    ...SHADOWS.sm,
-  },
-  itemCardPurchased: {
-    opacity: 0.6,
-  },
-  checkbox: {
-    marginRight: SPACING.sm,
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  itemNamePurchased: {
-    textDecorationLine: 'line-through',
-    color: COLORS.textSecondary,
-  },
-  itemDetail: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  emptyTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-  },
-  emptySubtitle: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.xs,
-  },
-  fab: {
-    position: 'absolute',
-    right: SPACING.lg,
-    bottom: SPACING.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...SHADOWS.lg,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    actionBar: {
+      flexDirection: 'row',
+      padding: SPACING.md,
+      gap: SPACING.sm,
+    },
+    actionChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xs,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs,
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: colors.primary + '40',
+      ...SHADOWS.sm,
+    },
+    actionChipText: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    summary: {
+      paddingHorizontal: SPACING.md,
+      paddingBottom: SPACING.sm,
+    },
+    summaryText: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+    },
+    listContent: {
+      padding: SPACING.md,
+      paddingBottom: 100,
+    },
+    itemCard: {
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: SPACING.sm,
+      ...SHADOWS.sm,
+    },
+    itemCardPurchased: {
+      opacity: 0.6,
+    },
+    checkbox: {
+      marginRight: SPACING.sm,
+    },
+    itemInfo: {
+      flex: 1,
+    },
+    itemName: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    itemNamePurchased: {
+      textDecorationLine: 'line-through',
+      color: colors.textSecondary,
+    },
+    itemDetail: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.xl,
+    },
+    emptyTitle: {
+      fontSize: FONT_SIZES.xl,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: SPACING.md,
+    },
+    emptySubtitle: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: SPACING.xs,
+    },
+    fab: {
+      position: 'absolute',
+      right: SPACING.lg,
+      bottom: SPACING.lg,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...SHADOWS.lg,
+    },
+  });

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface DateFieldProps {
   label: string;
@@ -19,6 +20,8 @@ interface DateFieldProps {
  * everywhere an item can be created/edited.
  */
 export default function DateField({ label, value, onChange, placeholder, minimumDate }: DateFieldProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [showPicker, setShowPicker] = useState(false);
 
   const dateValue = value ? new Date(value) : new Date();
@@ -53,13 +56,13 @@ export default function DateField({ label, value, onChange, placeholder, minimum
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity style={styles.pickerButton} onPress={() => setShowPicker(true)}>
-        <Ionicons name="calendar-outline" size={18} color={COLORS.textSecondary} />
+        <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
         <Text style={[styles.pickerButtonText, !value && styles.placeholderText]}>
           {value ? formatDisplay(value) : placeholder || 'Not set (optional)'}
         </Text>
         {value && (
           <TouchableOpacity onPress={() => onChange(null)} hitSlop={8}>
-            <Ionicons name="close-circle" size={18} color={COLORS.textLight} />
+            <Ionicons name="close-circle" size={18} color={colors.textLight} />
           </TouchableOpacity>
         )}
       </TouchableOpacity>
@@ -83,41 +86,42 @@ export default function DateField({ label, value, onChange, placeholder, minimum
   );
 }
 
-const styles = StyleSheet.create({
-  field: {
-    marginBottom: SPACING.md,
-  },
-  label: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  pickerButton: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  pickerButtonText: {
-    flex: 1,
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
-  },
-  placeholderText: {
-    color: COLORS.textLight,
-  },
-  doneButton: {
-    alignSelf: 'flex-end',
-    padding: SPACING.sm,
-  },
-  doneButtonText: {
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontSize: FONT_SIZES.md,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    field: {
+      marginBottom: SPACING.md,
+    },
+    label: {
+      fontSize: FONT_SIZES.md,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: SPACING.xs,
+    },
+    pickerButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+    },
+    pickerButtonText: {
+      flex: 1,
+      fontSize: FONT_SIZES.lg,
+      color: colors.text,
+    },
+    placeholderText: {
+      color: colors.textLight,
+    },
+    doneButton: {
+      alignSelf: 'flex-end',
+      padding: SPACING.sm,
+    },
+    doneButtonText: {
+      color: colors.primary,
+      fontWeight: '600',
+      fontSize: FONT_SIZES.md,
+    },
+  });

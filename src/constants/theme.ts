@@ -1,4 +1,4 @@
-export const COLORS = {
+export const LIGHT_COLORS = {
   primary: '#4CAF50',
   primaryDark: '#388E3C',
   primaryLight: '#81C784',
@@ -30,6 +30,52 @@ export const COLORS = {
 
   overlay: 'rgba(0, 0, 0, 0.5)',
 };
+
+// Dark palette mirrors every key in LIGHT_COLORS exactly (enforced by the
+// ThemeColors type below) so any screen can swap the whole object without
+// ever hitting an undefined color. Brand colors (primary/secondary/etc.) are
+// bumped slightly brighter than their light-mode values since they need to
+// stand out against a near-black background instead of a near-white one.
+export const DARK_COLORS: typeof LIGHT_COLORS = {
+  primary: '#66BB6A',
+  primaryDark: '#4CAF50',
+  primaryLight: '#81C784',
+  secondary: '#FFB74D',
+  secondaryLight: '#FFCC80',
+  accent: '#64B5F6',
+  danger: '#EF5350',
+  dangerLight: '#E57373',
+  dangerBg: '#3B2020',
+  warning: '#FFD54F',
+  warningLight: '#FFE082',
+  warningBg: '#3B331A',
+  success: '#66BB6A',
+  successLight: '#A5D6A7',
+  successBg: '#1F3A22',
+
+  background: '#121212',
+  surface: '#1E1E1E',
+  surfaceElevated: '#262626',
+
+  text: '#ECECEC',
+  textSecondary: '#B0B0B0',
+  textLight: '#707070',
+  textOnPrimary: '#FFFFFF',
+
+  border: '#3A3A3A',
+  borderLight: '#2C2C2C',
+  divider: '#333333',
+
+  overlay: 'rgba(0, 0, 0, 0.7)',
+};
+
+export type ThemeColors = typeof LIGHT_COLORS;
+
+// Backward-compatible static export. Screens that haven't yet been migrated
+// to useTheme() will still compile and render (in light mode only) against
+// this. All screens are migrated as part of dark mode support, but this is
+// kept as a safety net rather than a hard breaking change.
+export const COLORS = LIGHT_COLORS;
 
 export const SPACING = {
   xs: 4,

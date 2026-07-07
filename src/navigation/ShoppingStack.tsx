@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { ShoppingStackParamList } from './types';
 
 import ShoppingListScreen from '../screens/ShoppingListScreen';
@@ -10,11 +10,12 @@ import PurchaseConfirmScreen from '../screens/PurchaseConfirmScreen';
 const Stack = createNativeStackNavigator<ShoppingStackParamList>();
 
 export default function ShoppingStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: COLORS.surface },
-        headerTintColor: COLORS.text,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '600' },
       }}
     >

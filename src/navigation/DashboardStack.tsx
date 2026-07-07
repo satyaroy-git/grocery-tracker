@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { DashboardStackParamList } from './types';
 
 import InsightsScreen from '../screens/InsightsScreen';
@@ -8,11 +8,12 @@ import InsightsScreen from '../screens/InsightsScreen';
 const Stack = createNativeStackNavigator<DashboardStackParamList>();
 
 export default function DashboardStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: COLORS.surface },
-        headerTintColor: COLORS.text,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '600' },
       }}
     >

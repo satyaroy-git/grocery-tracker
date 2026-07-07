@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
 import {
   addToShoppingList,
@@ -26,6 +27,8 @@ import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
 export default function AddShoppingItemScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
@@ -133,7 +136,7 @@ export default function AddShoppingItemScreen() {
             value={name}
             onChangeText={handleNameChange}
             placeholder="What do you need to buy?"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
           />
         </View>
 
@@ -145,7 +148,7 @@ export default function AddShoppingItemScreen() {
             onPress={() => setShowCategoryModal(true)}
           >
             <Text style={styles.pickerButtonText}>{category}</Text>
-            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -157,7 +160,7 @@ export default function AddShoppingItemScreen() {
             onPress={() => setShowUnitModal(true)}
           >
             <Text style={styles.pickerButtonText}>{selectedUnitLabel}</Text>
-            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -199,7 +202,7 @@ export default function AddShoppingItemScreen() {
             value={quantityNeeded}
             onChangeText={setQuantityNeeded}
             placeholder="How much do you need?"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -210,7 +213,7 @@ export default function AddShoppingItemScreen() {
           onPress={handleAdd}
           disabled={saving}
         >
-          <Ionicons name="cart-outline" size={22} color={COLORS.surface} />
+          <Ionicons name="cart-outline" size={22} color={colors.surface} />
           <Text style={styles.addButtonText}>
             {saving ? 'Adding...' : 'Add to Shopping List'}
           </Text>
@@ -220,10 +223,11 @@ export default function AddShoppingItemScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -235,22 +239,22 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   pickerButton: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -259,10 +263,10 @@ const styles = StyleSheet.create({
   },
   pickerButtonText: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   addButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -276,8 +280,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   addButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },
-});
+  });

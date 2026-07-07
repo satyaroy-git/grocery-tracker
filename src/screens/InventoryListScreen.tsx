@@ -10,7 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { getAllItems, GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
 import { formatQuantity } from '../utils/numberFormat';
@@ -19,6 +20,8 @@ type NavProp = NativeStackNavigationProp<InventoryStackParamList, 'InventoryList
 
 export default function InventoryListScreen() {
   const navigation = useNavigation<NavProp>();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -45,9 +48,9 @@ export default function InventoryListScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'low': return COLORS.warning;
-      case 'empty': return COLORS.danger;
-      default: return COLORS.success;
+      case 'low': return colors.warning;
+      case 'empty': return colors.danger;
+      default: return colors.success;
     }
   };
 
@@ -78,18 +81,18 @@ export default function InventoryListScreen() {
               <View
                 style={[
                   styles.expiryBadge,
-                  { backgroundColor: item.isExpired ? COLORS.dangerBg : COLORS.warningBg },
+                  { backgroundColor: item.isExpired ? colors.dangerBg : colors.warningBg },
                 ]}
               >
                 <Ionicons
                   name="time-outline"
                   size={10}
-                  color={item.isExpired ? COLORS.danger : COLORS.warning}
+                  color={item.isExpired ? colors.danger : colors.warning}
                 />
                 <Text
                   style={[
                     styles.expiryBadgeText,
-                    { color: item.isExpired ? COLORS.danger : COLORS.warning },
+                    { color: item.isExpired ? colors.danger : colors.warning },
                   ]}
                 >
                   {item.isExpired ? 'Expired' : `${item.daysUntilExpiry}d left`}
@@ -103,7 +106,7 @@ export default function InventoryListScreen() {
         <Text style={[styles.itemQuantity, { color: getStatusColor(item.status) }]}>
           {formatQuantity(item.currentQuantity)} {item.unit}
         </Text>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+        <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
       </View>
     </TouchableOpacity>
   );
@@ -120,7 +123,7 @@ export default function InventoryListScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="cube-outline" size={64} color={COLORS.textLight} />
+            <Ionicons name="cube-outline" size={64} color={colors.textLight} />
             <Text style={styles.emptyTitle}>Your pantry is empty</Text>
             <Text style={styles.emptySubtitle}>
               Add items manually, scan a barcode, or scan a grocery invoice
@@ -135,36 +138,37 @@ export default function InventoryListScreen() {
           style={[styles.fab, styles.fabTertiary]}
           onPress={() => navigation.navigate('BarcodeScan')}
         >
-          <Ionicons name="barcode-outline" size={22} color={COLORS.surface} />
+          <Ionicons name="barcode-outline" size={22} color={colors.surface} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.fab, styles.fabSecondary]}
           onPress={() => navigation.navigate('ScanInvoice')}
         >
-          <Ionicons name="scan-outline" size={24} color={COLORS.surface} />
+          <Ionicons name="scan-outline" size={24} color={colors.surface} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.fab}
           onPress={() => navigation.navigate('AddItem')}
         >
-          <Ionicons name="add" size={28} color={COLORS.surface} />
+          <Ionicons name="add" size={28} color={colors.surface} />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   listContent: {
     padding: SPACING.md,
     paddingBottom: 100,
   },
   itemCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -185,11 +189,11 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   itemCategory: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   itemMetaRow: {
@@ -226,12 +230,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginTop: SPACING.md,
   },
   emptySubtitle: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
     textAlign: 'center',
   },
@@ -246,7 +250,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.lg,
@@ -255,12 +259,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
   },
   fabTertiary: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
   },
 });

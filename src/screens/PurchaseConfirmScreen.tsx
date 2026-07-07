@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import {
   getShoppingList,
   markAsPurchased,
@@ -30,6 +31,8 @@ type PurchaseConfirmRouteProp = RouteProp<ShoppingStackParamList, 'PurchaseConfi
 type PriceEntryMode = 'total' | 'perUnit';
 
 export default function PurchaseConfirmScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<PurchaseConfirmRouteProp>();
   const { shoppingItemId } = route.params;
@@ -149,7 +152,7 @@ export default function PurchaseConfirmScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -164,7 +167,7 @@ export default function PurchaseConfirmScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Item Info */}
         <View style={styles.headerCard}>
-          <Ionicons name="bag-check-outline" size={48} color={COLORS.success} />
+          <Ionicons name="bag-check-outline" size={48} color={colors.success} />
           <Text style={styles.headerTitle}>Confirm Purchase</Text>
           <Text style={styles.itemName}>{shoppingItem.name}</Text>
           <Text style={styles.itemDetail}>
@@ -187,7 +190,7 @@ export default function PurchaseConfirmScreen() {
                 value={newQuantity}
                 onChangeText={setNewQuantity}
                 placeholder="Enter new total"
-                placeholderTextColor={COLORS.textLight}
+                placeholderTextColor={colors.textLight}
                 keyboardType="decimal-pad"
               />
             </View>
@@ -231,7 +234,7 @@ export default function PurchaseConfirmScreen() {
                   value={price}
                   onChangeText={setPrice}
                   placeholder="e.g. 199"
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={colors.textLight}
                   keyboardType="decimal-pad"
                 />
               ) : (
@@ -240,7 +243,7 @@ export default function PurchaseConfirmScreen() {
                   value={pricePerUnit}
                   onChangeText={setPricePerUnit}
                   placeholder={`e.g. 50 per ${linkedItem.unit}`}
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={colors.textLight}
                   keyboardType="decimal-pad"
                 />
               )}
@@ -268,7 +271,7 @@ export default function PurchaseConfirmScreen() {
                   </View>
                   <View style={styles.previewRow}>
                     <Text style={styles.previewLabel}>After purchase:</Text>
-                    <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                    <Text style={[styles.previewValue, { color: colors.success }]}>
                       {formatQuantity(parseFloat(newQuantity))} {linkedItem.unit}
                     </Text>
                   </View>
@@ -280,7 +283,7 @@ export default function PurchaseConfirmScreen() {
                   {calculatedPrice !== null && (
                     <View style={styles.previewRow}>
                       <Text style={styles.previewLabel}>Total Price:</Text>
-                      <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                      <Text style={[styles.previewValue, { color: colors.success }]}>
                         ₹{formatMoney(calculatedPrice)}
                       </Text>
                     </View>
@@ -297,7 +300,7 @@ export default function PurchaseConfirmScreen() {
           onPress={handleConfirm}
           disabled={submitting}
         >
-          <Ionicons name="checkmark-circle-outline" size={22} color={COLORS.surface} />
+          <Ionicons name="checkmark-circle-outline" size={22} color={colors.surface} />
           <Text style={styles.confirmButtonText}>
             {submitting ? 'Confirming...' : 'Confirm Purchase'}
           </Text>
@@ -311,23 +314,24 @@ export default function PurchaseConfirmScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
   headerCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.xl,
     alignItems: 'center',
@@ -337,22 +341,22 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginTop: SPACING.sm,
   },
   itemName: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     marginTop: SPACING.sm,
   },
   itemDetail: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   restockSection: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
@@ -361,12 +365,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   currentStock: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.md,
   },
   field: {
@@ -375,21 +379,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   priceHint: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textLight,
+    color: colors.textLight,
     marginTop: SPACING.xs,
   },
   priceModeToggle: {
@@ -403,30 +407,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   priceModeButtonActive: {
-    backgroundColor: COLORS.primaryLight + '25',
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primaryLight + '25',
+    borderColor: colors.primary,
   },
   priceModeText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   priceModeTextActive: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   priceCalcText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.success,
+    color: colors.success,
     fontWeight: '600',
     marginTop: SPACING.xs,
   },
   previewCard: {
-    backgroundColor: COLORS.successBg,
+    backgroundColor: colors.successBg,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
   },
@@ -437,15 +441,15 @@ const styles = StyleSheet.create({
   },
   previewLabel: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   previewValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   confirmButton: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -458,7 +462,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   confirmButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },
@@ -469,7 +473,7 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

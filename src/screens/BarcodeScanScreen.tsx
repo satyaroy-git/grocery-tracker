@@ -15,7 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
 import {
   createItem,
@@ -35,6 +36,8 @@ type ScreenState = 'scanning' | 'looking-up' | 'review' | 'saving';
 const SCAN_BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128'] as const;
 
 export default function BarcodeScanScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -202,7 +205,7 @@ export default function BarcodeScanScreen() {
   if (!permission) {
     return (
       <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -210,7 +213,7 @@ export default function BarcodeScanScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.centeredContainer}>
-        <Ionicons name="barcode-outline" size={64} color={COLORS.textLight} />
+        <Ionicons name="barcode-outline" size={64} color={colors.textLight} />
         <Text style={styles.permissionTitle}>Camera Access Needed</Text>
         <Text style={styles.permissionText}>
           PantryPal needs camera access to scan product barcodes and quickly add items to your pantry.
@@ -244,7 +247,7 @@ export default function BarcodeScanScreen() {
   if (screenState === 'looking-up') {
     return (
       <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Looking up product...</Text>
       </View>
     );
@@ -262,7 +265,7 @@ export default function BarcodeScanScreen() {
           <View
             style={[
               styles.lookupBanner,
-              { backgroundColor: lookupResult.found ? COLORS.successBg : COLORS.warningBg },
+              { backgroundColor: lookupResult.found ? colors.successBg : colors.warningBg },
             ]}
           >
             {lookupResult.imageUrl && (
@@ -272,12 +275,12 @@ export default function BarcodeScanScreen() {
               <Ionicons
                 name={lookupResult.found ? 'checkmark-circle' : 'information-circle'}
                 size={18}
-                color={lookupResult.found ? COLORS.success : COLORS.warning}
+                color={lookupResult.found ? colors.success : colors.warning}
               />
               <Text
                 style={[
                   styles.lookupBannerLabel,
-                  { color: lookupResult.found ? COLORS.success : COLORS.warning },
+                  { color: lookupResult.found ? colors.success : colors.warning },
                 ]}
               >
                 {lookupResult.found
@@ -298,7 +301,7 @@ export default function BarcodeScanScreen() {
             value={name}
             onChangeText={handleNameChange}
             placeholder="e.g. Rice, Milk, Eggs"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
           />
         </View>
 
@@ -310,7 +313,7 @@ export default function BarcodeScanScreen() {
             onPress={() => setShowCategoryModal(true)}
           >
             <Text style={styles.pickerButtonText}>{category}</Text>
-            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -322,7 +325,7 @@ export default function BarcodeScanScreen() {
             onPress={() => setShowUnitModal(true)}
           >
             <Text style={styles.pickerButtonText}>{selectedUnitLabel}</Text>
-            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -364,7 +367,7 @@ export default function BarcodeScanScreen() {
             value={currentQuantity}
             onChangeText={setCurrentQuantity}
             placeholder="0"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -377,7 +380,7 @@ export default function BarcodeScanScreen() {
             value={threshold}
             onChangeText={setThreshold}
             placeholder="Alert when below this amount"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -390,7 +393,7 @@ export default function BarcodeScanScreen() {
             value={price}
             onChangeText={setPrice}
             placeholder="e.g. 199"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -405,7 +408,7 @@ export default function BarcodeScanScreen() {
 
         {/* Buttons */}
         <TouchableOpacity style={styles.rescanButton} onPress={handleRescan}>
-          <Ionicons name="scan-outline" size={20} color={COLORS.primary} />
+          <Ionicons name="scan-outline" size={20} color={colors.primary} />
           <Text style={styles.rescanButtonText}>Scan a Different Barcode</Text>
         </TouchableOpacity>
 
@@ -414,7 +417,7 @@ export default function BarcodeScanScreen() {
           onPress={handleSave}
           disabled={saving}
         >
-          <Ionicons name="checkmark" size={22} color={COLORS.surface} />
+          <Ionicons name="checkmark" size={22} color={colors.surface} />
           <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Add to Pantry'}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -422,202 +425,203 @@ export default function BarcodeScanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  centeredContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
-    backgroundColor: COLORS.background,
-  },
-  camera: {
-    flex: 1,
-  },
-  scanOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scanFrame: {
-    width: '75%',
-    height: 160,
-    borderWidth: 3,
-    borderColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'transparent',
-  },
-  scanHint: {
-    marginTop: SPACING.lg,
-    color: COLORS.surface,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  loadingText: {
-    marginTop: SPACING.md,
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.textSecondary,
-  },
-  permissionTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-  },
-  permissionText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    lineHeight: 22,
-  },
-  permissionButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
-    ...SHADOWS.md,
-  },
-  permissionButtonText: {
-    color: COLORS.surface,
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    padding: SPACING.md,
-    paddingBottom: SPACING.xxl,
-  },
-  lookupBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  productImage: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.surface,
-  },
-  lookupBannerText: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  lookupBannerLabel: {
-    flex: 1,
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-  },
-  barcodeText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
-  },
-  field: {
-    marginBottom: SPACING.md,
-  },
-  label: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  input: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
-  },
-  pickerButton: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  pickerButtonText: {
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
-  },
-  pickerOptions: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: SPACING.xs,
-    maxHeight: 200,
-  },
-  pickerOption: {
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  pickerOptionSelected: {
-    backgroundColor: COLORS.primaryLight + '20',
-  },
-  pickerOptionText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-  },
-  pickerOptionTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  rescanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    padding: SPACING.md,
-    marginTop: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  rescanButtonText: {
-    color: COLORS.primary,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.md,
-    ...SHADOWS.md,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: COLORS.surface,
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    centeredContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.xl,
+      backgroundColor: colors.background,
+    },
+    camera: {
+      flex: 1,
+    },
+    scanOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    scanFrame: {
+      width: '75%',
+      height: 160,
+      borderWidth: 3,
+      borderColor: colors.surface,
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: 'transparent',
+    },
+    scanHint: {
+      marginTop: SPACING.lg,
+      color: colors.surface,
+      fontSize: FONT_SIZES.md,
+      fontWeight: '600',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+      borderRadius: BORDER_RADIUS.md,
+    },
+    loadingText: {
+      marginTop: SPACING.md,
+      fontSize: FONT_SIZES.lg,
+      color: colors.textSecondary,
+    },
+    permissionTitle: {
+      fontSize: FONT_SIZES.xl,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: SPACING.md,
+    },
+    permissionText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: SPACING.sm,
+      lineHeight: 22,
+    },
+    permissionButton: {
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      paddingVertical: SPACING.md,
+      paddingHorizontal: SPACING.lg,
+      marginTop: SPACING.lg,
+      ...SHADOWS.md,
+    },
+    permissionButtonText: {
+      color: colors.surface,
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+    },
+    scrollContent: {
+      padding: SPACING.md,
+      paddingBottom: SPACING.xxl,
+    },
+    lookupBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      marginBottom: SPACING.md,
+      gap: SPACING.sm,
+    },
+    productImage: {
+      width: 48,
+      height: 48,
+      borderRadius: BORDER_RADIUS.sm,
+      backgroundColor: colors.surface,
+    },
+    lookupBannerText: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xs,
+    },
+    lookupBannerLabel: {
+      flex: 1,
+      fontSize: FONT_SIZES.sm,
+      fontWeight: '600',
+    },
+    barcodeText: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      marginBottom: SPACING.md,
+    },
+    field: {
+      marginBottom: SPACING.md,
+    },
+    label: {
+      fontSize: FONT_SIZES.md,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: SPACING.xs,
+    },
+    input: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      fontSize: FONT_SIZES.lg,
+      color: colors.text,
+    },
+    pickerButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    pickerButtonText: {
+      fontSize: FONT_SIZES.lg,
+      color: colors.text,
+    },
+    pickerOptions: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      marginTop: SPACING.xs,
+      maxHeight: 200,
+    },
+    pickerOption: {
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    pickerOptionSelected: {
+      backgroundColor: colors.primaryLight + '20',
+    },
+    pickerOptionText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+    },
+    pickerOptionTextSelected: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    rescanButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.sm,
+      padding: SPACING.md,
+      marginTop: SPACING.sm,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+    },
+    rescanButtonText: {
+      color: colors.primary,
+      fontSize: FONT_SIZES.md,
+      fontWeight: '600',
+    },
+    saveButton: {
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.sm,
+      marginTop: SPACING.md,
+      ...SHADOWS.md,
+    },
+    saveButtonDisabled: {
+      opacity: 0.6,
+    },
+    saveButtonText: {
+      color: colors.surface,
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+    },
+  });

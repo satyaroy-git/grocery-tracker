@@ -11,16 +11,25 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { ALERT_FREQUENCIES } from '../constants/categories';
 import { getSettings, updateSettings, resetDatabase } from '../database';
-import { AppSettings, ConsumptionMode, AlertFrequency } from '../database';
+import { AppSettings, ConsumptionMode, AlertFrequency, ThemeMode } from '../database';
 import { SettingsStackParamList } from '../navigation/types';
+
+const THEME_OPTIONS: { label: string; value: ThemeMode; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { label: 'Light', value: 'light', icon: 'sunny-outline' },
+  { label: 'Dark', value: 'dark', icon: 'moon-outline' },
+  { label: 'System', value: 'system', icon: 'phone-portrait-outline' },
+];
 
 type SettingsNavProp = NativeStackNavigationProp<SettingsStackParamList, 'SettingsMain'>;
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavProp>();
+  const { colors, themeMode: activeThemeMode, setThemeMode } = useTheme();
+  const styles = createStyles(colors);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -62,6 +71,11 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleThemeChange = async (mode: ThemeMode) => {
+    if (mode === activeThemeMode) return;
+    await setThemeMode(mode);
+  };
+
   const handleResetData = () => {
     Alert.alert(
       'Reset All Data',
@@ -75,6 +89,11 @@ export default function SettingsScreen() {
             try {
               await resetDatabase();
               await loadSettings();
+              // resetDatabase() resets themeMode back to 'system' at the DB
+              // layer, but ThemeContext holds its own in-memory copy - sync
+              // it here too, or the UI would keep showing whatever theme
+              // was active before the reset until the app is restarted.
+              await setThemeMode('system');
               Alert.alert('Success', 'All data has been reset.');
             } catch (error) {
               Alert.alert('Error', 'Failed to reset data.');
@@ -88,7 +107,7 @@ export default function SettingsScreen() {
   if (loading || !settings) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -116,8 +135,8 @@ export default function SettingsScreen() {
               size={18}
               color={
                 settings.defaultConsumptionMode === 'manual'
-                  ? COLORS.surface
-                  : COLORS.textSecondary
+                  ? colors.surface
+                  : colors.textSecondary
               }
             />
             <Text
@@ -143,8 +162,8 @@ export default function SettingsScreen() {
               size={18}
               color={
                 settings.defaultConsumptionMode === 'auto'
-                  ? COLORS.surface
-                  : COLORS.textSecondary
+                  ? colors.surface
+                  : colors.textSecondary
               }
             />
             <Text
@@ -156,6 +175,35 @@ export default function SettingsScreen() {
               Auto
             </Text>
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Appearance / Theme */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.sectionDescription}>
+          Choose how PantryPal looks. "System" follows your device's setting.
+        </Text>
+        <View style={styles.themeRow}>
+          {THEME_OPTIONS.map((opt) => {
+            const isActive = activeThemeMode === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.themeOption, isActive && styles.themeOptionActive]}
+                onPress={() => handleThemeChange(opt.value)}
+              >
+                <Ionicons
+                  name={opt.icon}
+                  size={22}
+                  color={isActive ? colors.surface : colors.textSecondary}
+                />
+                <Text style={[styles.themeOptionText, isActive && styles.themeOptionTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -181,8 +229,8 @@ export default function SettingsScreen() {
                 size={22}
                 color={
                   settings.alertFrequency === freq.value
-                    ? COLORS.primary
-                    : COLORS.textSecondary
+                    ? colors.primary
+                    : colors.textSecondary
                 }
               />
               <Text
@@ -202,7 +250,7 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.aboutCard}>
-          <Ionicons name="leaf-outline" size={32} color={COLORS.primary} />
+          <Ionicons name="leaf-outline" size={32} color={colors.primary} />
           <Text style={styles.appName}>PantryPal</Text>
           <Text style={styles.appVersion}>Version 1.0.0</Text>
           <Text style={styles.appDescription}>
@@ -213,7 +261,7 @@ export default function SettingsScreen() {
           style={styles.replayGuideButton}
           onPress={() => navigation.navigate('Onboarding')}
         >
-          <Ionicons name="help-circle-outline" size={20} color={COLORS.primary} />
+          <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.replayGuideButtonText}>Replay Welcome Guide</Text>
         </TouchableOpacity>
       </View>
@@ -222,7 +270,7 @@ export default function SettingsScreen() {
       <View style={styles.dangerSection}>
         <Text style={styles.dangerTitle}>Danger Zone</Text>
         <TouchableOpacity style={styles.dangerButton} onPress={handleResetData}>
-          <Ionicons name="warning-outline" size={20} color={COLORS.danger} />
+          <Ionicons name="warning-outline" size={20} color={colors.danger} />
           <Text style={styles.dangerButtonText}>Reset All Data</Text>
         </TouchableOpacity>
         <Text style={styles.dangerDescription}>
@@ -233,23 +281,24 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
   section: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -258,11 +307,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
   },
   sectionDescription: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
     marginBottom: SPACING.md,
   },
@@ -271,7 +320,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   toggleButton: {
     flex: 1,
@@ -279,19 +328,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     gap: SPACING.xs,
   },
   toggleButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   toggleText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   toggleTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
+  },
+  themeRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  themeOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  themeOptionActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  themeOptionText: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  themeOptionTextActive: {
+    color: colors.surface,
+    fontWeight: '700',
   },
   radioGroup: {
     gap: SPACING.sm,
@@ -304,10 +381,10 @@ const styles = StyleSheet.create({
   },
   radioLabel: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   radioLabelActive: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
   aboutCard: {
@@ -317,17 +394,17 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginTop: SPACING.sm,
   },
   appVersion: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   appDescription: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.sm,
     lineHeight: 20,
@@ -340,25 +417,25 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   replayGuideButtonText: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   dangerSection: {
-    backgroundColor: COLORS.dangerBg,
+    backgroundColor: colors.dangerBg,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginTop: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.danger + '30',
+    borderColor: colors.danger + '30',
   },
   dangerTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.danger,
+    color: colors.danger,
     marginBottom: SPACING.md,
   },
   dangerButton: {
@@ -367,19 +444,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SPACING.sm,
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
   },
   dangerButtonText: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    color: COLORS.danger,
+    color: colors.danger,
   },
   dangerDescription: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.danger,
+    color: colors.danger,
     marginTop: SPACING.sm,
     textAlign: 'center',
     opacity: 0.8,

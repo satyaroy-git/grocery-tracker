@@ -1,7 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { SettingsStackParamList } from './types';
 
 import SettingsScreen from '../screens/SettingsScreen';
@@ -19,11 +19,12 @@ function OnboardingRouteScreen() {
 }
 
 export default function SettingsStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: COLORS.surface },
-        headerTintColor: COLORS.text,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '600' },
       }}
     >

@@ -6,6 +6,9 @@ export type ConsumptionMode = 'manual' | 'auto';
 export type ConsumptionFrequency = 'daily' | 'weekly' | 'monthly';
 export type ItemStatus = 'ok' | 'low' | 'empty';
 export type AlertFrequency = 'daily' | 'every_2_days' | 'weekly' | 'never';
+// 'system' follows the OS-level appearance setting; 'light'/'dark' pin the
+// app to that mode regardless of what the device is set to.
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface GroceryItem {
   id: number;
@@ -62,6 +65,7 @@ export interface AppSettings {
   defaultConsumptionMode: ConsumptionMode;
   alertFrequency: AlertFrequency;
   onboardingComplete: boolean;
+  themeMode: ThemeMode;
 }
 
 export interface CreateItemInput {
@@ -151,6 +155,7 @@ export async function initDatabase(): Promise<void> {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('defaultConsumptionMode', 'manual');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('alertFrequency', 'daily');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('onboardingComplete', 'false');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('themeMode', 'system');
   `);
 
   await migrateSchema();
@@ -636,6 +641,7 @@ export async function getSettings(): Promise<AppSettings> {
     defaultConsumptionMode: (settings.defaultConsumptionMode as ConsumptionMode) || 'manual',
     alertFrequency: (settings.alertFrequency as AlertFrequency) || 'daily',
     onboardingComplete: settings.onboardingComplete === 'true',
+    themeMode: (settings.themeMode as ThemeMode) || 'system',
   };
 }
 
@@ -656,6 +662,12 @@ export async function updateSettings(updates: Partial<AppSettings>): Promise<App
     await db.runAsync(
       "INSERT OR REPLACE INTO settings (key, value) VALUES ('onboardingComplete', ?)",
       [updates.onboardingComplete.toString()]
+    );
+  }
+  if (updates.themeMode !== undefined) {
+    await db.runAsync(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('themeMode', ?)",
+      [updates.themeMode]
     );
   }
   // Return the fresh settings so callers (e.g. SettingsScreen) can update UI state directly
@@ -718,5 +730,6 @@ export async function resetDatabase(): Promise<void> {
     INSERT INTO settings (key, value) VALUES ('defaultConsumptionMode', 'manual');
     INSERT INTO settings (key, value) VALUES ('alertFrequency', 'daily');
     INSERT INTO settings (key, value) VALUES ('onboardingComplete', 'false');
+    INSERT INTO settings (key, value) VALUES ('themeMode', 'system');
   `);
 }

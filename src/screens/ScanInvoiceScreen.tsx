@@ -17,7 +17,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
 import { createItemsBatch, CreateItemInput } from '../database';
 import {
@@ -41,6 +42,8 @@ interface PickerTarget {
 }
 
 export default function ScanInvoiceScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const navigation = useNavigation();
 
   const [screenState, setScreenState] = useState<ScreenState>('input');
@@ -303,7 +306,7 @@ export default function ScanInvoiceScreen() {
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.apiKeySection}>
-            <Ionicons name="key-outline" size={48} color={COLORS.primary} />
+            <Ionicons name="key-outline" size={48} color={colors.primary} />
             <Text style={styles.apiKeyTitle}>Gemini API Key Required</Text>
             <Text style={styles.apiKeyDescription}>
               To parse grocery invoices, PantryPal uses Google's Gemini AI.
@@ -317,7 +320,7 @@ export default function ScanInvoiceScreen() {
               value={apiKeyInput}
               onChangeText={setApiKeyInput}
               placeholder="AIzaSy..."
-              placeholderTextColor={COLORS.textLight}
+              placeholderTextColor={colors.textLight}
               autoCapitalize="none"
               autoCorrect={false}
               secureTextEntry
@@ -344,7 +347,7 @@ export default function ScanInvoiceScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>
             {screenState === 'parsing'
               ? 'Analyzing invoice with AI...\nThis may take a few seconds.'
@@ -403,9 +406,9 @@ export default function ScanInvoiceScreen() {
                 onPress={() => toggleItemSelection(index)}
               >
                 {selectedItems.has(index) ? (
-                  <Ionicons name="checkbox" size={24} color={COLORS.primary} />
+                  <Ionicons name="checkbox" size={24} color={colors.primary} />
                 ) : (
-                  <Ionicons name="square-outline" size={24} color={COLORS.textLight} />
+                  <Ionicons name="square-outline" size={24} color={colors.textLight} />
                 )}
               </TouchableOpacity>
 
@@ -416,7 +419,7 @@ export default function ScanInvoiceScreen() {
                   value={item.name}
                   onChangeText={(text) => updateItemField(index, 'name', text)}
                   placeholder="Item name"
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={colors.textLight}
                 />
 
                 {/* Editable brand (optional, shown as a smaller sub-field) */}
@@ -425,7 +428,7 @@ export default function ScanInvoiceScreen() {
                   value={item.brand || ''}
                   onChangeText={(text) => updateItemField(index, 'brand', text || undefined)}
                   placeholder="Brand (optional)"
-                  placeholderTextColor={COLORS.textLight}
+                  placeholderTextColor={colors.textLight}
                 />
 
                 <View style={styles.editableRow}>
@@ -435,7 +438,7 @@ export default function ScanInvoiceScreen() {
                       style={styles.qtyButton}
                       onPress={() => stepQuantity(index, -1)}
                     >
-                      <Ionicons name="remove" size={16} color={COLORS.primary} />
+                      <Ionicons name="remove" size={16} color={colors.primary} />
                     </TouchableOpacity>
                     <TextInput
                       style={styles.qtyInput}
@@ -449,7 +452,7 @@ export default function ScanInvoiceScreen() {
                       style={styles.qtyButton}
                       onPress={() => stepQuantity(index, 1)}
                     >
-                      <Ionicons name="add" size={16} color={COLORS.primary} />
+                      <Ionicons name="add" size={16} color={colors.primary} />
                     </TouchableOpacity>
                   </View>
 
@@ -459,7 +462,7 @@ export default function ScanInvoiceScreen() {
                     onPress={() => setPickerTarget({ index, field: 'unit' })}
                   >
                     <Text style={styles.editChipText}>{selectedUnitLabel(item.unit)}</Text>
-                    <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
+                    <Ionicons name="chevron-down" size={14} color={colors.primary} />
                   </TouchableOpacity>
 
                   {/* Category chip - tap to change */}
@@ -468,7 +471,7 @@ export default function ScanInvoiceScreen() {
                     onPress={() => setPickerTarget({ index, field: 'category' })}
                   >
                     <Text style={styles.editChipText}>{item.category}</Text>
-                    <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
+                    <Ionicons name="chevron-down" size={14} color={colors.primary} />
                   </TouchableOpacity>
                 </View>
 
@@ -481,7 +484,7 @@ export default function ScanInvoiceScreen() {
                     onChangeText={(text) => handlePriceChange(index, text)}
                     onBlur={() => handlePriceBlur(index)}
                     placeholder="Amount paid"
-                    placeholderTextColor={COLORS.textLight}
+                    placeholderTextColor={colors.textLight}
                     keyboardType="decimal-pad"
                   />
                 </View>
@@ -502,7 +505,7 @@ export default function ScanInvoiceScreen() {
 
         <View style={styles.reviewFooter}>
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Ionicons name="refresh" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="refresh" size={20} color={colors.textSecondary} />
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -510,7 +513,7 @@ export default function ScanInvoiceScreen() {
             onPress={handleAddToPantry}
             disabled={selectedItems.size === 0}
           >
-            <Ionicons name="add-circle" size={20} color={COLORS.surface} />
+            <Ionicons name="add-circle" size={20} color={colors.surface} />
             <Text style={styles.addButtonText}>
               Add {selectedItems.size} to Pantry
             </Text>
@@ -530,7 +533,7 @@ export default function ScanInvoiceScreen() {
                   Select {pickerTarget.field === 'unit' ? 'Unit' : 'Category'}
                 </Text>
                 <TouchableOpacity onPress={() => setPickerTarget(null)}>
-                  <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               <FlatList
@@ -560,7 +563,7 @@ export default function ScanInvoiceScreen() {
                         {option.label}
                       </Text>
                       {isSelected && (
-                        <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                        <Ionicons name="checkmark" size={20} color={colors.primary} />
                       )}
                     </TouchableOpacity>
                   );
@@ -589,7 +592,7 @@ export default function ScanInvoiceScreen() {
             <Ionicons
               name="camera-outline"
               size={20}
-              color={parseMode === 'image' ? COLORS.surface : COLORS.textSecondary}
+              color={parseMode === 'image' ? colors.surface : colors.textSecondary}
             />
             <Text style={[styles.modeButtonText, parseMode === 'image' && styles.modeButtonTextActive]}>
               Scan Image
@@ -602,7 +605,7 @@ export default function ScanInvoiceScreen() {
             <Ionicons
               name="document-text-outline"
               size={20}
-              color={parseMode === 'text' ? COLORS.surface : COLORS.textSecondary}
+              color={parseMode === 'text' ? colors.surface : colors.textSecondary}
             />
             <Text style={[styles.modeButtonText, parseMode === 'text' && styles.modeButtonTextActive]}>
               Paste Text
@@ -614,7 +617,7 @@ export default function ScanInvoiceScreen() {
           <View style={styles.imageSection}>
             {/* Info Box */}
             <View style={styles.infoBox}>
-              <Ionicons name="information-circle" size={20} color={COLORS.accent} />
+              <Ionicons name="information-circle" size={20} color={colors.accent} />
               <Text style={styles.infoText}>
                 Take a photo or select a screenshot of your Blinkit, Instamart, BigBasket, or other grocery invoice. AI will extract all items automatically.
               </Text>
@@ -628,12 +631,12 @@ export default function ScanInvoiceScreen() {
                   style={styles.removeImageButton}
                   onPress={() => setImageUri(null)}
                 >
-                  <Ionicons name="close-circle" size={28} color={COLORS.danger} />
+                  <Ionicons name="close-circle" size={28} color={colors.danger} />
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.imagePlaceholder}>
-                <Ionicons name="receipt-outline" size={64} color={COLORS.textLight} />
+                <Ionicons name="receipt-outline" size={64} color={colors.textLight} />
                 <Text style={styles.placeholderText}>No invoice selected</Text>
               </View>
             )}
@@ -641,11 +644,11 @@ export default function ScanInvoiceScreen() {
             {/* Image Buttons */}
             <View style={styles.imageButtons}>
               <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
-                <Ionicons name="camera" size={24} color={COLORS.primary} />
+                <Ionicons name="camera" size={24} color={colors.primary} />
                 <Text style={styles.imageButtonText}>Take Photo</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-                <Ionicons name="images" size={24} color={COLORS.primary} />
+                <Ionicons name="images" size={24} color={colors.primary} />
                 <Text style={styles.imageButtonText}>Pick from Gallery</Text>
               </TouchableOpacity>
             </View>
@@ -654,7 +657,7 @@ export default function ScanInvoiceScreen() {
           <View style={styles.textSection}>
             {/* Info Box */}
             <View style={styles.infoBox}>
-              <Ionicons name="information-circle" size={20} color={COLORS.accent} />
+              <Ionicons name="information-circle" size={20} color={colors.accent} />
               <Text style={styles.infoText}>
                 Copy your order details from the delivery app and paste them here. Works with Blinkit, Swiggy Instamart, BigBasket, Zepto, etc.
               </Text>
@@ -665,7 +668,7 @@ export default function ScanInvoiceScreen() {
               value={invoiceText}
               onChangeText={setInvoiceText}
               placeholder={`Paste your invoice/order text here...\n\nExample:\nAmul Toned Milk 500ml x2 - ₹56\nAashirvaad Atta 5kg - ₹299\nOnion 1kg - ₹35\nTomato 500g - ₹20`}
-              placeholderTextColor={COLORS.textLight}
+              placeholderTextColor={colors.textLight}
               multiline
               numberOfLines={12}
               textAlignVertical="top"
@@ -686,7 +689,7 @@ export default function ScanInvoiceScreen() {
             (parseMode === 'text' && !invoiceText.trim())
           }
         >
-          <Ionicons name="sparkles" size={22} color={COLORS.surface} />
+          <Ionicons name="sparkles" size={22} color={colors.surface} />
           <Text style={styles.parseButtonText}>Parse Invoice with AI</Text>
         </TouchableOpacity>
 
@@ -695,7 +698,7 @@ export default function ScanInvoiceScreen() {
           style={styles.settingsLink}
           onPress={() => setShowApiKeyInput(true)}
         >
-          <Ionicons name="key-outline" size={16} color={COLORS.textSecondary} />
+          <Ionicons name="key-outline" size={16} color={colors.textSecondary} />
           <Text style={styles.settingsLinkText}>Change API Key</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -703,492 +706,493 @@ export default function ScanInvoiceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    padding: SPACING.md,
-    paddingBottom: SPACING.xxl,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  loadingText: {
-    marginTop: SPACING.md,
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      padding: SPACING.md,
+      paddingBottom: SPACING.xxl,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.xl,
+    },
+    loadingText: {
+      marginTop: SPACING.md,
+      fontSize: FONT_SIZES.lg,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
 
-  // Mode Toggle
-  modeToggle: {
-    flexDirection: 'row',
-    borderRadius: BORDER_RADIUS.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.lg,
-  },
-  modeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    gap: SPACING.xs,
-  },
-  modeButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  modeButtonText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  modeButtonTextActive: {
-    color: COLORS.surface,
-  },
+    // Mode Toggle
+    modeToggle: {
+      flexDirection: 'row',
+      borderRadius: BORDER_RADIUS.md,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: SPACING.lg,
+    },
+    modeButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      gap: SPACING.xs,
+    },
+    modeButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    modeButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    modeButtonTextActive: {
+      color: colors.surface,
+    },
 
-  // Info Box
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.accent + '10',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
-    alignItems: 'flex-start',
-  },
-  infoText: {
-    flex: 1,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
-  },
+    // Info Box
+    infoBox: {
+      flexDirection: 'row',
+      backgroundColor: colors.accent + '10',
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      marginBottom: SPACING.md,
+      gap: SPACING.sm,
+      alignItems: 'flex-start',
+    },
+    infoText: {
+      flex: 1,
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
 
-  // Image Section
-  imageSection: {},
-  imagePreviewContainer: {
-    position: 'relative',
-    borderRadius: BORDER_RADIUS.md,
-    overflow: 'hidden',
-    marginBottom: SPACING.md,
-    backgroundColor: COLORS.surface,
-    ...SHADOWS.sm,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 300,
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
-  },
-  imagePlaceholder: {
-    height: 200,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  placeholderText: {
-    marginTop: SPACING.sm,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textLight,
-  },
-  imageButtons: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  imageButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    gap: SPACING.xs,
-  },
-  imageButtonText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
+    // Image Section
+    imageSection: {},
+    imagePreviewContainer: {
+      position: 'relative',
+      borderRadius: BORDER_RADIUS.md,
+      overflow: 'hidden',
+      marginBottom: SPACING.md,
+      backgroundColor: colors.surface,
+      ...SHADOWS.sm,
+    },
+    imagePreview: {
+      width: '100%',
+      height: 300,
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: SPACING.sm,
+      right: SPACING.sm,
+    },
+    imagePlaceholder: {
+      height: 200,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: SPACING.md,
+    },
+    placeholderText: {
+      marginTop: SPACING.sm,
+      fontSize: FONT_SIZES.md,
+      color: colors.textLight,
+    },
+    imageButtons: {
+      flexDirection: 'row',
+      gap: SPACING.sm,
+    },
+    imageButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      gap: SPACING.xs,
+    },
+    imageButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.primary,
+      fontWeight: '600',
+    },
 
-  // Text Section
-  textSection: {},
-  textInput: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-    minHeight: 200,
-    lineHeight: 22,
-  },
+    // Text Section
+    textSection: {},
+    textInput: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+      minHeight: 200,
+      lineHeight: 22,
+    },
 
-  // Parse Button
-  parseButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.lg,
-    ...SHADOWS.md,
-  },
-  parseButtonDisabled: {
-    opacity: 0.5,
-  },
-  parseButtonText: {
-    color: COLORS.surface,
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-  },
+    // Parse Button
+    parseButton: {
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.sm,
+      marginTop: SPACING.lg,
+      ...SHADOWS.md,
+    },
+    parseButtonDisabled: {
+      opacity: 0.5,
+    },
+    parseButtonText: {
+      color: colors.surface,
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+    },
 
-  // Settings Link
-  settingsLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.md,
-    marginTop: SPACING.sm,
-    gap: SPACING.xs,
-  },
-  settingsLinkText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-  },
+    // Settings Link
+    settingsLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      marginTop: SPACING.sm,
+      gap: SPACING.xs,
+    },
+    settingsLinkText: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+    },
 
-  // API Key Section
-  apiKeySection: {
-    alignItems: 'center',
-    padding: SPACING.lg,
-  },
-  apiKeyTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-  },
-  apiKeyDescription: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    lineHeight: 22,
-  },
-  apiKeyHint: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.accent,
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
-  },
-  apiKeyInput: {
-    width: '100%',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    width: '100%',
-    alignItems: 'center',
-    ...SHADOWS.md,
-  },
-  primaryButtonText: {
-    color: COLORS.surface,
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-  },
-  textButton: {
-    padding: SPACING.md,
-    marginTop: SPACING.sm,
-  },
-  textButtonText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-  },
+    // API Key Section
+    apiKeySection: {
+      alignItems: 'center',
+      padding: SPACING.lg,
+    },
+    apiKeyTitle: {
+      fontSize: FONT_SIZES.xl,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: SPACING.md,
+    },
+    apiKeyDescription: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: SPACING.sm,
+      lineHeight: 22,
+    },
+    apiKeyHint: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.accent,
+      marginTop: SPACING.sm,
+      marginBottom: SPACING.lg,
+    },
+    apiKeyInput: {
+      width: '100%',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+      marginBottom: SPACING.md,
+    },
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      width: '100%',
+      alignItems: 'center',
+      ...SHADOWS.md,
+    },
+    primaryButtonText: {
+      color: colors.surface,
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+    },
+    textButton: {
+      padding: SPACING.md,
+      marginTop: SPACING.sm,
+    },
+    textButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+    },
 
-  // Review State
-  reviewHeader: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  storeName: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  itemCount: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-  },
-  selectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-    gap: SPACING.sm,
-  },
-  selectionLink: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.accent,
-    fontWeight: '600',
-  },
-  selectionDivider: {
-    color: COLORS.textLight,
-  },
-  selectedCount: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginLeft: 'auto',
-  },
-  listContent: {
-    padding: SPACING.md,
-    paddingBottom: 100,
-  },
-  reviewItem: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    alignItems: 'center',
-    ...SHADOWS.sm,
-  },
-  reviewItemSelected: {
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight + '10',
-  },
-  checkbox: {
-    marginRight: SPACING.sm,
-  },
-  reviewItemInfo: {
-    flex: 1,
-  },
-  nameInput: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.sm,
-    marginBottom: 4,
-  },
-  brandInput: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.sm,
-    marginBottom: 4,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-    gap: 4,
-  },
-  priceLabel: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  priceInput: {
-    flex: 1,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.text,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.sm,
-    maxWidth: 100,
-  },
-  expiryFieldWrapper: {
-    marginTop: SPACING.sm,
-  },
-  editHint: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textLight,
-    marginTop: SPACING.xs,
-  },
-  editableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-    gap: SPACING.xs,
-    flexWrap: 'wrap',
-  },
-  qtyStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  qtyButton: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 6,
-  },
-  qtyInput: {
-    minWidth: 36,
-    textAlign: 'center',
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-    paddingVertical: 4,
-  },
-  editChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primaryLight + '20',
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 6,
-    gap: 4,
-  },
-  editChipText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
+    // Review State
+    reviewHeader: {
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    storeName: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    itemCount: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      marginTop: SPACING.xs,
+    },
+    selectionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      gap: SPACING.sm,
+    },
+    selectionLink: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.accent,
+      fontWeight: '600',
+    },
+    selectionDivider: {
+      color: colors.textLight,
+    },
+    selectedCount: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      marginLeft: 'auto',
+    },
+    listContent: {
+      padding: SPACING.md,
+      paddingBottom: 100,
+    },
+    reviewItem: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      marginBottom: SPACING.sm,
+      alignItems: 'center',
+      ...SHADOWS.sm,
+    },
+    reviewItemSelected: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight + '10',
+    },
+    checkbox: {
+      marginRight: SPACING.sm,
+    },
+    reviewItemInfo: {
+      flex: 1,
+    },
+    nameInput: {
+      fontSize: FONT_SIZES.md,
+      fontWeight: '600',
+      color: colors.text,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      marginBottom: 4,
+    },
+    brandInput: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      marginBottom: 4,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      gap: 4,
+    },
+    priceLabel: {
+      fontSize: FONT_SIZES.sm,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    priceInput: {
+      flex: 1,
+      fontSize: FONT_SIZES.sm,
+      color: colors.text,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      maxWidth: 100,
+    },
+    expiryFieldWrapper: {
+      marginTop: SPACING.sm,
+    },
+    editHint: {
+      fontSize: FONT_SIZES.xs,
+      color: colors.textLight,
+      marginTop: SPACING.xs,
+    },
+    editableRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      gap: SPACING.xs,
+      flexWrap: 'wrap',
+    },
+    qtyStepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    qtyButton: {
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 6,
+    },
+    qtyInput: {
+      minWidth: 36,
+      textAlign: 'center',
+      fontSize: FONT_SIZES.sm,
+      fontWeight: '600',
+      color: colors.text,
+      paddingVertical: 4,
+    },
+    editChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryLight + '20',
+      borderRadius: BORDER_RADIUS.sm,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 6,
+      gap: 4,
+    },
+    editChipText: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.primary,
+      fontWeight: '600',
+    },
 
-  // Category/Unit picker sheet
-  pickerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'flex-end',
-  },
-  pickerOverlayBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.overlay,
-  },
-  pickerSheet: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
-    maxHeight: '70%',
-    ...SHADOWS.lg,
-  },
-  pickerSheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  pickerSheetTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  pickerSheetList: {
-    paddingBottom: SPACING.lg,
-  },
-  pickerSheetOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  pickerSheetOptionSelected: {
-    backgroundColor: COLORS.primaryLight + '15',
-  },
-  pickerSheetOptionText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-  },
-  pickerSheetOptionTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  reviewFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: SPACING.sm,
-    ...SHADOWS.lg,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: SPACING.xs,
-  },
-  retryButtonText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  addButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    gap: SPACING.xs,
-    ...SHADOWS.md,
-  },
-  addButtonDisabled: {
-    opacity: 0.5,
-  },
-  addButtonText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.surface,
-    fontWeight: '700',
-  },
-});
+    // Category/Unit picker sheet
+    pickerOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'flex-end',
+    },
+    pickerOverlayBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.overlay,
+    },
+    pickerSheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: BORDER_RADIUS.xl,
+      borderTopRightRadius: BORDER_RADIUS.xl,
+      maxHeight: '70%',
+      ...SHADOWS.lg,
+    },
+    pickerSheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    pickerSheetTitle: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    pickerSheetList: {
+      paddingBottom: SPACING.lg,
+    },
+    pickerSheetOption: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    pickerSheetOptionSelected: {
+      backgroundColor: colors.primaryLight + '15',
+    },
+    pickerSheetOptionText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+    },
+    pickerSheetOptionTextSelected: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    reviewFooter: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: SPACING.sm,
+      ...SHADOWS.lg,
+    },
+    retryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: SPACING.xs,
+    },
+    retryButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    addButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      gap: SPACING.xs,
+      ...SHADOWS.md,
+    },
+    addButtonDisabled: {
+      opacity: 0.5,
+    },
+    addButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.surface,
+      fontWeight: '700',
+    },
+  });

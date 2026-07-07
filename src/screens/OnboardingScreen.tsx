@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { ONBOARDING_TEMPLATES } from '../constants/categories';
 import { createItem, markOnboardingComplete } from '../database';
 
@@ -32,6 +33,8 @@ interface OnboardingScreenProps {
 }
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [step, setStep] = useState(0);
   const [templates, setTemplates] = useState<TemplateSelection[]>(
     ONBOARDING_TEMPLATES.map((t) => ({ ...t, selected: false }))
@@ -98,7 +101,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       <View style={styles.welcomeContainer}>
         <View style={styles.welcomeContent}>
           <View style={styles.iconCircle}>
-            <Ionicons name="leaf" size={48} color={COLORS.primary} />
+            <Ionicons name="leaf" size={48} color={colors.primary} />
           </View>
           <Text style={styles.welcomeTitle}>PantryPal</Text>
           <Text style={styles.welcomeSubtitle}>
@@ -107,7 +110,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
           <View style={styles.featureList}>
             <View style={styles.featureItem}>
-              <Ionicons name="cube-outline" size={24} color={COLORS.primary} />
+              <Ionicons name="cube-outline" size={24} color={colors.primary} />
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Track Inventory</Text>
                 <Text style={styles.featureDescription}>
@@ -116,7 +119,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="barcode-outline" size={24} color={COLORS.accent} />
+              <Ionicons name="barcode-outline" size={24} color={colors.accent} />
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Scan Barcodes</Text>
                 <Text style={styles.featureDescription}>
@@ -125,7 +128,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="sparkles-outline" size={24} color={COLORS.secondary} />
+              <Ionicons name="sparkles-outline" size={24} color={colors.secondary} />
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>AI Invoice Scanning</Text>
                 <Text style={styles.featureDescription}>
@@ -134,7 +137,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="trending-down-outline" size={24} color={COLORS.warning} />
+              <Ionicons name="trending-down-outline" size={24} color={colors.warning} />
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Monitor Usage</Text>
                 <Text style={styles.featureDescription}>
@@ -143,7 +146,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="cart-outline" size={24} color={COLORS.success} />
+              <Ionicons name="cart-outline" size={24} color={colors.success} />
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Smart Shopping Lists</Text>
                 <Text style={styles.featureDescription}>
@@ -152,7 +155,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="analytics-outline" size={24} color={COLORS.secondary} />
+              <Ionicons name="analytics-outline" size={24} color={colors.secondary} />
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Insights & Analytics</Text>
                 <Text style={styles.featureDescription}>
@@ -165,7 +168,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
         <TouchableOpacity style={styles.getStartedButton} onPress={() => setStep(1)}>
           <Text style={styles.getStartedText}>Get Started</Text>
-          <Ionicons name="arrow-forward" size={20} color={COLORS.surface} />
+          <Ionicons name="arrow-forward" size={20} color={colors.surface} />
         </TouchableOpacity>
       </View>
     );
@@ -184,12 +187,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       {/* Select All / Clear All */}
       <View style={styles.bulkActions}>
         <TouchableOpacity style={styles.bulkButton} onPress={selectAll}>
-          <Ionicons name="checkbox-outline" size={18} color={COLORS.primary} />
+          <Ionicons name="checkbox-outline" size={18} color={colors.primary} />
           <Text style={styles.bulkButtonText}>Select All</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.bulkButton} onPress={clearAll}>
-          <Ionicons name="close-circle-outline" size={18} color={COLORS.textSecondary} />
-          <Text style={[styles.bulkButtonText, { color: COLORS.textSecondary }]}>Clear All</Text>
+          <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
+          <Text style={[styles.bulkButtonText, { color: colors.textSecondary }]}>Clear All</Text>
         </TouchableOpacity>
       </View>
 
@@ -204,7 +207,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             <Ionicons
               name={template.selected ? 'checkbox' : 'square-outline'}
               size={22}
-              color={template.selected ? COLORS.primary : COLORS.textLight}
+              color={template.selected ? colors.primary : colors.textLight}
             />
             <View style={styles.templateInfo}>
               <Text style={styles.templateName}>{template.name}</Text>
@@ -231,13 +234,13 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           disabled={selectedCount === 0 || saving}
         >
           {saving ? (
-            <ActivityIndicator size="small" color={COLORS.surface} />
+            <ActivityIndicator size="small" color={colors.surface} />
           ) : (
             <>
               <Text style={styles.addItemsButtonText}>
                 Add {selectedCount} Item{selectedCount !== 1 ? 's' : ''}
               </Text>
-              <Ionicons name="arrow-forward" size={18} color={COLORS.surface} />
+              <Ionicons name="arrow-forward" size={18} color={colors.surface} />
             </>
           )}
         </TouchableOpacity>
@@ -246,11 +249,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   // Welcome Screen
   welcomeContainer: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     padding: SPACING.lg,
     justifyContent: 'space-between',
   },
@@ -263,7 +267,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: COLORS.successBg,
+    backgroundColor: colors.successBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.lg,
@@ -271,11 +275,11 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
   },
   welcomeSubtitle: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
     marginBottom: SPACING.xl,
   },
@@ -287,7 +291,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
   },
@@ -297,15 +301,15 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   featureDescription: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   getStartedButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -315,7 +319,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
   },
   getStartedText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },
@@ -323,10 +327,10 @@ const styles = StyleSheet.create({
   // Template Selection Screen
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     padding: SPACING.lg,
     paddingTop: SPACING.xl,
     ...SHADOWS.sm,
@@ -334,11 +338,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
   },
   headerSubtitle: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   bulkActions: {
@@ -353,7 +357,7 @@ const styles = StyleSheet.create({
   },
   bulkButtonText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '500',
   },
   templateList: {
@@ -368,16 +372,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   templateItemSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + '08',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '08',
   },
   templateInfo: {
     flex: 1,
@@ -385,19 +389,19 @@ const styles = StyleSheet.create({
   templateName: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '500',
-    color: COLORS.text,
+    color: colors.text,
   },
   templateDetail: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   bottomBar: {
     flexDirection: 'row',
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     gap: SPACING.md,
     ...SHADOWS.md,
   },
@@ -408,12 +412,12 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   addItemsButton: {
     flex: 1,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -425,7 +429,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   addItemsButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },

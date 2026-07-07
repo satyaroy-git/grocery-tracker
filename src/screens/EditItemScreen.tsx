@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import {
   DEFAULT_CATEGORIES,
   UNITS_OF_MEASUREMENT,
@@ -40,6 +41,8 @@ export default function EditItemScreen() {
   const navigation = useNavigation();
   const route = useRoute<EditItemRouteProp>();
   const { itemId } = route.params;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -232,7 +235,7 @@ export default function EditItemScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -251,7 +254,7 @@ export default function EditItemScreen() {
             value={name}
             onChangeText={handleNameChange}
             placeholder="e.g. Rice, Milk, Eggs"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
           />
         </View>
 
@@ -263,7 +266,7 @@ export default function EditItemScreen() {
             onPress={() => setShowCategoryModal(true)}
           >
             <Text style={styles.pickerButtonText}>{category}</Text>
-            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -275,7 +278,7 @@ export default function EditItemScreen() {
             onPress={() => setShowUnitModal(true)}
           >
             <Text style={styles.pickerButtonText}>{selectedUnitLabel}</Text>
-            <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -317,7 +320,7 @@ export default function EditItemScreen() {
             value={currentQuantity}
             onChangeText={setCurrentQuantity}
             placeholder="0"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -330,7 +333,7 @@ export default function EditItemScreen() {
             value={threshold}
             onChangeText={setThreshold}
             placeholder="Alert when below this amount"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -343,7 +346,7 @@ export default function EditItemScreen() {
             value={price}
             onChangeText={setPrice}
             placeholder="e.g. 199"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -370,7 +373,7 @@ export default function EditItemScreen() {
               <Ionicons
                 name="hand-left-outline"
                 size={18}
-                color={consumptionMode === 'manual' ? COLORS.surface : COLORS.textSecondary}
+                color={consumptionMode === 'manual' ? colors.surface : colors.textSecondary}
               />
               <Text
                 style={[
@@ -391,7 +394,7 @@ export default function EditItemScreen() {
               <Ionicons
                 name="sync-outline"
                 size={18}
-                color={consumptionMode === 'auto' ? COLORS.surface : COLORS.textSecondary}
+                color={consumptionMode === 'auto' ? colors.surface : colors.textSecondary}
               />
               <Text
                 style={[
@@ -415,7 +418,7 @@ export default function EditItemScreen() {
                 value={autoRate}
                 onChangeText={setAutoRate}
                 placeholder="Amount consumed per period"
-                placeholderTextColor={COLORS.textLight}
+                placeholderTextColor={colors.textLight}
                 keyboardType="decimal-pad"
               />
             </View>
@@ -452,13 +455,13 @@ export default function EditItemScreen() {
           onPress={handleSave}
           disabled={saving}
         >
-          <Ionicons name="checkmark" size={22} color={COLORS.surface} />
+          <Ionicons name="checkmark" size={22} color={colors.surface} />
           <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
         </TouchableOpacity>
 
         {/* Delete Button */}
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
+          <Ionicons name="trash-outline" size={20} color={colors.danger} />
           <Text style={styles.deleteButtonText}>Delete Item</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -466,16 +469,17 @@ export default function EditItemScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -487,22 +491,22 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   pickerButton: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -511,12 +515,12 @@ const styles = StyleSheet.create({
   },
   pickerButtonText: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   pickerOptions: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     marginTop: SPACING.xs,
     maxHeight: 200,
@@ -524,17 +528,17 @@ const styles = StyleSheet.create({
   pickerOption: {
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   pickerOptionSelected: {
-    backgroundColor: COLORS.primaryLight + '20',
+    backgroundColor: colors.primaryLight + '20',
   },
   pickerOptionText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.text,
+    color: colors.text,
   },
   pickerOptionTextSelected: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
   toggleContainer: {
@@ -542,7 +546,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   toggleButton: {
     flex: 1,
@@ -550,22 +554,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     gap: SPACING.xs,
   },
   toggleButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   toggleText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   toggleTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
   },
   autoSection: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -580,23 +584,23 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   frequencyChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   frequencyChipText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   frequencyChipTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -610,7 +614,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   saveButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },
@@ -622,12 +626,12 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginTop: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
     borderRadius: BORDER_RADIUS.md,
   },
   deleteButtonText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
   },
-});
+  });

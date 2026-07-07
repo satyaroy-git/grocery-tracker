@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import {
   getAllItems,
   getAllRecentConsumptionLogs,
@@ -28,6 +29,8 @@ import {
 import { formatMoney, formatQuantity } from '../utils/numberFormat';
 
 export default function InsightsScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [recentLogs, setRecentLogs] = useState<ConsumptionLog[]>([]);
   const [weeklyData, setWeeklyData] = useState<{ week: string; total: number }[]>([]);
@@ -135,7 +138,7 @@ export default function InsightsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -154,12 +157,12 @@ export default function InsightsScreen() {
           as a bug when it's really just an empty state. */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Ionicons name="calendar-outline" size={24} color={COLORS.primary} />
+          <Ionicons name="calendar-outline" size={24} color={colors.primary} />
           <Text style={styles.summaryValue}>{getThisWeekConsumption()}</Text>
           <Text style={styles.summaryLabel}>Usage This Week</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Ionicons name="stats-chart-outline" size={24} color={COLORS.secondary} />
+          <Ionicons name="stats-chart-outline" size={24} color={colors.secondary} />
           <Text style={styles.summaryValue}>{getThisMonthConsumption()}</Text>
           <Text style={styles.summaryLabel}>Usage This Month</Text>
         </View>
@@ -175,7 +178,7 @@ export default function InsightsScreen() {
       {expenditure && (
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Ionicons name="wallet-outline" size={20} color={COLORS.success} />
+            <Ionicons name="wallet-outline" size={20} color={colors.success} />
             <Text style={styles.cardTitle}>Expenditure</Text>
           </View>
 
@@ -339,7 +342,7 @@ export default function InsightsScreen() {
       {/* Fast Moving Alerts */}
       <View style={styles.card}>
         <View style={styles.cardHeaderRow}>
-          <Ionicons name="warning-outline" size={20} color={COLORS.warning} />
+          <Ionicons name="warning-outline" size={20} color={colors.warning} />
           <Text style={styles.cardTitle}>Fast-Moving Items</Text>
         </View>
         {fastMoving.length === 0 ? (
@@ -366,16 +369,17 @@ export default function InsightsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -388,7 +392,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     alignItems: 'center',
@@ -397,23 +401,23 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginTop: SPACING.xs,
   },
   summaryLabel: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   usageHint: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textLight,
+    color: colors.textLight,
     textAlign: 'center',
     marginBottom: SPACING.md,
     lineHeight: 16,
   },
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -422,7 +426,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   cardHeaderRow: {
@@ -439,19 +443,19 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginRight: SPACING.sm,
   },
   itemChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   itemChipText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   itemChipTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontWeight: '600',
   },
   chartContainer: {
@@ -468,37 +472,37 @@ const styles = StyleSheet.create({
   },
   barValue: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.xs,
   },
   barTrack: {
     flex: 1,
     width: '100%',
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     borderRadius: BORDER_RADIUS.sm,
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
   barFill: {
     width: '100%',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.sm,
     minHeight: 4,
   },
   barLabel: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   chartUnit: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingVertical: SPACING.lg,
   },
@@ -514,34 +518,34 @@ const styles = StyleSheet.create({
   spendSummaryDivider: {
     width: 1,
     height: 32,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   spendSummaryValue: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.success,
+    color: colors.success,
   },
   spendSummaryLabel: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   spendCaveat: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textLight,
+    color: colors.textLight,
     marginTop: SPACING.sm,
     lineHeight: 16,
   },
   subChartTitle: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
   barFillSpend: {
     width: '100%',
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderRadius: BORDER_RADIUS.sm,
     minHeight: 4,
   },
@@ -554,18 +558,18 @@ const styles = StyleSheet.create({
   categorySpendName: {
     width: 90,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.text,
+    color: colors.text,
   },
   categorySpendBarTrack: {
     flex: 1,
     height: 10,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     borderRadius: BORDER_RADIUS.sm,
     overflow: 'hidden',
   },
   categorySpendBarFill: {
     height: '100%',
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderRadius: BORDER_RADIUS.sm,
   },
   categorySpendValue: {
@@ -573,20 +577,20 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   rankingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   rankBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.primary + '20',
+    backgroundColor: colors.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.sm,
@@ -594,25 +598,25 @@ const styles = StyleSheet.create({
   rankText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   rankName: {
     flex: 1,
     fontSize: FONT_SIZES.md,
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '500',
   },
   rankValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   alertItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   alertInfo: {
     flex: 1,
@@ -620,15 +624,15 @@ const styles = StyleSheet.create({
   alertName: {
     fontSize: FONT_SIZES.md,
     fontWeight: '500',
-    color: COLORS.text,
+    color: colors.text,
   },
   alertDetail: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   alertBadge: {
-    backgroundColor: COLORS.warningBg,
+    backgroundColor: colors.warningBg,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
@@ -636,6 +640,6 @@ const styles = StyleSheet.create({
   alertBadgeText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.warning,
+    color: colors.warning,
   },
 });

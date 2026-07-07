@@ -10,7 +10,8 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 export interface SelectOption {
   label: string;
@@ -55,6 +56,8 @@ export default function SelectModal({
   addCustomLabel = '+ Add New',
   addCustomPlaceholder = 'Type a new option...',
 }: SelectModalProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [showAddInput, setShowAddInput] = useState(false);
   const [customText, setCustomText] = useState('');
 
@@ -84,7 +87,7 @@ export default function SelectModal({
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={8}>
-              <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -107,7 +110,7 @@ export default function SelectModal({
                   <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                     {item.label}
                   </Text>
-                  {isSelected && <Ionicons name="checkmark" size={20} color={COLORS.primary} />}
+                  {isSelected && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                 </TouchableOpacity>
               );
             }}
@@ -119,7 +122,7 @@ export default function SelectModal({
                       style={styles.addButton}
                       onPress={() => setShowAddInput(true)}
                     >
-                      <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                      <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
                       <Text style={styles.addButtonText}>{addCustomLabel}</Text>
                     </TouchableOpacity>
                   ) : (
@@ -129,7 +132,7 @@ export default function SelectModal({
                         value={customText}
                         onChangeText={setCustomText}
                         placeholder={addCustomPlaceholder}
-                        placeholderTextColor={COLORS.textLight}
+                        placeholderTextColor={colors.textLight}
                         autoFocus
                         onSubmitEditing={handleSubmitCustom}
                       />
@@ -138,7 +141,7 @@ export default function SelectModal({
                         onPress={handleSubmitCustom}
                         disabled={!customText.trim()}
                       >
-                        <Ionicons name="checkmark" size={20} color={COLORS.surface} />
+                        <Ionicons name="checkmark" size={20} color={colors.textOnPrimary} />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -152,91 +155,92 @@ export default function SelectModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: COLORS.overlay,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
-    maxHeight: '75%',
-    minHeight: '40%',
-    ...SHADOWS.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  title: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  list: {
-    paddingHorizontal: SPACING.md,
-  },
-  option: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  optionSelected: {
-    backgroundColor: COLORS.primaryLight + '15',
-  },
-  optionText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-  },
-  optionTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  addSection: {
-    paddingVertical: SPACING.md,
-    paddingBottom: SPACING.xl,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    paddingVertical: SPACING.md,
-  },
-  addButtonText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  addInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  addInput: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
-  },
-  addConfirmButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: BORDER_RADIUS.xl,
+      borderTopRightRadius: BORDER_RADIUS.xl,
+      maxHeight: '75%',
+      minHeight: '40%',
+      ...SHADOWS.lg,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    list: {
+      paddingHorizontal: SPACING.md,
+    },
+    option: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    optionSelected: {
+      backgroundColor: colors.primaryLight + '15',
+    },
+    optionText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+    },
+    optionTextSelected: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    addSection: {
+      paddingVertical: SPACING.md,
+      paddingBottom: SPACING.xl,
+    },
+    addButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      paddingVertical: SPACING.md,
+    },
+    addButtonText: {
+      fontSize: FONT_SIZES.md,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    addInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+    },
+    addInput: {
+      flex: 1,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+    },
+    addConfirmButton: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });

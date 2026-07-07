@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { getItemById, restockItem, logConsumption, updateItemPrice } from '../database';
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
@@ -23,6 +24,8 @@ type RestockRouteProp = RouteProp<InventoryStackParamList, 'Restock'>;
 type PriceEntryMode = 'total' | 'perUnit';
 
 export default function RestockScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<RestockRouteProp>();
   const { itemId } = route.params;
@@ -174,7 +177,7 @@ export default function RestockScreen() {
   if (loading || !item) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -193,7 +196,7 @@ export default function RestockScreen() {
         <View style={styles.stockCard}>
           <Text style={styles.itemName}>{item.name}</Text>
           <View style={styles.stockRow}>
-            <Ionicons name="cube-outline" size={24} color={COLORS.primary} />
+            <Ionicons name="cube-outline" size={24} color={colors.primary} />
             <Text style={styles.stockValue}>
               {formatQuantity(item.currentQuantity)} {item.unit}
             </Text>
@@ -212,7 +215,7 @@ export default function RestockScreen() {
               <Ionicons
                 name="add-outline"
                 size={18}
-                color={mode === 'add' ? COLORS.surface : COLORS.textSecondary}
+                color={mode === 'add' ? colors.surface : colors.textSecondary}
               />
               <Text style={[styles.toggleText, mode === 'add' && styles.toggleTextActive]}>
                 Add to Stock
@@ -225,7 +228,7 @@ export default function RestockScreen() {
               <Ionicons
                 name="swap-horizontal-outline"
                 size={18}
-                color={mode === 'set' ? COLORS.surface : COLORS.textSecondary}
+                color={mode === 'set' ? colors.surface : colors.textSecondary}
               />
               <Text style={[styles.toggleText, mode === 'set' && styles.toggleTextActive]}>
                 Set New Total
@@ -244,7 +247,7 @@ export default function RestockScreen() {
             value={quantity}
             onChangeText={setQuantity}
             placeholder={mode === 'add' ? 'Amount to add' : 'New total amount'}
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
         </View>
@@ -289,7 +292,7 @@ export default function RestockScreen() {
               value={price}
               onChangeText={setPrice}
               placeholder="e.g. 199"
-              placeholderTextColor={COLORS.textLight}
+              placeholderTextColor={colors.textLight}
               keyboardType="decimal-pad"
             />
           ) : (
@@ -298,7 +301,7 @@ export default function RestockScreen() {
               value={pricePerUnit}
               onChangeText={setPricePerUnit}
               placeholder={`e.g. 50 per ${item.unit}`}
-              placeholderTextColor={COLORS.textLight}
+              placeholderTextColor={colors.textLight}
               keyboardType="decimal-pad"
             />
           )}
@@ -327,7 +330,7 @@ export default function RestockScreen() {
             {mode === 'add' && (
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Adding:</Text>
-                <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                <Text style={[styles.previewValue, { color: colors.success }]}>
                   +{formatQuantity(parseFloat(quantity) || 0)} {item.unit}
                 </Text>
               </View>
@@ -341,7 +344,7 @@ export default function RestockScreen() {
             {calculatedPrice !== null && (
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Total Price:</Text>
-                <Text style={[styles.previewValue, { color: COLORS.success }]}>
+                <Text style={[styles.previewValue, { color: colors.success }]}>
                   ₹{formatMoney(calculatedPrice)}
                 </Text>
               </View>
@@ -355,7 +358,7 @@ export default function RestockScreen() {
           onPress={handleRestock}
           disabled={submitting}
         >
-          <Ionicons name="checkmark-circle-outline" size={22} color={COLORS.surface} />
+          <Ionicons name="checkmark-circle-outline" size={22} color={colors.surface} />
           <Text style={styles.confirmButtonText}>
             {submitting ? 'Restocking...' : 'Confirm Restock'}
           </Text>
@@ -365,23 +368,24 @@ export default function RestockScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
   stockCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     alignItems: 'center',
@@ -391,7 +395,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   stockRow: {
@@ -402,11 +406,11 @@ const styles = StyleSheet.create({
   stockValue: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   stockLabel: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   field: {
@@ -415,21 +419,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   priceHint: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textLight,
+    color: colors.textLight,
     marginTop: SPACING.xs,
   },
   priceModeToggle: {
@@ -443,25 +447,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   priceModeButtonActive: {
-    backgroundColor: COLORS.primaryLight + '25',
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primaryLight + '25',
+    borderColor: colors.primary,
   },
   priceModeText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   priceModeTextActive: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   priceCalcText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.success,
+    color: colors.success,
     fontWeight: '600',
     marginTop: SPACING.xs,
   },
@@ -470,7 +474,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   toggleButton: {
     flex: 1,
@@ -478,22 +482,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     gap: SPACING.xs,
   },
   toggleButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   toggleText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   toggleTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
   },
   previewCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -502,7 +506,7 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontSize: FONT_SIZES.md,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   previewRow: {
@@ -512,26 +516,26 @@ const styles = StyleSheet.create({
   },
   previewTotal: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     marginTop: SPACING.xs,
     paddingTop: SPACING.sm,
   },
   previewLabel: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   previewValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   previewFinal: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   confirmButton: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -545,7 +549,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   confirmButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },

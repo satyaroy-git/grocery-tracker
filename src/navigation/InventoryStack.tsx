@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { InventoryStackParamList } from './types';
 
 import ItemDetailScreen from '../screens/ItemDetailScreen';
@@ -17,11 +17,12 @@ import InventoryListScreen from '../screens/InventoryListScreen';
 const Stack = createNativeStackNavigator<InventoryStackParamList>();
 
 export default function InventoryStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: COLORS.surface },
-        headerTintColor: COLORS.text,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '600' },
       }}
     >
