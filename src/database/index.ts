@@ -9,6 +9,7 @@ export type AlertFrequency = 'daily' | 'every_2_days' | 'weekly' | 'never';
 // 'system' follows the OS-level appearance setting; 'light'/'dark' pin the
 // app to that mode regardless of what the device is set to.
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type RecurringFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly';
 
 export interface GroceryItem {
   id: number;
@@ -66,6 +67,19 @@ export interface AppSettings {
   alertFrequency: AlertFrequency;
   onboardingComplete: boolean;
   themeMode: ThemeMode;
+  notificationsEnabled: boolean;
+}
+
+export interface RecurringItem {
+  id: number;
+  name: string;
+  category: string;
+  unit: string;
+  quantity: number;
+  frequency: RecurringFrequency;
+  nextDueDate: string; // ISO date 'YYYY-MM-DD'
+  enabled: boolean;
+  createdAt: string;
 }
 
 export interface CreateItemInput {
@@ -157,6 +171,22 @@ export async function initDatabase(): Promise<void> {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('alertFrequency', 'daily');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('onboardingComplete', 'false');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('themeMode', 'system');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('notificationsEnabled', 'true');
+  `);
+
+  // Create recurring_items table (safe to run on every launch - IF NOT EXISTS)
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS recurring_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      unit TEXT NOT NULL,
+      quantity REAL NOT NULL DEFAULT 1,
+      frequency TEXT NOT NULL DEFAULT 'weekly',
+      nextDueDate TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   await migrateSchema();
@@ -353,15 +383,30 @@ export async function updateItemPrice(id: number, price: number): Promise<void> 
 
 export async function deductQuantity(id: number, quantity: number): Promise<void> {
   // Same float-noise fix as restockItem() above - round after computing in JS.
-  const row = await db.getFirstAsync<{ currentQuantity: number }>(
-    'SELECT currentQuantity FROM items WHERE id = ?',
+  const row = await db.getFirstAsync<{ currentQuantity: number; threshold: number; name: string; unit: string }>(
+    'SELECT currentQuantity, threshold, name, unit FROM items WHERE id = ?',
     [id]
   );
-  const newQuantity = Math.max(0, roundQuantity((row?.currentQuantity ?? 0) - quantity));
+  if (!row) return;
+  const oldQuantity = row.currentQuantity;
+  const newQuantity = Math.max(0, roundQuantity(oldQuantity - quantity));
   await db.runAsync(
     `UPDATE items SET currentQuantity = ?, updatedAt = datetime('now') WHERE id = ?`,
     [newQuantity, id]
   );
+
+  // Trigger a low-stock notification if this deduction just crossed the
+  // threshold (was above before, is at or below now). We import lazily to
+  // avoid circular dependency issues (notifications.ts imports from database).
+  if (oldQuantity > row.threshold && newQuantity <= row.threshold && newQuantity > 0) {
+    try {
+      const { triggerLowStockAlert } = await import('../services/notifications');
+      await triggerLowStockAlert(row.name, newQuantity, row.unit, row.threshold);
+    } catch (error) {
+      // Non-critical - don't let notification failure break the deduction
+      console.error('Low stock notification failed:', error);
+    }
+  }
 }
 
 // Consumption Logs
@@ -659,6 +704,7 @@ export async function getSettings(): Promise<AppSettings> {
     alertFrequency: (settings.alertFrequency as AlertFrequency) || 'daily',
     onboardingComplete: settings.onboardingComplete === 'true',
     themeMode: (settings.themeMode as ThemeMode) || 'system',
+    notificationsEnabled: settings.notificationsEnabled !== 'false',
   };
 }
 
@@ -685,6 +731,12 @@ export async function updateSettings(updates: Partial<AppSettings>): Promise<App
     await db.runAsync(
       "INSERT OR REPLACE INTO settings (key, value) VALUES ('themeMode', ?)",
       [updates.themeMode]
+    );
+  }
+  if (updates.notificationsEnabled !== undefined) {
+    await db.runAsync(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('notificationsEnabled', ?)",
+      [updates.notificationsEnabled.toString()]
     );
   }
   // Return the fresh settings so callers (e.g. SettingsScreen) can update UI state directly
@@ -736,6 +788,128 @@ export async function addCustomUnit(value: string, label?: string): Promise<void
   );
 }
 
+// ─── RECURRING ITEMS ──────────────────────────────────────────────────────────
+
+export async function addRecurringItem(input: {
+  name: string;
+  category: string;
+  unit: string;
+  quantity: number;
+  frequency: RecurringFrequency;
+}): Promise<number> {
+  // nextDueDate is calculated as the first occurrence from today based on frequency
+  const nextDueDate = calculateNextDueDate(new Date(), input.frequency);
+  const result = await db.runAsync(
+    `INSERT INTO recurring_items (name, category, unit, quantity, frequency, nextDueDate)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [input.name, input.category, input.unit, input.quantity, input.frequency, nextDueDate]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function getRecurringItems(): Promise<RecurringItem[]> {
+  const rows = await db.getAllAsync<{
+    id: number; name: string; category: string; unit: string;
+    quantity: number; frequency: string; nextDueDate: string;
+    enabled: number; createdAt: string;
+  }>('SELECT * FROM recurring_items ORDER BY nextDueDate ASC');
+  return rows.map((r) => ({
+    ...r,
+    frequency: r.frequency as RecurringFrequency,
+    enabled: r.enabled === 1,
+  }));
+}
+
+export async function updateRecurringItem(
+  id: number,
+  updates: Partial<{
+    name: string;
+    category: string;
+    unit: string;
+    quantity: number;
+    frequency: RecurringFrequency;
+    enabled: boolean;
+  }>
+): Promise<void> {
+  const setParts: string[] = [];
+  const values: (string | number)[] = [];
+
+  if (updates.name !== undefined) { setParts.push('name = ?'); values.push(updates.name); }
+  if (updates.category !== undefined) { setParts.push('category = ?'); values.push(updates.category); }
+  if (updates.unit !== undefined) { setParts.push('unit = ?'); values.push(updates.unit); }
+  if (updates.quantity !== undefined) { setParts.push('quantity = ?'); values.push(updates.quantity); }
+  if (updates.frequency !== undefined) { setParts.push('frequency = ?'); values.push(updates.frequency); }
+  if (updates.enabled !== undefined) { setParts.push('enabled = ?'); values.push(updates.enabled ? 1 : 0); }
+
+  if (setParts.length === 0) return;
+  values.push(id);
+  await db.runAsync(`UPDATE recurring_items SET ${setParts.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteRecurringItem(id: number): Promise<void> {
+  await db.runAsync('DELETE FROM recurring_items WHERE id = ?', [id]);
+}
+
+/**
+ * Processes all enabled recurring items whose nextDueDate is today or in the
+ * past. For each due item: adds it to the shopping list, then advances
+ * nextDueDate to the next occurrence. Idempotent per day since nextDueDate
+ * always moves forward.
+ */
+export async function processAndAdvanceRecurringItems(): Promise<void> {
+  const today = toIsoDateOnly(new Date());
+  const dueItems = await db.getAllAsync<{
+    id: number; name: string; category: string; unit: string;
+    quantity: number; frequency: string; nextDueDate: string;
+  }>(
+    `SELECT * FROM recurring_items WHERE enabled = 1 AND nextDueDate <= ?`,
+    [today]
+  );
+
+  for (const item of dueItems) {
+    // Add to shopping list
+    await addToShoppingList(item.name, item.category, item.unit, item.quantity);
+
+    // Advance nextDueDate
+    const currentDue = new Date(item.nextDueDate);
+    // If the due date is far in the past (user hasn't opened app in weeks),
+    // advance relative to today, not the old due date, to avoid flooding the
+    // shopping list with catch-up entries.
+    const baseDate = currentDue < new Date() ? new Date() : currentDue;
+    const nextDate = calculateNextDueDate(baseDate, item.frequency as RecurringFrequency);
+    await db.runAsync(
+      `UPDATE recurring_items SET nextDueDate = ? WHERE id = ?`,
+      [nextDate, item.id]
+    );
+  }
+}
+
+function calculateNextDueDate(from: Date, frequency: RecurringFrequency): string {
+  const next = new Date(from);
+  switch (frequency) {
+    case 'daily':
+      next.setDate(next.getDate() + 1);
+      break;
+    case 'weekly':
+      next.setDate(next.getDate() + 7);
+      break;
+    case 'biweekly':
+      next.setDate(next.getDate() + 14);
+      break;
+    case 'monthly':
+      next.setMonth(next.getMonth() + 1);
+      break;
+  }
+  return toIsoDateOnly(next);
+}
+
+function toIsoDateOnly(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export async function resetDatabase(): Promise<void> {
   await db.execAsync(`
     DELETE FROM consumption_logs;
@@ -743,10 +917,12 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM items;
     DELETE FROM custom_categories;
     DELETE FROM custom_units;
+    DELETE FROM recurring_items;
     DELETE FROM settings;
     INSERT INTO settings (key, value) VALUES ('defaultConsumptionMode', 'manual');
     INSERT INTO settings (key, value) VALUES ('alertFrequency', 'daily');
     INSERT INTO settings (key, value) VALUES ('onboardingComplete', 'false');
     INSERT INTO settings (key, value) VALUES ('themeMode', 'system');
+    INSERT INTO settings (key, value) VALUES ('notificationsEnabled', 'true');
   `);
 }

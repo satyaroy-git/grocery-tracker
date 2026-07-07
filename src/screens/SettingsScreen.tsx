@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -74,6 +75,21 @@ export default function SettingsScreen() {
   const handleThemeChange = async (mode: ThemeMode) => {
     if (mode === activeThemeMode) return;
     await setThemeMode(mode);
+  };
+
+  const handleToggleNotifications = async (value: boolean) => {
+    if (!settings) return;
+    try {
+      const updated = await updateSettings({ notificationsEnabled: value });
+      setSettings(updated);
+      if (value) {
+        // Re-schedule expiry alerts when notifications are re-enabled
+        const { scheduleExpiryAlerts } = await import('../services/notifications');
+        await scheduleExpiryAlerts();
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update notification settings.');
+    }
   };
 
   const handleResetData = () => {
@@ -204,6 +220,23 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             );
           })}
+        </View>
+      </View>
+
+      {/* Notifications */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Text style={styles.sectionDescription}>
+          Get alerts for expiring items (7 days before) and when stock runs low.
+        </Text>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Enable Notifications</Text>
+          <Switch
+            value={settings.notificationsEnabled}
+            onValueChange={handleToggleNotifications}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={settings.notificationsEnabled ? colors.primary : colors.textLight}
+          />
         </View>
       </View>
 
@@ -369,6 +402,17 @@ const createStyles = (colors: ThemeColors) =>
   themeOptionTextActive: {
     color: colors.surface,
     fontWeight: '700',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+  },
+  switchLabel: {
+    fontSize: FONT_SIZES.lg,
+    color: colors.text,
+    fontWeight: '500',
   },
   radioGroup: {
     gap: SPACING.sm,

@@ -20,6 +20,7 @@ export type ShoppingStackParamList = {
   ShoppingList: undefined;
   AddShoppingItem: undefined;
   PurchaseConfirm: { shoppingItemId: number };
+  RecurringItems: undefined;
 };
 
 export type DashboardStackParamList = {

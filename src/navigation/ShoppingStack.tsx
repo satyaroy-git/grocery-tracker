@@ -6,6 +6,7 @@ import { ShoppingStackParamList } from './types';
 import ShoppingListScreen from '../screens/ShoppingListScreen';
 import AddShoppingItemScreen from '../screens/AddShoppingItemScreen';
 import PurchaseConfirmScreen from '../screens/PurchaseConfirmScreen';
+import RecurringItemsScreen from '../screens/RecurringItemsScreen';
 
 const Stack = createNativeStackNavigator<ShoppingStackParamList>();
 
@@ -33,6 +34,11 @@ export default function ShoppingStack() {
         name="PurchaseConfirm"
         component={PurchaseConfirmScreen}
         options={{ title: 'Confirm Purchase' }}
+      />
+      <Stack.Screen
+        name="RecurringItems"
+        component={RecurringItemsScreen}
+        options={{ title: 'Recurring Items' }}
       />
     </Stack.Navigator>
   );

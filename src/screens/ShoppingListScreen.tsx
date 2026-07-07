@@ -185,6 +185,10 @@ export default function ShoppingListScreen() {
           <Ionicons name="trash-outline" size={16} color={colors.primary} />
           <Text style={styles.actionChipText}>Clear Done</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.actionChip} onPress={() => navigation.navigate('RecurringItems')}>
+          <Ionicons name="repeat-outline" size={16} color={colors.primary} />
+          <Text style={styles.actionChipText}>Recurring</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Summary */}
