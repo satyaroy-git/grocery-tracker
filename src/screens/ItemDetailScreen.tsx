@@ -107,7 +107,12 @@ export default function ItemDetailScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // SQLite's datetime('now') stores UTC without a timezone suffix. Append 'Z'
+    // so JavaScript's Date parser correctly interprets it as UTC rather than
+    // treating it as a local-time string (which would show the wrong time on
+    // devices in any timezone other than UTC).
+    const utcString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+    const date = new Date(utcString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
