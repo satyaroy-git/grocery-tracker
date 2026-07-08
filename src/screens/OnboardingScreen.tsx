@@ -281,11 +281,12 @@ const createStyles = (colors: ThemeColors) =>
   },
   welcomeScrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingBottom: SPACING.lg,
+    paddingTop: SPACING.xl,
   },
   welcomeContent: {
+    width: '100%',
     alignItems: 'center',
   },
   iconCircle: {
