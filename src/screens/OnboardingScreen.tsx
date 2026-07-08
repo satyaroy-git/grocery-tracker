@@ -101,72 +101,92 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   if (step === 0) {
     return (
       <View style={styles.welcomeContainer}>
-        <View style={styles.welcomeContent}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="leaf" size={48} color={colors.primary} />
-          </View>
-          <Text style={styles.welcomeTitle}>PantryPal</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Never run out of essentials again
-          </Text>
+        <ScrollView contentContainerStyle={styles.welcomeScrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.welcomeContent}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="leaf" size={48} color={colors.primary} />
+            </View>
+            <Text style={styles.welcomeTitle}>PantryPal</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Never run out of essentials again
+            </Text>
 
-          <View style={styles.featureList}>
-            <View style={styles.featureItem}>
-              <Ionicons name="cube-outline" size={24} color={colors.primary} />
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Track Inventory</Text>
-                <Text style={styles.featureDescription}>
-                  Keep tabs on what you have at home, including price and expiry dates
-                </Text>
+            <View style={styles.featureList}>
+              <View style={styles.featureItem}>
+                <Ionicons name="cube-outline" size={24} color={colors.primary} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Track Inventory</Text>
+                  <Text style={styles.featureDescription}>
+                    Keep tabs on what you have at home, including price and expiry dates
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="barcode-outline" size={24} color={colors.accent} />
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Scan Barcodes</Text>
-                <Text style={styles.featureDescription}>
-                  Scan a product barcode to add it in seconds
-                </Text>
+              <View style={styles.featureItem}>
+                <Ionicons name="barcode-outline" size={24} color={colors.accent} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Scan Barcodes</Text>
+                  <Text style={styles.featureDescription}>
+                    Scan a product barcode to add it in seconds
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="sparkles-outline" size={24} color={colors.secondary} />
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>AI Invoice Scanning</Text>
-                <Text style={styles.featureDescription}>
-                  Scan a Blinkit/Instamart/BigBasket invoice to add many items at once
-                </Text>
+              <View style={styles.featureItem}>
+                <Ionicons name="sparkles-outline" size={24} color={colors.secondary} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>AI Invoice Scanning</Text>
+                  <Text style={styles.featureDescription}>
+                    Scan a Blinkit/Instamart/BigBasket invoice to add many items at once
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="trending-down-outline" size={24} color={colors.warning} />
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Monitor Usage</Text>
-                <Text style={styles.featureDescription}>
-                  Log consumption and get low stock alerts
-                </Text>
+              <View style={styles.featureItem}>
+                <Ionicons name="restaurant-outline" size={24} color={colors.danger} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>AI Recipe Suggestions</Text>
+                  <Text style={styles.featureDescription}>
+                    Get daily meal ideas (breakfast, lunch, dinner) based on your pantry items
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="cart-outline" size={24} color={colors.success} />
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Smart Shopping Lists</Text>
-                <Text style={styles.featureDescription}>
-                  Auto-generate lists from your usage patterns
-                </Text>
+              <View style={styles.featureItem}>
+                <Ionicons name="trending-down-outline" size={24} color={colors.warning} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Monitor Usage</Text>
+                  <Text style={styles.featureDescription}>
+                    Log consumption and get low stock alerts
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="analytics-outline" size={24} color={colors.secondary} />
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Insights & Analytics</Text>
-                <Text style={styles.featureDescription}>
-                  Understand your consumption patterns
-                </Text>
+              <View style={styles.featureItem}>
+                <Ionicons name="cart-outline" size={24} color={colors.success} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Smart Shopping Lists</Text>
+                  <Text style={styles.featureDescription}>
+                    Auto-generate lists from your usage patterns
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.featureItem}>
+                <Ionicons name="analytics-outline" size={24} color={colors.secondary} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Insights & Analytics</Text>
+                  <Text style={styles.featureDescription}>
+                    Understand your consumption patterns
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.featureItem}>
+                <Ionicons name="people-outline" size={24} color={colors.accent} />
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Household Sharing</Text>
+                  <Text style={styles.featureDescription}>
+                    Share your pantry with family members via cloud sync
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
+        </ScrollView>
 
         <TouchableOpacity style={styles.getStartedButton} onPress={() => setStep(1)}>
           <Text style={styles.getStartedText}>Get Started</Text>
@@ -258,11 +278,14 @@ const createStyles = (colors: ThemeColors) =>
     flex: 1,
     backgroundColor: colors.surface,
     padding: SPACING.lg,
-    justifyContent: 'space-between',
+  },
+  welcomeScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: SPACING.lg,
   },
   welcomeContent: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
   },
   iconCircle: {

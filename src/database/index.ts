@@ -276,16 +276,22 @@ export async function createItem(input: CreateItemInput): Promise<number> {
   );
   const itemId = result.lastInsertRowId;
 
-  // Record the initial purchase as a 'restock' log entry (quantity=0 delta
-  // to stock since it's already reflected in currentQuantity above) so this
-  // first purchase counts toward expenditure totals the same way every
-  // later restock does. Only logged when a price was actually provided AND
-  // there's a meaningful quantity - an item added with 0 quantity and no
-  // price shouldn't create a log entry.
+  // Record the initial purchase as a 'restock' log entry so this first
+  // purchase counts toward expenditure totals the same way every later
+  // restock does. The quantity logged is the initial stock amount (what
+  // the user entered as currentQuantity) so Recent Activity correctly
+  // shows "+30 nos" instead of a confusing "+0 nos".
   if (input.price !== undefined && input.price !== null && input.price > 0) {
     await db.runAsync(
       `INSERT INTO consumption_logs (itemId, quantity, type, note, price) VALUES (?, ?, 'restock', ?, ?)`,
-      [itemId, 0, 'Initial purchase', input.price]
+      [itemId, roundQuantity(input.currentQuantity), 'Initial purchase', input.price]
+    );
+  } else if (input.currentQuantity > 0) {
+    // Even without a price, log the initial stock addition so Recent Activity
+    // shows the initial quantity added rather than being empty
+    await db.runAsync(
+      `INSERT INTO consumption_logs (itemId, quantity, type, note) VALUES (?, ?, 'restock', ?)`,
+      [itemId, roundQuantity(input.currentQuantity), 'Initial purchase']
     );
   }
 
