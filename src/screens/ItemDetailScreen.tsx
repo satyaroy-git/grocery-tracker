@@ -194,7 +194,7 @@ export default function ItemDetailScreen() {
         </View>
         {item.daysUntilEmpty !== null && (
           <Text style={styles.daysText}>
-            ~{item.daysUntilEmpty} days until empty
+            {t.daysUntilEmpty.replace('{days}', String(item.daysUntilEmpty))}
           </Text>
         )}
       </View>

@@ -162,7 +162,7 @@ export default function InsightsScreen() {
           <Text style={styles.summaryLabel}>{t.totalItems}</Text>
           {items.filter((i) => i.status === 'low' || i.status === 'empty').length > 0 && (
             <Text style={styles.summaryAlert}>
-              {items.filter((i) => i.status === 'low' || i.status === 'empty').length} low stock
+              {items.filter((i) => i.status === 'low' || i.status === 'empty').length} {t.pantryLowStock.toLowerCase()}
             </Text>
           )}
         </View>
@@ -174,7 +174,7 @@ export default function InsightsScreen() {
           <Text style={styles.summaryLabel}>{t.expiringSoon}</Text>
           {items.filter((i) => i.isExpired).length > 0 && (
             <Text style={[styles.summaryAlert, { color: colors.danger }]}>
-              {items.filter((i) => i.isExpired).length} expired
+              {items.filter((i) => i.isExpired).length} {t.pantryExpired.toLowerCase()}
             </Text>
           )}
         </View>

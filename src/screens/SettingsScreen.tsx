@@ -148,7 +148,7 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t.consumptionModeDefault}</Text>
         <Text style={styles.sectionDescription}>
-          Set the default mode for new items
+          {t.consumptionModeDescription}
         </Text>
         <View style={styles.toggleContainer}>
           <TouchableOpacity
@@ -175,7 +175,7 @@ export default function SettingsScreen() {
                 settings.defaultConsumptionMode === 'manual' && styles.toggleTextActive,
               ]}
             >
-              Manual
+              {t.manual}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -202,7 +202,7 @@ export default function SettingsScreen() {
                 settings.defaultConsumptionMode === 'auto' && styles.toggleTextActive,
               ]}
             >
-              Auto
+              {t.auto}
             </Text>
           </TouchableOpacity>
         </View>
@@ -212,7 +212,7 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t.appearance}</Text>
         <Text style={styles.sectionDescription}>
-          Choose how PantryPal looks. "System" follows your device's setting.
+          {t.appearanceDescription}
         </Text>
         <View style={styles.themeRow}>
           {THEME_OPTIONS.map((opt) => {
@@ -395,7 +395,7 @@ export default function SettingsScreen() {
           <Text style={styles.appName}>PantryPal</Text>
           <Text style={styles.appVersion}>Version 1.0.0</Text>
           <Text style={styles.appDescription}>
-            Track your grocery inventory, monitor consumption patterns, and never run out of essentials.
+            {t.appDescription}
           </Text>
         </View>
         <TouchableOpacity
@@ -415,7 +415,7 @@ export default function SettingsScreen() {
           <Text style={styles.dangerButtonText}>{t.resetAllData}</Text>
         </TouchableOpacity>
         <Text style={styles.dangerDescription}>
-          This will permanently delete all your items, logs, and settings.
+          {t.dangerZoneDescription}
         </Text>
       </View>
     </ScrollView>

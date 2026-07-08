@@ -177,6 +177,14 @@ export interface Translations {
   recipeSuggestionsDescription: string;
   enableSuggestions: string;
   alertFrequencyDescription: string;
+
+  // Settings descriptions
+  consumptionModeDescription: string;
+  appearanceDescription: string;
+  appDescription: string;
+  dangerZoneDescription: string;
+  daysUntilEmpty: string;
+  initialPurchase: string;
 }
 
 export const en: Translations = {
@@ -356,6 +364,14 @@ export const en: Translations = {
   recipeSuggestionsDescription: 'Get daily meal ideas (breakfast, lunch, dinner, snacks) based on what\'s in your pantry. Powered by AI.',
   enableSuggestions: 'Enable Suggestions',
   alertFrequencyDescription: 'How often to check and notify about low stock',
+
+  // Settings descriptions
+  consumptionModeDescription: 'Set the default mode for new items',
+  appearanceDescription: 'Choose how PantryPal looks. "System" follows your device\'s setting.',
+  appDescription: 'Track your grocery inventory, monitor consumption patterns, and never run out of essentials.',
+  dangerZoneDescription: 'This will permanently delete all your items, logs, and settings.',
+  daysUntilEmpty: '~{days} days until empty',
+  initialPurchase: 'Initial purchase',
 };
 
 export const hi: Translations = {
@@ -535,6 +551,14 @@ export const hi: Translations = {
   recipeSuggestionsDescription: 'आपकी पैंट्री में उपलब्ध सामग्री के आधार पर दैनिक भोजन सुझाव (नाश्ता, दोपहर, रात का खाना, स्नैक्स)। AI द्वारा संचालित।',
   enableSuggestions: 'सुझाव चालू करें',
   alertFrequencyDescription: 'कम स्टॉक की सूचना कितनी बार जांचें',
+
+  // Settings descriptions
+  consumptionModeDescription: 'नए आइटम के लिए डिफ़ॉल्ट मोड सेट करें',
+  appearanceDescription: 'PantryPal का रूप चुनें। "सिस्टम" आपके डिवाइस की सेटिंग का पालन करता है।',
+  appDescription: 'अपनी किराने की सूची ट्रैक करें, उपभोग पैटर्न पर नज़र रखें, और जरूरी चीजों की कमी न होने दें।',
+  dangerZoneDescription: 'यह आपके सभी आइटम, लॉग और सेटिंग्स को स्थायी रूप से हटा देगा।',
+  daysUntilEmpty: '~{days} दिन में खत्म',
+  initialPurchase: 'शुरुआती खरीद',
 };
 
 const translations: Record<Language, Translations> = { en, hi };
