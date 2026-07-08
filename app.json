@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "PantryPal",
-    "slug": "pantrypal",
+    "slug": "pantry-pal",
     "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -70,7 +70,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "394bc214-5bf9-48b2-ae2a-ab356dfc4f8b"
       }
     }
   }
