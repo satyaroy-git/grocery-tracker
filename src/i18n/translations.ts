@@ -171,6 +171,12 @@ export interface Translations {
   // Scan
   scanInvoice: string;
   scanBarcode: string;
+
+  // Recipe
+  recipeSuggestions: string;
+  recipeSuggestionsDescription: string;
+  enableSuggestions: string;
+  alertFrequencyDescription: string;
 }
 
 export const en: Translations = {
@@ -344,6 +350,12 @@ export const en: Translations = {
   // Scan
   scanInvoice: 'Scan Invoice',
   scanBarcode: 'Scan Barcode',
+
+  // Recipe
+  recipeSuggestions: 'Recipe Suggestions',
+  recipeSuggestionsDescription: 'Get daily meal ideas (breakfast, lunch, dinner, snacks) based on what\'s in your pantry. Powered by AI.',
+  enableSuggestions: 'Enable Suggestions',
+  alertFrequencyDescription: 'How often to check and notify about low stock',
 };
 
 export const hi: Translations = {
@@ -517,6 +529,12 @@ export const hi: Translations = {
   // Scan
   scanInvoice: 'इनवॉइस स्कैन',
   scanBarcode: 'बारकोड स्कैन',
+
+  // Recipe
+  recipeSuggestions: 'रेसिपी सुझाव',
+  recipeSuggestionsDescription: 'आपकी पैंट्री में उपलब्ध सामग्री के आधार पर दैनिक भोजन सुझाव (नाश्ता, दोपहर, रात का खाना, स्नैक्स)। AI द्वारा संचालित।',
+  enableSuggestions: 'सुझाव चालू करें',
+  alertFrequencyDescription: 'कम स्टॉक की सूचना कितनी बार जांचें',
 };
 
 const translations: Record<Language, Translations> = { en, hi };

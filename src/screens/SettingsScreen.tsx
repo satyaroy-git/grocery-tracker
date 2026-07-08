@@ -265,13 +265,13 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <View style={styles.cardHeaderRow}>
           <Ionicons name="restaurant-outline" size={20} color={colors.secondary} />
-          <Text style={styles.sectionTitle}>Recipe Suggestions</Text>
+          <Text style={styles.sectionTitle}>{t.recipeSuggestions}</Text>
         </View>
         <Text style={styles.sectionDescription}>
-          Get daily meal ideas (breakfast, lunch, dinner, snacks) based on what's in your pantry. Powered by AI.
+          {t.recipeSuggestionsDescription}
         </Text>
         <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Enable Suggestions</Text>
+          <Text style={styles.switchLabel}>{t.enableSuggestions}</Text>
           <Switch
             value={settings.recipeSuggestionsEnabled}
             onValueChange={handleToggleRecipeSuggestions}
@@ -302,7 +302,7 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t.alertFrequency}</Text>
         <Text style={styles.sectionDescription}>
-          How often to check and notify about low stock
+          {t.alertFrequencyDescription}
         </Text>
         <View style={styles.radioGroup}>
           {ALERT_FREQUENCIES.map((freq) => (

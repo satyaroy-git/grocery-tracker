@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../i18n';
 import { InventoryStackParamList } from './types';
 
 import ItemDetailScreen from '../screens/ItemDetailScreen';
@@ -18,6 +19,7 @@ const Stack = createNativeStackNavigator<InventoryStackParamList>();
 
 export default function InventoryStack() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <Stack.Navigator
       screenOptions={{
@@ -29,42 +31,42 @@ export default function InventoryStack() {
       <Stack.Screen
         name="InventoryList"
         component={InventoryListScreen}
-        options={{ title: 'My Pantry' }}
+        options={{ title: t.pantryTitle }}
       />
       <Stack.Screen
         name="AddItem"
         component={AddItemScreen}
-        options={{ title: 'Add Item' }}
+        options={{ title: t.addItem }}
       />
       <Stack.Screen
         name="EditItem"
         component={EditItemScreen}
-        options={{ title: 'Edit Item' }}
+        options={{ title: t.editItem }}
       />
       <Stack.Screen
         name="ItemDetail"
         component={ItemDetailScreen}
-        options={{ title: 'Item Details' }}
+        options={{ title: t.itemDetail }}
       />
       <Stack.Screen
         name="LogUsage"
         component={LogUsageScreen}
-        options={{ title: 'Log Usage' }}
+        options={{ title: t.logUsage }}
       />
       <Stack.Screen
         name="Restock"
         component={RestockScreen}
-        options={{ title: 'Restock' }}
+        options={{ title: t.restock }}
       />
       <Stack.Screen
         name="ScanInvoice"
         component={ScanInvoiceScreen}
-        options={{ title: 'Scan Invoice' }}
+        options={{ title: t.scanInvoice }}
       />
       <Stack.Screen
         name="BarcodeScan"
         component={BarcodeScanScreen}
-        options={{ title: 'Scan Barcode' }}
+        options={{ title: t.scanBarcode }}
       />
     </Stack.Navigator>
   );

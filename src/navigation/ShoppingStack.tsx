@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../i18n';
 import { ShoppingStackParamList } from './types';
 
 import ShoppingListScreen from '../screens/ShoppingListScreen';
@@ -12,6 +13,7 @@ const Stack = createNativeStackNavigator<ShoppingStackParamList>();
 
 export default function ShoppingStack() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <Stack.Navigator
       screenOptions={{
@@ -23,22 +25,22 @@ export default function ShoppingStack() {
       <Stack.Screen
         name="ShoppingList"
         component={ShoppingListScreen}
-        options={{ title: 'Shopping List' }}
+        options={{ title: t.shoppingList }}
       />
       <Stack.Screen
         name="AddShoppingItem"
         component={AddShoppingItemScreen}
-        options={{ title: 'Add Item' }}
+        options={{ title: t.addItem }}
       />
       <Stack.Screen
         name="PurchaseConfirm"
         component={PurchaseConfirmScreen}
-        options={{ title: 'Confirm Purchase' }}
+        options={{ title: t.confirmPurchase }}
       />
       <Stack.Screen
         name="RecurringItems"
         component={RecurringItemsScreen}
-        options={{ title: 'Recurring Items' }}
+        options={{ title: t.recurringItems }}
       />
     </Stack.Navigator>
   );
