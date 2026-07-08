@@ -35,7 +35,7 @@ interface OnboardingScreenProps {
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const styles = createStyles(colors);
   const [step, setStep] = useState(0);
   const [templates, setTemplates] = useState<TemplateSelection[]>(
@@ -99,6 +99,26 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   // Step 0: Welcome
   if (step === 0) {
+    const features = language === 'hi' ? [
+      { icon: 'cube-outline' as const, color: colors.primary, title: 'इन्वेंटरी ट्रैक करें', desc: 'घर में क्या है, कीमत और एक्सपायरी तिथि सहित ट्रैक करें' },
+      { icon: 'barcode-outline' as const, color: colors.accent, title: 'बारकोड स्कैन करें', desc: 'प्रोडक्ट बारकोड स्कैन करके सेकंडों में जोड़ें' },
+      { icon: 'sparkles-outline' as const, color: colors.secondary, title: 'AI इनवॉइस स्कैनिंग', desc: 'Blinkit/Instamart/BigBasket इनवॉइस स्कैन करके एक साथ कई आइटम जोड़ें' },
+      { icon: 'restaurant-outline' as const, color: colors.danger, title: 'AI रेसिपी सुझाव', desc: 'पैंट्री में उपलब्ध सामग्री के आधार पर दैनिक भोजन सुझाव पाएं' },
+      { icon: 'trending-down-outline' as const, color: colors.warning, title: 'उपयोग मॉनिटर करें', desc: 'उपभोग लॉग करें और कम स्टॉक अलर्ट पाएं' },
+      { icon: 'cart-outline' as const, color: colors.success, title: 'स्मार्ट शॉपिंग लिस्ट', desc: 'उपयोग पैटर्न से ऑटो-जनरेट सूची' },
+      { icon: 'analytics-outline' as const, color: colors.secondary, title: 'विश्लेषण और एनालिटिक्स', desc: 'अपने उपभोग पैटर्न को समझें' },
+      { icon: 'people-outline' as const, color: colors.accent, title: 'परिवार शेयरिंग', desc: 'क्लाउड सिंक के ज़रिए परिवार के सदस्यों के साथ पैंट्री शेयर करें' },
+    ] : [
+      { icon: 'cube-outline' as const, color: colors.primary, title: 'Track Inventory', desc: 'Keep tabs on what you have at home, including price and expiry dates' },
+      { icon: 'barcode-outline' as const, color: colors.accent, title: 'Scan Barcodes', desc: 'Scan a product barcode to add it in seconds' },
+      { icon: 'sparkles-outline' as const, color: colors.secondary, title: 'AI Invoice Scanning', desc: 'Scan a Blinkit/Instamart/BigBasket invoice to add many items at once' },
+      { icon: 'restaurant-outline' as const, color: colors.danger, title: 'AI Recipe Suggestions', desc: 'Get daily meal ideas (breakfast, lunch, dinner) based on your pantry items' },
+      { icon: 'trending-down-outline' as const, color: colors.warning, title: 'Monitor Usage', desc: 'Log consumption and get low stock alerts' },
+      { icon: 'cart-outline' as const, color: colors.success, title: 'Smart Shopping Lists', desc: 'Auto-generate lists from your usage patterns' },
+      { icon: 'analytics-outline' as const, color: colors.secondary, title: 'Insights & Analytics', desc: 'Understand your consumption patterns' },
+      { icon: 'people-outline' as const, color: colors.accent, title: 'Household Sharing', desc: 'Share your pantry with family members via cloud sync' },
+    ];
+
     return (
       <View style={styles.welcomeContainer}>
         <ScrollView contentContainerStyle={styles.welcomeScrollContent} showsVerticalScrollIndicator={false}>
@@ -108,88 +128,27 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             </View>
             <Text style={styles.welcomeTitle}>PantryPal</Text>
             <Text style={styles.welcomeSubtitle}>
-              Never run out of essentials again
+              {language === 'hi' ? 'ज़रूरी चीज़ों की कमी न होने दें' : 'Never run out of essentials again'}
             </Text>
 
             <View style={styles.featureList}>
-              <View style={styles.featureItem}>
-                <Ionicons name="cube-outline" size={24} color={colors.primary} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>Track Inventory</Text>
-                  <Text style={styles.featureDescription}>
-                    Keep tabs on what you have at home, including price and expiry dates
-                  </Text>
+              {features.map((f, idx) => (
+                <View key={idx} style={styles.featureItem}>
+                  <Ionicons name={f.icon} size={24} color={f.color} />
+                  <View style={styles.featureText}>
+                    <Text style={styles.featureTitle}>{f.title}</Text>
+                    <Text style={styles.featureDescription}>{f.desc}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="barcode-outline" size={24} color={colors.accent} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>Scan Barcodes</Text>
-                  <Text style={styles.featureDescription}>
-                    Scan a product barcode to add it in seconds
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="sparkles-outline" size={24} color={colors.secondary} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>AI Invoice Scanning</Text>
-                  <Text style={styles.featureDescription}>
-                    Scan a Blinkit/Instamart/BigBasket invoice to add many items at once
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="restaurant-outline" size={24} color={colors.danger} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>AI Recipe Suggestions</Text>
-                  <Text style={styles.featureDescription}>
-                    Get daily meal ideas (breakfast, lunch, dinner) based on your pantry items
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="trending-down-outline" size={24} color={colors.warning} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>Monitor Usage</Text>
-                  <Text style={styles.featureDescription}>
-                    Log consumption and get low stock alerts
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="cart-outline" size={24} color={colors.success} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>Smart Shopping Lists</Text>
-                  <Text style={styles.featureDescription}>
-                    Auto-generate lists from your usage patterns
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="analytics-outline" size={24} color={colors.secondary} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>Insights & Analytics</Text>
-                  <Text style={styles.featureDescription}>
-                    Understand your consumption patterns
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="people-outline" size={24} color={colors.accent} />
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>Household Sharing</Text>
-                  <Text style={styles.featureDescription}>
-                    Share your pantry with family members via cloud sync
-                  </Text>
-                </View>
-              </View>
+              ))}
             </View>
           </View>
         </ScrollView>
 
         <TouchableOpacity style={styles.getStartedButton} onPress={() => setStep(1)}>
-          <Text style={styles.getStartedText}>Get Started</Text>
+          <Text style={styles.getStartedText}>
+            {language === 'hi' ? 'शुरू करें' : 'Get Started'}
+          </Text>
           <Ionicons name="arrow-forward" size={20} color={colors.surface} />
         </TouchableOpacity>
       </View>
@@ -200,9 +159,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Add Common Items</Text>
+        <Text style={styles.headerTitle}>
+          {language === 'hi' ? 'सामान्य आइटम जोड़ें' : 'Add Common Items'}
+        </Text>
         <Text style={styles.headerSubtitle}>
-          Select items to add to your pantry
+          {language === 'hi' ? 'अपनी पैंट्री में जोड़ने के लिए आइटम चुनें' : 'Select items to add to your pantry'}
         </Text>
       </View>
 
@@ -210,11 +171,15 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       <View style={styles.bulkActions}>
         <TouchableOpacity style={styles.bulkButton} onPress={selectAll}>
           <Ionicons name="checkbox-outline" size={18} color={colors.primary} />
-          <Text style={styles.bulkButtonText}>Select All</Text>
+          <Text style={styles.bulkButtonText}>
+            {language === 'hi' ? 'सभी चुनें' : 'Select All'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.bulkButton} onPress={clearAll}>
           <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
-          <Text style={[styles.bulkButtonText, { color: colors.textSecondary }]}>Clear All</Text>
+          <Text style={[styles.bulkButtonText, { color: colors.textSecondary }]}>
+            {language === 'hi' ? 'सभी हटाएं' : 'Clear All'}
+          </Text>
         </TouchableOpacity>
       </View>
 
