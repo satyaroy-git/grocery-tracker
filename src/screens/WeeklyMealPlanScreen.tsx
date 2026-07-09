@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../con
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { generateWeeklyMealPlan, WeeklyMealPlan, DayPlan, MealItem } from '../services/mealPlanner';
-import { addToShoppingList } from '../database';
+import { addToShoppingList, saveMealPlan, getLatestMealPlan } from '../database';
 
 const MEAL_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
   breakfast: { icon: 'sunny-outline', color: '#FF9800' },
@@ -45,10 +45,29 @@ export default function WeeklyMealPlanScreen() {
 
   const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingSaved, setLoadingSaved] = useState(true);
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [dietPreference, setDietPreference] = useState('');
   const [addingToList, setAddingToList] = useState(false);
+
+  // Auto-load last saved plan on screen open
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await getLatestMealPlan();
+        if (saved) {
+          const parsed = JSON.parse(saved.planJson) as WeeklyMealPlan;
+          setMealPlan(parsed);
+          setExpandedDay(0);
+        }
+      } catch (error) {
+        console.error('Failed to load saved meal plan:', error);
+      } finally {
+        setLoadingSaved(false);
+      }
+    })();
+  }, []);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -56,6 +75,8 @@ export default function WeeklyMealPlanScreen() {
       const plan = await generateWeeklyMealPlan(dietPreference || undefined);
       setMealPlan(plan);
       setExpandedDay(0); // Auto-expand first day
+      // Auto-save the plan so user can come back to it later
+      await saveMealPlan(JSON.stringify(plan));
     } catch (err: any) {
       Alert.alert(language === 'hi' ? 'त्रुटि' : 'Error', err.message);
     } finally {
@@ -99,6 +120,15 @@ export default function WeeklyMealPlanScreen() {
   const toggleMeal = (key: string) => {
     setExpandedMeal(expandedMeal === key ? null : key);
   };
+
+  // ─── Initial load ────────────────────────────────────────────────────────
+  if (loadingSaved) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   // ─── No plan yet: show generation UI ───────────────────────────────────
   if (!mealPlan && !loading) {
@@ -177,6 +207,10 @@ export default function WeeklyMealPlanScreen() {
         </Text>
         <Text style={styles.summarySubtitle}>
           {mealPlan!.days.length} {language === 'hi' ? 'दिन' : 'days'} • {mealPlan!.days.reduce((acc, d) => acc + d.meals.length, 0)} {language === 'hi' ? 'रेसिपी' : 'recipes'}
+          {'\n'}
+          <Text style={{ fontSize: FONT_SIZES.xs, color: colors.textLight }}>
+            {language === 'hi' ? '✓ सेव किया गया — कभी भी वापस आकर देख सकते हैं' : '✓ Saved — come back anytime to view'}
+          </Text>
         </Text>
       </View>
 

@@ -191,6 +191,12 @@ export async function initDatabase(): Promise<void> {
       enabled INTEGER NOT NULL DEFAULT 1,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS saved_meal_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      planJson TEXT NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   await migrateSchema();
@@ -810,6 +816,42 @@ export async function addCustomUnit(value: string, label?: string): Promise<void
     'INSERT OR IGNORE INTO custom_units (value, label) VALUES (?, ?)',
     [trimmedValue, label?.trim() || trimmedValue]
   );
+}
+
+// ─── SAVED MEAL PLANS ─────────────────────────────────────────────────────────
+
+export interface SavedMealPlan {
+  id: number;
+  planJson: string;
+  createdAt: string;
+}
+
+export async function saveMealPlan(planJson: string): Promise<number> {
+  // Only keep the latest 5 plans to avoid bloating the database
+  await db.runAsync(
+    `DELETE FROM saved_meal_plans WHERE id NOT IN (SELECT id FROM saved_meal_plans ORDER BY createdAt DESC LIMIT 4)`
+  );
+  const result = await db.runAsync(
+    `INSERT INTO saved_meal_plans (planJson) VALUES (?)`,
+    [planJson]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function getLatestMealPlan(): Promise<SavedMealPlan | null> {
+  return db.getFirstAsync<SavedMealPlan>(
+    `SELECT * FROM saved_meal_plans ORDER BY createdAt DESC LIMIT 1`
+  );
+}
+
+export async function getAllSavedMealPlans(): Promise<SavedMealPlan[]> {
+  return db.getAllAsync<SavedMealPlan>(
+    `SELECT * FROM saved_meal_plans ORDER BY createdAt DESC`
+  );
+}
+
+export async function deleteMealPlan(id: number): Promise<void> {
+  await db.runAsync(`DELETE FROM saved_meal_plans WHERE id = ?`, [id]);
 }
 
 // ─── RECURRING ITEMS ──────────────────────────────────────────────────────────
