@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -40,6 +41,7 @@ export default function ShelfScanScreen() {
   const [analyzing, setAnalyzing] = useState(false);
   const [items, setItems] = useState<RecognizedItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
   const pickImage = async (fromCamera: boolean) => {
     try {
@@ -174,6 +176,12 @@ Respond ONLY with valid JSON (no markdown):
     );
   };
 
+  const updateItemField = (idx: number, field: keyof RecognizedItem, value: string | number) => {
+    setItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
+    );
+  };
+
   const handleSave = async () => {
     const selectedItems = items.filter((i) => i.selected);
     if (selectedItems.length === 0) {
@@ -291,21 +299,78 @@ Respond ONLY with valid JSON (no markdown):
         data={items}
         keyExtractor={(_, idx) => idx.toString()}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item, index }) => (
-          <TouchableOpacity style={styles.itemRow} onPress={() => toggleItem(index)}>
-            <Ionicons
-              name={item.selected ? 'checkbox' : 'square-outline'}
-              size={24}
-              color={item.selected ? colors.primary : colors.textLight}
-            />
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemDetail}>
-                {item.quantity} {item.unit} • {item.category}
-              </Text>
+        renderItem={({ item, index }) => {
+          const isEditing = editingIdx === index;
+          return (
+            <View style={styles.itemRow}>
+              <TouchableOpacity onPress={() => toggleItem(index)}>
+                <Ionicons
+                  name={item.selected ? 'checkbox' : 'square-outline'}
+                  size={24}
+                  color={item.selected ? colors.primary : colors.textLight}
+                />
+              </TouchableOpacity>
+
+              {isEditing ? (
+                <View style={styles.editContainer}>
+                  <TextInput
+                    style={styles.editInput}
+                    value={item.name}
+                    onChangeText={(v) => updateItemField(index, 'name', v)}
+                    placeholder="Item name"
+                    placeholderTextColor={colors.textLight}
+                  />
+                  <View style={styles.editRow}>
+                    <TextInput
+                      style={[styles.editInput, styles.editInputSmall]}
+                      value={String(item.quantity)}
+                      onChangeText={(v) => updateItemField(index, 'quantity', parseFloat(v) || 0)}
+                      keyboardType="decimal-pad"
+                      placeholder="Qty"
+                      placeholderTextColor={colors.textLight}
+                    />
+                    <TextInput
+                      style={[styles.editInput, styles.editInputSmall]}
+                      value={item.unit}
+                      onChangeText={(v) => updateItemField(index, 'unit', v)}
+                      placeholder="Unit"
+                      placeholderTextColor={colors.textLight}
+                    />
+                    <TextInput
+                      style={[styles.editInput, styles.editInputSmall]}
+                      value={item.category}
+                      onChangeText={(v) => updateItemField(index, 'category', v)}
+                      placeholder="Category"
+                      placeholderTextColor={colors.textLight}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.doneEditButton}
+                    onPress={() => setEditingIdx(null)}
+                  >
+                    <Ionicons name="checkmark" size={18} color={colors.surface} />
+                    <Text style={styles.doneEditText}>
+                      {language === 'hi' ? 'ठीक है' : 'Done'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.itemInfo}
+                  onPress={() => setEditingIdx(index)}
+                >
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemDetail}>
+                    {item.quantity} {item.unit} • {item.category}
+                  </Text>
+                  <Text style={styles.editHint}>
+                    {language === 'hi' ? 'संपादित करने के लिए टैप करें' : 'Tap to edit'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </TouchableOpacity>
-        )}
+          );
+        }}
       />
 
       <View style={styles.bottomBar}>
@@ -352,10 +417,17 @@ const createStyles = (colors: ThemeColors) =>
     resultsTitle: { fontSize: FONT_SIZES.lg, fontWeight: '700', color: colors.text },
     retakeText: { fontSize: FONT_SIZES.md, fontWeight: '600', color: colors.primary },
     listContent: { padding: SPACING.md, paddingBottom: 100 },
-    itemRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: colors.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
+    itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm, backgroundColor: colors.surface, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
     itemInfo: { flex: 1 },
     itemName: { fontSize: FONT_SIZES.lg, fontWeight: '600', color: colors.text },
     itemDetail: { fontSize: FONT_SIZES.sm, color: colors.textSecondary, marginTop: 2 },
+    editHint: { fontSize: FONT_SIZES.xs, color: colors.textLight, marginTop: 4, fontStyle: 'italic' },
+    editContainer: { flex: 1, gap: SPACING.xs },
+    editInput: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: BORDER_RADIUS.sm, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, fontSize: FONT_SIZES.md, color: colors.text },
+    editInputSmall: { flex: 1 },
+    editRow: { flexDirection: 'row', gap: SPACING.xs },
+    doneEditButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.xs, backgroundColor: colors.primary, borderRadius: BORDER_RADIUS.sm, paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm, alignSelf: 'flex-end', marginTop: SPACING.xs },
+    doneEditText: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: colors.surface },
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: SPACING.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, ...SHADOWS.lg },
     saveButton: { backgroundColor: colors.primary, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm },
     saveButtonText: { color: colors.surface, fontSize: FONT_SIZES.lg, fontWeight: '700' },
