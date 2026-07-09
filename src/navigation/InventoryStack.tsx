@@ -11,6 +11,7 @@ import LogUsageScreen from '../screens/LogUsageScreen';
 import RestockScreen from '../screens/RestockScreen';
 import ScanInvoiceScreen from '../screens/ScanInvoiceScreen';
 import BarcodeScanScreen from '../screens/BarcodeScanScreen';
+import VoiceCommandScreen from '../screens/VoiceCommandScreen';
 
 // Placeholder for inventory list - we'll use ItemDetailScreen pattern
 import InventoryListScreen from '../screens/InventoryListScreen';
@@ -67,6 +68,11 @@ export default function InventoryStack() {
         name="BarcodeScan"
         component={BarcodeScanScreen}
         options={{ title: t.scanBarcode }}
+      />
+      <Stack.Screen
+        name="VoiceCommand"
+        component={VoiceCommandScreen}
+        options={{ title: language === 'hi' ? 'वॉइस कमांड' : 'Voice Command' }}
       />
     </Stack.Navigator>
   );

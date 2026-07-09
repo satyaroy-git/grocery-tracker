@@ -14,6 +14,7 @@ export type InventoryStackParamList = {
   Restock: { itemId: number };
   ScanInvoice: undefined;
   BarcodeScan: undefined;
+  VoiceCommand: undefined;
 };
 
 export type ShoppingStackParamList = {

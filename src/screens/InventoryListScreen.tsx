@@ -284,6 +284,12 @@ export default function InventoryListScreen() {
       <View style={styles.fabContainer}>
         <TouchableOpacity
           style={[styles.fab, styles.fabTertiary]}
+          onPress={() => navigation.navigate('VoiceCommand')}
+        >
+          <Ionicons name="mic-outline" size={22} color={colors.surface} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, styles.fabTertiary]}
           onPress={() => navigation.navigate('BarcodeScan')}
         >
           <Ionicons name="barcode-outline" size={22} color={colors.surface} />
