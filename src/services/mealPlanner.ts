@@ -71,41 +71,21 @@ export async function generateWeeklyMealPlan(
     weekDays.push(dayNames[d.getDay()]);
   }
 
-  const prompt = `You are an expert Indian home cook and meal planning assistant. Create a complete 7-day meal plan based on available ingredients.
+  const prompt = `You are an Indian home cook. Create a COMPACT 7-day meal plan from these pantry items.
 
-Available ingredients in pantry: ${ingredientsList}${expiryNote}${dietNote}
+Pantry: ${ingredientsList}${expiryNote}${dietNote}
 
-Rules:
-1. Plan 3 meals + 1 snack for each of the 7 days (${weekDays.join(', ')})
-2. Use available ingredients as much as possible
-3. Prioritize items that are expiring soon (use them in the first 2-3 days)
-4. Don't repeat the same meal within the week
-5. Maintain nutritional balance (protein, carbs, vegetables)
-6. Keep recipes practical for Indian home cooking (under 30-45 mins)
-7. You can assume basic spices/staples are available (salt, oil, spices, water)
-8. If some meals need ingredients NOT in the pantry, list them in missingIngredients
-9. Keep instructions brief (2-3 sentences max per recipe)
+For each of 7 days (${weekDays.join(', ')}), give 3 meals + 1 snack.
 
-Respond ONLY with valid JSON (no markdown, no code blocks):
-{
-  "days": [
-    {
-      "day": "${weekDays[0]}",
-      "meals": [
-        {"mealType": "breakfast", "name": "Recipe", "ingredients": ["item1", "item2"], "instructions": "Brief steps.", "prepTime": "15 mins", "servings": 2},
-        {"mealType": "lunch", "name": "Recipe", "ingredients": ["item1", "item2"], "instructions": "Brief steps.", "prepTime": "30 mins", "servings": 2},
-        {"mealType": "dinner", "name": "Recipe", "ingredients": ["item1", "item2"], "instructions": "Brief steps.", "prepTime": "30 mins", "servings": 2},
-        {"mealType": "snack", "name": "Recipe", "ingredients": ["item1", "item2"], "instructions": "Brief steps.", "prepTime": "10 mins", "servings": 2}
-      ]
-    }
-  ],
-  "missingIngredients": ["ingredient not in pantry 1", "ingredient 2"],
-  "shoppingList": [
-    {"name": "ingredient name", "quantity": "500g"}
-  ]
-}
+KEEP RESPONSES SHORT:
+- instructions: max 1 sentence
+- ingredients: max 4 items per meal
+- Use items expiring soon first
 
-Generate all 7 days. Keep the JSON compact to fit within limits.`;
+JSON format (no markdown):
+{"days":[{"day":"${weekDays[0]}","meals":[{"mealType":"breakfast","name":"Name","ingredients":["a","b"],"instructions":"One line.","prepTime":"15 min","servings":2},{"mealType":"lunch","name":"Name","ingredients":["a","b"],"instructions":"One line.","prepTime":"25 min","servings":2},{"mealType":"dinner","name":"Name","ingredients":["a","b"],"instructions":"One line.","prepTime":"30 min","servings":2},{"mealType":"snack","name":"Name","ingredients":["a"],"instructions":"One line.","prepTime":"5 min","servings":2}]}],"missingIngredients":[],"shoppingList":[]}
+
+Generate ALL 7 days in this compact format.`;
 
   // Call Gemini API
   const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
@@ -120,7 +100,7 @@ Generate all 7 days. Keep the JSON compact to fit within limits.`;
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 8192, // 7 days needs more tokens
+            maxOutputTokens: 16384, // 7 days needs a lot of space
           },
         }),
       }
@@ -152,24 +132,27 @@ Generate all 7 days. Keep the JSON compact to fit within limits.`;
     try {
       parsed = JSON.parse(cleaned);
     } catch {
-      // Try to salvage truncated response
-      const lastBrace = cleaned.lastIndexOf('}');
-      if (lastBrace > 0) {
-        try {
-          // Try closing the arrays/objects
-          let salvaged = cleaned.substring(0, lastBrace + 1);
-          // Count open brackets to close them
-          const openSquare = (salvaged.match(/\[/g) || []).length;
-          const closeSquare = (salvaged.match(/\]/g) || []).length;
-          const openCurly = (salvaged.match(/\{/g) || []).length;
-          const closeCurly = (salvaged.match(/\}/g) || []).length;
-          salvaged += ']'.repeat(Math.max(0, openSquare - closeSquare));
-          salvaged += '}'.repeat(Math.max(0, openCurly - closeCurly - 1)) + '}';
-          parsed = JSON.parse(salvaged);
-        } catch {
-          throw new Error('AI response was incomplete. Please try again.');
+      // Try to salvage truncated response - find the last complete day object
+      try {
+        // Find the last complete "meals" array closing bracket
+        let salvaged = cleaned;
+        // Try progressively shorter substrings to find valid JSON
+        for (let i = cleaned.length; i > 100; i = cleaned.lastIndexOf('}', i - 1)) {
+          try {
+            const attempt = cleaned.substring(0, i + 1) + '],"missingIngredients":[],"shoppingList":[]}';
+            const test = JSON.parse(attempt);
+            if (test.days && test.days.length >= 1) {
+              parsed = test;
+              break;
+            }
+          } catch {
+            continue;
+          }
         }
-      } else {
+        if (!parsed) {
+          throw new Error('Could not salvage');
+        }
+      } catch {
         throw new Error('AI response was incomplete. Please try again.');
       }
     }
