@@ -21,7 +21,7 @@ const Stack = createNativeStackNavigator<InventoryStackParamList>();
 
 export default function InventoryStack() {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   return (
     <Stack.Navigator
       screenOptions={{
