@@ -15,6 +15,7 @@ export type InventoryStackParamList = {
   ScanInvoice: undefined;
   BarcodeScan: undefined;
   VoiceCommand: undefined;
+  ShelfScan: undefined;
 };
 
 export type ShoppingStackParamList = {

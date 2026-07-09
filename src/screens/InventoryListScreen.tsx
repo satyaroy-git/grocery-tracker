@@ -284,6 +284,12 @@ export default function InventoryListScreen() {
       <View style={styles.fabContainer}>
         <TouchableOpacity
           style={[styles.fab, styles.fabTertiary]}
+          onPress={() => navigation.navigate('ShelfScan')}
+        >
+          <Ionicons name="camera-outline" size={22} color={colors.surface} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, styles.fabTertiary]}
           onPress={() => navigation.navigate('VoiceCommand')}
         >
           <Ionicons name="mic-outline" size={22} color={colors.surface} />
