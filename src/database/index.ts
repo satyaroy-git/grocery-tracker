@@ -827,21 +827,34 @@ export interface SavedMealPlan {
 }
 
 export async function saveMealPlan(planJson: string): Promise<number> {
-  // Only keep the latest 5 plans to avoid bloating the database
-  await db.runAsync(
-    `DELETE FROM saved_meal_plans WHERE id NOT IN (SELECT id FROM saved_meal_plans ORDER BY createdAt DESC LIMIT 4)`
-  );
+  // Insert the new plan first
   const result = await db.runAsync(
     `INSERT INTO saved_meal_plans (planJson) VALUES (?)`,
     [planJson]
   );
+  // Then clean up: keep only the latest 5 plans
+  const allPlans = await db.getAllAsync<{ id: number }>(
+    `SELECT id FROM saved_meal_plans ORDER BY createdAt DESC`
+  );
+  if (allPlans.length > 5) {
+    const idsToKeep = allPlans.slice(0, 5).map((p) => p.id);
+    await db.runAsync(
+      `DELETE FROM saved_meal_plans WHERE id NOT IN (${idsToKeep.join(',')})`
+    );
+  }
   return result.lastInsertRowId;
 }
 
 export async function getLatestMealPlan(): Promise<SavedMealPlan | null> {
-  return db.getFirstAsync<SavedMealPlan>(
-    `SELECT * FROM saved_meal_plans ORDER BY createdAt DESC LIMIT 1`
-  );
+  try {
+    const result = await db.getFirstAsync<SavedMealPlan>(
+      `SELECT * FROM saved_meal_plans ORDER BY createdAt DESC LIMIT 1`
+    );
+    return result || null;
+  } catch (error) {
+    console.error('getLatestMealPlan error:', error);
+    return null;
+  }
 }
 
 export async function getAllSavedMealPlans(): Promise<SavedMealPlan[]> {

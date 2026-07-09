@@ -76,7 +76,12 @@ export default function WeeklyMealPlanScreen() {
       setMealPlan(plan);
       setExpandedDay(0); // Auto-expand first day
       // Auto-save the plan so user can come back to it later
-      await saveMealPlan(JSON.stringify(plan));
+      try {
+        await saveMealPlan(JSON.stringify(plan));
+      } catch (saveErr) {
+        console.error('Failed to save meal plan:', saveErr);
+        // Don't fail the whole flow just because save failed
+      }
     } catch (err: any) {
       Alert.alert(language === 'hi' ? 'त्रुटि' : 'Error', err.message);
     } finally {
