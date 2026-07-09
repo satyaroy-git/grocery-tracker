@@ -26,6 +26,7 @@ export type ShoppingStackParamList = {
 export type DashboardStackParamList = {
   Insights: undefined;
   RecipeSuggestions: undefined;
+  WeeklyMealPlan: undefined;
 };
 
 export type SettingsStackParamList = {

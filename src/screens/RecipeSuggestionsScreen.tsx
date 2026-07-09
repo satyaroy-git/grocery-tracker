@@ -10,9 +10,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
+import { DashboardStackParamList } from '../navigation/types';
 import { getSettings } from '../database';
 import { generateRecipeSuggestions, DailyMealPlan, RecipeSuggestion } from '../services/recipes';
 import { hasApiKey } from '../services/config';
@@ -34,6 +37,7 @@ const MEAL_LABELS: Record<string, { en: string; hi: string }> = {
 export default function RecipeSuggestionsScreen() {
   const { colors } = useTheme();
   const { t, language } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
   const styles = createStyles(colors);
   const [mealPlan, setMealPlan] = useState<DailyMealPlan | null>(null);
   const [loading, setLoading] = useState(false);
@@ -118,12 +122,24 @@ export default function RecipeSuggestionsScreen() {
 
       {/* Generate Button */}
       {!mealPlan && !loading && (
-        <TouchableOpacity style={styles.generateButton} onPress={handleGenerate}>
-          <Ionicons name="sparkles" size={22} color={colors.surface} />
-          <Text style={styles.generateButtonText}>
-            {language === 'hi' ? 'रेसिपी सुझाव पाएं' : 'Get Recipe Suggestions'}
-          </Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity style={styles.generateButton} onPress={handleGenerate}>
+            <Ionicons name="sparkles" size={22} color={colors.surface} />
+            <Text style={styles.generateButtonText}>
+              {language === 'hi' ? 'रेसिपी सुझाव पाएं' : 'Get Recipe Suggestions'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.generateButton, { backgroundColor: colors.secondary, marginTop: SPACING.sm }]}
+            onPress={() => navigation.navigate('WeeklyMealPlan')}
+          >
+            <Ionicons name="calendar" size={22} color={colors.surface} />
+            <Text style={styles.generateButtonText}>
+              {language === 'hi' ? '7 दिन का प्लान बनाएं' : 'Plan Full Week'}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
 
       {/* Loading */}

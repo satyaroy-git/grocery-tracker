@@ -6,6 +6,7 @@ import { DashboardStackParamList } from './types';
 
 import InsightsScreen from '../screens/InsightsScreen';
 import RecipeSuggestionsScreen from '../screens/RecipeSuggestionsScreen';
+import WeeklyMealPlanScreen from '../screens/WeeklyMealPlanScreen';
 
 const Stack = createNativeStackNavigator<DashboardStackParamList>();
 
@@ -29,6 +30,11 @@ export default function DashboardStack() {
         name="RecipeSuggestions"
         component={RecipeSuggestionsScreen}
         options={{ title: t.recipeSuggestions }}
+      />
+      <Stack.Screen
+        name="WeeklyMealPlan"
+        component={WeeklyMealPlanScreen}
+        options={{ title: language === 'hi' ? 'साप्ताहिक मील प्लान' : 'Weekly Meal Plan' }}
       />
     </Stack.Navigator>
   );
