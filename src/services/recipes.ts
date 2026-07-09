@@ -13,6 +13,7 @@ export interface RecipeSuggestion {
 export interface DailyMealPlan {
   date: string;
   meals: RecipeSuggestion[];
+  expiringItems?: { name: string; daysLeft: number }[];
 }
 
 /**
@@ -37,9 +38,18 @@ export async function generateRecipeSuggestions(): Promise<DailyMealPlan | null>
       .map((item) => `${item.name} (${item.currentQuantity} ${item.unit})`)
       .join(', ');
 
+    // Identify items expiring soon (within 5 days) for priority
+    const expiringItems = items.filter(
+      (item) => item.currentQuantity > 0 && item.daysUntilExpiry !== null && item.daysUntilExpiry >= 0 && item.daysUntilExpiry <= 5
+    );
+
+    const expiryPriorityNote = expiringItems.length > 0
+      ? `\n\nURGENT - USE THESE FIRST (expiring soon): ${expiringItems.map((i) => `${i.name} (expires in ${i.daysUntilExpiry} day${i.daysUntilExpiry === 1 ? '' : 's'})`).join(', ')}. You MUST include at least one recipe that uses these expiring items as a main ingredient.`
+      : '';
+
     const prompt = `You are a helpful Indian home cook assistant. Based on the following ingredients available in my pantry, suggest a daily meal plan with 4 meals: breakfast, lunch, dinner, and a snack.
 
-Available ingredients: ${ingredientsList}
+Available ingredients: ${ingredientsList}${expiryPriorityNote}
 
 Rules:
 1. Only use ingredients from the list above (you can assume basic spices like salt, pepper, turmeric, chili powder are available)
@@ -47,6 +57,7 @@ Rules:
 3. Keep recipes simple (under 30 minutes prep for most)
 4. Consider nutritional balance across the day
 5. If ingredients are limited, suggest simpler recipes
+6. PRIORITIZE items that are expiring soon - use them as main ingredients in today's meals
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, just raw JSON):
 {
@@ -163,6 +174,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
       return {
         date: today,
         meals: parsed.meals as RecipeSuggestion[],
+        expiringItems: expiringItems.map((i) => ({ name: i.name, daysLeft: i.daysUntilExpiry! })),
       };
     }
 

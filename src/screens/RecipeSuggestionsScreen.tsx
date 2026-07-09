@@ -157,6 +157,33 @@ export default function RecipeSuggestionsScreen() {
       {/* Meal Plan */}
       {mealPlan && (
         <>
+          {/* Expiry Priority Alert */}
+          {mealPlan.expiringItems && mealPlan.expiringItems.length > 0 && (
+            <View style={styles.expiryAlertCard}>
+              <View style={styles.expiryAlertHeader}>
+                <Ionicons name="alert-circle" size={22} color={colors.warning} />
+                <Text style={styles.expiryAlertTitle}>
+                  {language === 'hi' ? 'पहले इस्तेमाल करें!' : 'Use These First!'}
+                </Text>
+              </View>
+              <Text style={styles.expiryAlertSubtitle}>
+                {language === 'hi'
+                  ? 'ये आइटम जल्द एक्सपायर हो रहे हैं — आज की रेसिपी में इन्हें प्राथमिकता दी गई है'
+                  : "These items are expiring soon — today's recipes prioritize using them"}
+              </Text>
+              <View style={styles.expiryItemsList}>
+                {mealPlan.expiringItems.map((item, idx) => (
+                  <View key={idx} style={styles.expiryItemChip}>
+                    <Ionicons name="time-outline" size={14} color={colors.danger} />
+                    <Text style={styles.expiryItemText}>
+                      {item.name} ({item.daysLeft === 0 ? (language === 'hi' ? 'आज' : 'today') : item.daysLeft === 1 ? (language === 'hi' ? 'कल' : 'tomorrow') : `${item.daysLeft}d`})
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {mealPlan.meals.map((meal) => {
             const mealConfig = MEAL_ICONS[meal.mealType] || MEAL_ICONS.snack;
             const isExpanded = expandedMeal === meal.mealType;
@@ -278,4 +305,11 @@ const createStyles = (colors: ThemeColors) =>
       marginTop: SPACING.sm,
     },
     refreshButtonText: { fontSize: FONT_SIZES.md, fontWeight: '600', color: colors.primary },
+    expiryAlertCard: { backgroundColor: colors.warningBg, borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md, borderWidth: 1, borderColor: colors.warning + '40' },
+    expiryAlertHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+    expiryAlertTitle: { fontSize: FONT_SIZES.lg, fontWeight: '700', color: colors.warning },
+    expiryAlertSubtitle: { fontSize: FONT_SIZES.sm, color: colors.textSecondary, marginTop: SPACING.xs, marginBottom: SPACING.sm },
+    expiryItemsList: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
+    expiryItemChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.dangerBg, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.full },
+    expiryItemText: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: colors.danger },
   });
