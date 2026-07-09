@@ -23,6 +23,7 @@ const ACTION_ICONS: Record<ActionType, { icon: keyof typeof Ionicons.glyphMap; c
   log_usage: { icon: 'remove-circle', color: '#F44336' },
   add_to_shopping: { icon: 'cart', color: '#FF9800' },
   restock: { icon: 'refresh-circle', color: '#2196F3' },
+  recipe: { icon: 'restaurant', color: '#9C27B0' },
   unknown: { icon: 'help-circle', color: '#9E9E9E' },
 };
 
@@ -31,6 +32,7 @@ const ACTION_LABELS: Record<ActionType, { en: string; hi: string }> = {
   log_usage: { en: 'Log Usage', hi: 'उपयोग दर्ज करें' },
   add_to_shopping: { en: 'Add to Shopping List', hi: 'खरीदारी सूची में जोड़ें' },
   restock: { en: 'Restock Item', hi: 'रीस्टॉक करें' },
+  recipe: { en: 'Get Recipe Suggestions', hi: 'रेसिपी सुझाव पाएं' },
   unknown: { en: 'Unknown', hi: 'अज्ञात' },
 };
 
@@ -39,6 +41,7 @@ const EXAMPLE_COMMANDS = [
   { en: 'I used 500ml milk', hi: '500ml दूध इस्तेमाल किया' },
   { en: 'Buy eggs from store', hi: 'दुकान से अंडे खरीदें' },
   { en: 'Restock 1L cooking oil', hi: '1L तेल रीस्टॉक करें' },
+  { en: 'What should I cook?', hi: 'आज क्या बनाऊं?' },
 ];
 
 export default function VoiceCommandScreen() {
@@ -78,6 +81,15 @@ export default function VoiceCommandScreen() {
 
   const handleExecute = async () => {
     if (!parsedCommand) return;
+
+    // Recipe action: navigate directly to recipe suggestions
+    if (parsedCommand.action === 'recipe') {
+      navigation.goBack();
+      // Navigate to Insights tab → RecipeSuggestions
+      // Since we're in InventoryStack, we need to navigate to the tab first
+      (navigation as any).navigate('DashboardTab', { screen: 'RecipeSuggestions' });
+      return;
+    }
 
     setExecuting(true);
     try {

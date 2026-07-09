@@ -3,7 +3,7 @@ import { createItem, getAllItems, logConsumption, addToShoppingList, restockItem
 import { GroceryItemWithStatus } from '../database';
 import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
-export type ActionType = 'add_item' | 'log_usage' | 'add_to_shopping' | 'restock' | 'unknown';
+export type ActionType = 'add_item' | 'log_usage' | 'add_to_shopping' | 'restock' | 'recipe' | 'unknown';
 
 export interface ParsedCommand {
   action: ActionType;
@@ -54,6 +54,7 @@ Rules:
    - "used", "consumed", "finished", "took", "made" → log_usage (deduct from existing item)
    - "buy", "need", "shopping", "get from store" → add_to_shopping (add to shopping list)
    - "restock", "refill", "topped up" → restock (add quantity to existing item)
+   - "cook", "recipe", "suggest", "what to make", "what should I cook", "meal", "dinner ideas", "lunch ideas", "kya banau", "खाना" → recipe (suggest recipes)
    - If unclear → add_item (default)
 
 2. Extract ITEM NAME (capitalize properly, e.g. "rice" → "Rice")
@@ -175,6 +176,10 @@ export async function executeCommand(cmd: ParsedCommand): Promise<string> {
       }
       await restockItem(match.id, cmd.quantity);
       return `Restocked ${match.name}: +${cmd.quantity} ${match.unit}`;
+    }
+
+    case 'recipe': {
+      return '__NAVIGATE_RECIPE__';
     }
 
     default:
