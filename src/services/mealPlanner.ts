@@ -108,7 +108,7 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
 Generate all 7 days. Keep the JSON compact to fit within limits.`;
 
   // Call Gemini API
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash-lite'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
   for (const model of models) {
     const response = await fetch(
@@ -126,8 +126,8 @@ Generate all 7 days. Keep the JSON compact to fit within limits.`;
       }
     );
 
-    if (response.status === 429) {
-      continue; // Try next model
+    if (response.status === 429 || response.status === 503) {
+      continue; // Rate limited or overloaded - try next model
     }
 
     if (!response.ok) {

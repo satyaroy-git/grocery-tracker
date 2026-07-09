@@ -88,7 +88,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
 
     // Try gemini-2.5-flash first (same model used for invoice scanning),
     // fall back to gemini-2.0-flash-lite if rate limited
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash-lite'];
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
     let lastError = '';
 
     for (const model of models) {
@@ -107,8 +107,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
         }
       );
 
-      if (response.status === 429) {
-        // Rate limited on this model - try the next one
+      if (response.status === 429 || response.status === 503) {
+        // Rate limited or overloaded on this model - try the next one
         const errorData = await response.json().catch(() => null);
         lastError = errorData?.error?.message || 'Rate limit exceeded';
         continue;
