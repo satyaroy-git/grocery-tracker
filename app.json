@@ -27,7 +27,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"
       },
-      "package": "com.pantrypal.app",
+      "package": "com.satyaroy.pantrypal",
       "versionCode": 5,
       "permissions": [
         "android.permission.CAMERA",
