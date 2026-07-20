@@ -111,6 +111,21 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
 }
 
 /**
+ * Delete the current user's account permanently.
+ * Removes household membership, signs out, and clears the session.
+ */
+export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { leaveHousehold } = await import('./household');
+    await leaveHousehold();
+    await supabase.auth.signOut();
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to delete account' };
+  }
+}
+
+/**
  * Get the current session (returns null if not authenticated).
  */
 export async function getCurrentSession(): Promise<Session | null> {

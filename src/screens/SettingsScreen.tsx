@@ -32,7 +32,7 @@ type SettingsNavProp = NativeStackNavigationProp<SettingsStackParamList, 'Settin
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavProp>();
   const { colors, themeMode: activeThemeMode, setThemeMode } = useTheme();
-  const { isAuthenticated, displayName, signOut } = useAuth();
+  const { isAuthenticated, displayName, signOut, deleteAccount } = useAuth();
   const { t, language, setLanguage } = useTranslation();
   const styles = createStyles(colors);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -370,6 +370,35 @@ export default function SettingsScreen() {
               <Text style={styles.householdButtonText}>{t.manageHousehold}</Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteAccountButton}
+              onPress={() => {
+                Alert.alert(
+                  language === 'hi' ? 'अकाउंट हटाएं' : 'Delete Account',
+                  language === 'hi'
+                    ? 'क्या आप वाकई अपना अकाउंट हटाना चाहते हैं? यह पूर्ववत नहीं किया जा सकता।'
+                    : 'Are you sure you want to delete your account? This cannot be undone. Your household membership will be removed and you will be signed out.',
+                  [
+                    { text: t.cancel, style: 'cancel' },
+                    {
+                      text: t.delete,
+                      style: 'destructive',
+                      onPress: async () => {
+                        const result = await deleteAccount();
+                        if (!result.success) {
+                          Alert.alert(t.error, result.error || 'Failed');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="person-remove-outline" size={18} color={colors.danger} />
+              <Text style={styles.deleteAccountText}>
+                {language === 'hi' ? 'अकाउंट हटाएं' : 'Delete Account'}
+              </Text>
+            </TouchableOpacity>
           </>
         ) : (
           <>
@@ -643,6 +672,20 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: colors.primary,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: SPACING.xs,
+  },
+  deleteAccountText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '500',
+    color: colors.danger,
   },
   signInButton: {
     backgroundColor: colors.primary,

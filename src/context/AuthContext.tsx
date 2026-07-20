@@ -6,6 +6,7 @@ import {
   signInWithEmail,
   signInWithGoogle,
   signOut as authSignOut,
+  deleteAccount as authDeleteAccount,
   getDisplayName,
   AuthResult,
 } from '../services/auth';
@@ -23,6 +24,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signInGoogle: () => Promise<AuthResult>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -74,6 +76,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   }, []);
 
+  const handleDeleteAccount = useCallback(async () => {
+    const result = await authDeleteAccount();
+    if (result.success) {
+      setUser(null);
+      setSession(null);
+    }
+    return result;
+  }, []);
+
   const value: AuthContextValue = {
     user,
     session,
@@ -84,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signInGoogle,
     signOut: handleSignOut,
+    deleteAccount: handleDeleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
