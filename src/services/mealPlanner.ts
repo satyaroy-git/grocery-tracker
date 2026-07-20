@@ -1,6 +1,7 @@
 import { getApiKey } from './config';
 import { getAllItems } from '../database';
 import { GroceryItemWithStatus } from '../database';
+import { checkApiLimit, recordApiCall } from './apiLimiter';
 
 export interface MealItem {
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -32,6 +33,12 @@ export interface WeeklyMealPlan {
 export async function generateWeeklyMealPlan(
   dietPreference?: string
 ): Promise<WeeklyMealPlan> {
+  // Check daily API limit
+  const limitCheck = await checkApiLimit();
+  if (!limitCheck.allowed) {
+    throw new Error(`Daily AI limit reached (${limitCheck.limit} calls/day). Try again tomorrow. This resets at midnight.`);
+  }
+
   const apiKey = await getApiKey();
   if (!apiKey) {
     throw new Error('Gemini API key not configured. Please add your API key in the Scan Invoice screen.');
@@ -177,6 +184,9 @@ Generate ALL 7 days in this compact format.`;
         meals: day.meals || [],
       };
     });
+
+    // Record successful API call for daily limit tracking
+    await recordApiCall();
 
     return {
       startDate,

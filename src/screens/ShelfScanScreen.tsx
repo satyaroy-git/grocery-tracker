@@ -20,6 +20,7 @@ import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../con
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../i18n';
 import { getApiKey } from '../services/config';
+import { checkApiLimit, recordApiCall } from '../services/apiLimiter';
 import { createItemsBatch, CreateItemInput } from '../database';
 import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
 
@@ -76,6 +77,12 @@ export default function ShelfScanScreen() {
   const analyzeImage = async (uri: string) => {
     setAnalyzing(true);
     try {
+      // Check daily API limit
+      const limitCheck = await checkApiLimit();
+      if (!limitCheck.allowed) {
+        throw new Error(`Daily AI limit reached (${limitCheck.limit} calls/day). Try again tomorrow.`);
+      }
+
       const apiKey = await getApiKey();
       if (!apiKey) {
         throw new Error('Gemini API key not configured.');
@@ -155,6 +162,8 @@ Respond ONLY with valid JSON (no markdown):
               selected: true,
             }));
             setItems(recognized);
+            // Record successful API call
+            await recordApiCall();
             return;
           }
         } catch {

@@ -1,5 +1,6 @@
 import { getApiKey } from './config';
 import { getAllItems } from '../database';
+import { checkApiLimit, recordApiCall } from './apiLimiter';
 
 export interface RecipeSuggestion {
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -22,6 +23,12 @@ export interface DailyMealPlan {
  */
 export async function generateRecipeSuggestions(): Promise<DailyMealPlan | null> {
   try {
+    // Check daily API limit
+    const limitCheck = await checkApiLimit();
+    if (!limitCheck.allowed) {
+      throw new Error(`Daily AI limit reached (${limitCheck.limit} calls/day). Try again tomorrow. This resets at midnight.`);
+    }
+
     const apiKey = await getApiKey();
     if (!apiKey) {
       throw new Error('Gemini API key not configured. Please add your API key in the Scan Invoice screen.');
@@ -170,6 +177,9 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code blocks, 
       }
 
       const today = new Date().toISOString().split('T')[0];
+
+      // Record successful API call for daily limit tracking
+      await recordApiCall();
 
       return {
         date: today,

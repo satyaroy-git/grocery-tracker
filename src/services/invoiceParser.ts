@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { CreateItemInput } from '../database';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 import { getApiKey } from './config';
+import { checkApiLimit, recordApiCall } from './apiLimiter';
 import { guessCategoryFromName, guessUnitFromName } from '../utils/itemClassifier';
 
 // Types for parsed invoice data
@@ -103,6 +104,16 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models
  */
 export async function parseInvoiceImage(imageUri: string): Promise<InvoiceParseResult> {
   try {
+    // Check daily API limit
+    const limitCheck = await checkApiLimit();
+    if (!limitCheck.allowed) {
+      return {
+        success: false,
+        items: [],
+        error: `Daily AI limit reached (${limitCheck.limit} calls/day). Try again tomorrow.`,
+      };
+    }
+
     const apiKey = await getApiKey();
     if (!apiKey) {
       return {
@@ -165,6 +176,16 @@ export async function parseInvoiceImage(imageUri: string): Promise<InvoiceParseR
  */
 export async function parseInvoiceText(invoiceText: string): Promise<InvoiceParseResult> {
   try {
+    // Check daily API limit
+    const limitCheck = await checkApiLimit();
+    if (!limitCheck.allowed) {
+      return {
+        success: false,
+        items: [],
+        error: `Daily AI limit reached (${limitCheck.limit} calls/day). Try again tomorrow.`,
+      };
+    }
+
     const apiKey = await getApiKey();
     if (!apiKey) {
       return {
@@ -255,6 +276,9 @@ async function handleGeminiResponse(response: Response): Promise<InvoiceParseRes
   }
 
   const validatedItems = validateAndCleanItems(parsed.items || []);
+
+  // Record successful API call for daily limit tracking
+  await recordApiCall();
 
   return {
     success: true,

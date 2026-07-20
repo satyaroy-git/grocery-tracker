@@ -2,6 +2,7 @@ import { getApiKey } from './config';
 import { createItem, getAllItems, logConsumption, addToShoppingList, restockItem } from '../database';
 import { GroceryItemWithStatus } from '../database';
 import { safeCategoryGuess, guessUnitFromName } from '../utils/itemClassifier';
+import { checkApiLimit, recordApiCall } from './apiLimiter';
 
 export type ActionType = 'add_item' | 'log_usage' | 'add_to_shopping' | 'restock' | 'recipe' | 'unknown';
 
@@ -33,6 +34,12 @@ export async function parseVoiceCommand(command: string): Promise<ParsedCommand>
 
   if (!command.trim()) {
     throw new Error('Please enter a command.');
+  }
+
+  // Check daily API limit
+  const limitCheck = await checkApiLimit();
+  if (!limitCheck.allowed) {
+    throw new Error(`Daily AI limit reached (${limitCheck.limit} calls/day). Try again tomorrow.`);
   }
 
   // Get existing items for context (helps AI match item names)
@@ -106,6 +113,8 @@ Respond ONLY with valid JSON (no markdown):
 
     try {
       const parsed = JSON.parse(cleaned);
+      // Record successful API call
+      await recordApiCall();
       return {
         action: parsed.action || 'add_item',
         itemName: parsed.itemName || command,
