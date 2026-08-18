@@ -14,16 +14,25 @@ jobs:
     steps:
       - name: Ping Supabase Database
         run: |
+          # Use the Supabase health/ready endpoint which doesn't need table access
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://kirgmrafaurjpegfysnd.supabase.co/rest/v1/settings?select=key&limit=1" \
+            "https://kirgmrafaurjpegfysnd.supabase.co/rest/v1/" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
           
           echo "Response status: $response"
           
-          if [ "$response" -eq 200 ]; then
+          if [ "$response" -eq 200 ] || [ "$response" -eq 204 ]; then
             echo "✅ Supabase is alive and responding"
           else
-            echo "⚠️ Supabase returned status $response"
-            exit 1
+            # Try the auth endpoint as fallback
+            response2=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://kirgmrafaurjpegfysnd.supabase.co/auth/v1/health")
+            echo "Auth health check status: $response2"
+            if [ "$response2" -eq 200 ]; then
+              echo "✅ Supabase is alive (auth endpoint)"
+            else
+              echo "⚠️ Both endpoints returned non-200"
+              exit 1
+            fi
           fi
