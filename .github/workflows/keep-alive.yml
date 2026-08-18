@@ -1,0 +1,29 @@
+name: Keep Supabase Alive
+
+# Prevents Supabase free tier from pausing the database after 7 days
+# of inactivity by making a lightweight read query once daily.
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Runs daily at 8:00 AM UTC (1:30 PM IST)
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://kirgmrafaurjpegfysnd.supabase.co/rest/v1/settings?select=key&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          echo "Response status: $response"
+          
+          if [ "$response" -eq 200 ]; then
+            echo "✅ Supabase is alive and responding"
+          else
+            echo "⚠️ Supabase returned status $response"
+            exit 1
+          fi
