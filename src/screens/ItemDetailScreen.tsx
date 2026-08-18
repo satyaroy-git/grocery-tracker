@@ -12,10 +12,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { getItemById, deleteItem, getConsumptionLogs } from '../database';
 import { GroceryItemWithStatus, ConsumptionLog } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
+import { formatMoney, formatQuantity } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
 type ItemDetailRouteProp = RouteProp<InventoryStackParamList, 'ItemDetail'>;
 type ItemDetailNavProp = NativeStackNavigationProp<InventoryStackParamList, 'ItemDetail'>;
@@ -23,6 +26,9 @@ type ItemDetailNavProp = NativeStackNavigationProp<InventoryStackParamList, 'Ite
 export default function ItemDetailScreen() {
   const navigation = useNavigation<ItemDetailNavProp>();
   const route = useRoute<ItemDetailRouteProp>();
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const styles = createStyles(colors);
   const { itemId } = route.params;
 
   const [item, setItem] = useState<GroceryItemWithStatus | null>(null);
@@ -72,16 +78,20 @@ export default function ItemDetailScreen() {
     );
   };
 
+  // NOTE: ItemStatus (see database/index.ts computeStatus) only ever produces
+  // 'ok' | 'low' | 'empty'. This previously checked for 'sufficient' /
+  // 'out_of_stock', which never match, so the badge always fell through to
+  // "Unknown" regardless of actual stock level.
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'sufficient':
-        return { label: 'In Stock', color: COLORS.success, bg: COLORS.successBg };
+      case 'ok':
+        return { label: 'In Stock', color: colors.success, bg: colors.successBg };
       case 'low':
-        return { label: 'Low Stock', color: COLORS.warning, bg: COLORS.warningBg };
-      case 'out_of_stock':
-        return { label: 'Out of Stock', color: COLORS.danger, bg: COLORS.dangerBg };
+        return { label: 'Low Stock', color: colors.warning, bg: colors.warningBg };
+      case 'empty':
+        return { label: 'Out of Stock', color: colors.danger, bg: colors.dangerBg };
       default:
-        return { label: 'Unknown', color: COLORS.textSecondary, bg: COLORS.background };
+        return { label: 'Unknown', color: colors.textSecondary, bg: colors.background };
     }
   };
 
@@ -92,14 +102,19 @@ export default function ItemDetailScreen() {
   };
 
   const getProgressColor = () => {
-    if (!item) return COLORS.success;
-    if (item.status === 'out_of_stock') return COLORS.danger;
-    if (item.status === 'low') return COLORS.warning;
-    return COLORS.success;
+    if (!item) return colors.success;
+    if (item.status === 'empty') return colors.danger;
+    if (item.status === 'low') return colors.warning;
+    return colors.success;
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // SQLite's datetime('now') stores UTC without a timezone suffix. Append 'Z'
+    // so JavaScript's Date parser correctly interprets it as UTC rather than
+    // treating it as a local-time string (which would show the wrong time on
+    // devices in any timezone other than UTC).
+    const utcString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+    const date = new Date(utcString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -124,16 +139,16 @@ export default function ItemDetailScreen() {
   const getLogColor = (type: string) => {
     switch (type) {
       case 'restock':
-        return COLORS.success;
+        return colors.success;
       default:
-        return COLORS.danger;
+        return colors.danger;
     }
   };
 
   if (loading || !item) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -157,13 +172,13 @@ export default function ItemDetailScreen() {
 
       {/* Quantity Section */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Stock Level</Text>
+        <Text style={styles.cardTitle}>{t.currentStock}</Text>
         <View style={styles.quantityRow}>
           <Text style={styles.quantityValue}>
-            {item.currentQuantity} {item.unit}
+            {formatQuantity(item.currentQuantity)} {item.unit}
           </Text>
           <Text style={styles.thresholdText}>
-            Threshold: {item.threshold} {item.unit}
+            {t.threshold}: {formatQuantity(item.threshold)} {item.unit}
           </Text>
         </View>
         <View style={styles.progressBar}>
@@ -179,22 +194,61 @@ export default function ItemDetailScreen() {
         </View>
         {item.daysUntilEmpty !== null && (
           <Text style={styles.daysText}>
-            ~{item.daysUntilEmpty} days until empty
+            {t.daysUntilEmpty.replace('{days}', String(item.daysUntilEmpty))}
           </Text>
         )}
       </View>
 
+      {/* Price & Expiry - only rendered if at least one is set, since both are optional */}
+      {(item.price !== null || item.expiryDate !== null) && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.purchaseDetails}</Text>
+          {item.price !== null && (
+            <View style={styles.detailRow}>
+              <Ionicons name="pricetag-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.detailLabel}>{t.price}</Text>
+              <Text style={styles.detailValue}>₹{formatMoney(item.price)}</Text>
+            </View>
+          )}
+          {item.expiryDate !== null && (
+            <View style={styles.detailRow}>
+              <Ionicons
+                name={item.isExpired ? 'alert-circle' : 'calendar-outline'}
+                size={18}
+                color={item.isExpired ? colors.danger : item.isExpiringSoon ? colors.warning : colors.textSecondary}
+              />
+              <Text style={styles.detailLabel}>{t.expiry}</Text>
+              <Text
+                style={[
+                  styles.detailValue,
+                  item.isExpired && { color: colors.danger },
+                  item.isExpiringSoon && !item.isExpired && { color: colors.warning },
+                ]}
+              >
+                {new Date(item.expiryDate).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+                {item.isExpired && ' (Expired)'}
+                {item.isExpiringSoon && !item.isExpired && ` (${item.daysUntilExpiry}d left)`}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Consumption Mode */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Consumption Mode</Text>
+        <Text style={styles.cardTitle}>{t.consumptionMode}</Text>
         <View style={styles.modeRow}>
           <Ionicons
             name={item.consumptionMode === 'auto' ? 'sync-outline' : 'hand-left-outline'}
             size={20}
-            color={COLORS.primary}
+            color={colors.primary}
           />
           <Text style={styles.modeText}>
-            {item.consumptionMode === 'auto' ? 'Automatic' : 'Manual'}
+            {item.consumptionMode === 'auto' ? t.auto : t.manual}
           </Text>
         </View>
         {item.consumptionMode === 'auto' && item.autoConsumptionRate && (
@@ -207,26 +261,26 @@ export default function ItemDetailScreen() {
       {/* Quick Actions */}
       <View style={styles.actionsRow}>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: COLORS.primary }]}
+          style={[styles.actionButton, { backgroundColor: colors.primary }]}
           onPress={() => navigation.navigate('LogUsage', { itemId: item.id })}
         >
-          <Ionicons name="remove-circle-outline" size={22} color={COLORS.surface} />
-          <Text style={styles.actionButtonText}>Log Usage</Text>
+          <Ionicons name="remove-circle-outline" size={22} color={colors.surface} />
+          <Text style={styles.actionButtonText}>{t.logUsage}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: COLORS.success }]}
+          style={[styles.actionButton, { backgroundColor: colors.success }]}
           onPress={() => navigation.navigate('Restock', { itemId: item.id })}
         >
-          <Ionicons name="add-circle-outline" size={22} color={COLORS.surface} />
-          <Text style={styles.actionButtonText}>Restock</Text>
+          <Ionicons name="add-circle-outline" size={22} color={colors.surface} />
+          <Text style={styles.actionButtonText}>{t.restock}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Activity Log */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recent Activity</Text>
+        <Text style={styles.cardTitle}>{t.recentActivity}</Text>
         {logs.length === 0 ? (
-          <Text style={styles.emptyText}>No activity yet</Text>
+          <Text style={styles.emptyText}>{t.noActivity}</Text>
         ) : (
           logs.slice(0, 10).map((log) => (
             <View key={log.id} style={styles.logItem}>
@@ -234,8 +288,9 @@ export default function ItemDetailScreen() {
               <View style={styles.logInfo}>
                 <Text style={styles.logText}>
                   {log.type === 'restock' ? '+' : '-'}
-                  {log.quantity} {item.unit}
+                  {formatQuantity(log.quantity)} {item.unit}
                   {log.type === 'auto' ? ' (auto)' : ''}
+                  {log.price !== null && log.price !== undefined ? ` · ₹${formatMoney(log.price)}` : ''}
                 </Text>
                 {log.note && <Text style={styles.logNote}>{log.note}</Text>}
               </View>
@@ -251,35 +306,36 @@ export default function ItemDetailScreen() {
           style={styles.editButton}
           onPress={() => navigation.navigate('EditItem', { itemId: item.id })}
         >
-          <Ionicons name="pencil-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.editButtonText}>Edit Item</Text>
+          <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+          <Text style={styles.editButtonText}>{t.editItem}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
-          <Text style={styles.deleteButtonText}>Delete</Text>
+          <Ionicons name="trash-outline" size={20} color={colors.danger} />
+          <Text style={styles.deleteButtonText}>{t.delete}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
   headerCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
@@ -293,7 +349,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     flex: 1,
   },
   statusBadge: {
@@ -307,11 +363,11 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -320,7 +376,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   quantityRow: {
@@ -332,15 +388,15 @@ const styles = StyleSheet.create({
   quantityValue: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
   },
   thresholdText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   progressBar: {
     height: 8,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     borderRadius: BORDER_RADIUS.full,
     overflow: 'hidden',
   },
@@ -350,8 +406,24 @@ const styles = StyleSheet.create({
   },
   daysText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.sm,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  detailLabel: {
+    fontSize: FONT_SIZES.md,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: colors.text,
   },
   modeRow: {
     flexDirection: 'row',
@@ -360,12 +432,12 @@ const styles = StyleSheet.create({
   },
   modeText: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '500',
   },
   modeDetail: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
     marginLeft: SPACING.lg + SPACING.sm,
   },
@@ -385,7 +457,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   actionButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
   },
@@ -395,28 +467,28 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   logInfo: {
     flex: 1,
   },
   logText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '500',
   },
   logNote: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   logDate: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingVertical: SPACING.lg,
   },
@@ -434,10 +506,10 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   editButtonText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
   },
@@ -450,10 +522,10 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
   },
   deleteButtonText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
   },

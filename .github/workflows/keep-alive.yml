@@ -1,0 +1,44 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        run: |
+          # Ping the PostgREST root (returns OpenAPI schema) - this keeps the DB active
+          response=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            "https://kirgmrafaurjpegfysnd.supabase.co/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Accept: application/json")
+          
+          echo "REST endpoint status: $response"
+          
+          # Accept 200, 204, or even 406 (means server is alive and responding)
+          if [ "$response" -eq 200 ] || [ "$response" -eq 204 ] || [ "$response" -eq 406 ]; then
+            echo "✅ Supabase is alive and responding"
+            exit 0
+          fi
+          
+          # Fallback: try a simple SELECT on households (public table)
+          response2=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://kirgmrafaurjpegfysnd.supabase.co/rest/v1/households?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          echo "Households table status: $response2"
+          
+          # Any response from the server (even 401/403) means it's not paused
+          if [ "$response2" -ge 200 ] && [ "$response2" -lt 500 ]; then
+            echo "✅ Supabase is alive (server responded with $response2)"
+            exit 0
+          fi
+          
+          echo "⚠️ Supabase might be down or paused"
+          exit 1

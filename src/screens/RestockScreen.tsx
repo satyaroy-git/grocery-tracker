@@ -13,14 +13,21 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { getItemById, restockItem, logConsumption } from '../database';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { getItemById, restockItem, logConsumption, updateItemPrice } from '../database';
 import { GroceryItemWithStatus } from '../database';
 import { InventoryStackParamList } from '../navigation/types';
+import { formatQuantity, formatMoney, roundMoney } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
 type RestockRouteProp = RouteProp<InventoryStackParamList, 'Restock'>;
+type PriceEntryMode = 'total' | 'perUnit';
 
 export default function RestockScreen() {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<RestockRouteProp>();
   const { itemId } = route.params;
@@ -29,6 +36,13 @@ export default function RestockScreen() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'add' | 'set'>('add');
   const [quantity, setQuantity] = useState('');
+  // Price can be entered either as a flat total for this restock, or as a
+  // per-unit rate that gets multiplied by the quantity being added - the
+  // final total price is calculated live either way and is always what
+  // actually gets recorded (never the per-unit rate itself).
+  const [priceEntryMode, setPriceEntryMode] = useState<PriceEntryMode>('total');
+  const [price, setPrice] = useState('');
+  const [pricePerUnit, setPricePerUnit] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -51,14 +65,57 @@ export default function RestockScreen() {
     if (!item || !quantity) return item?.currentQuantity || 0;
     const qty = parseFloat(quantity);
     if (isNaN(qty)) return item.currentQuantity;
-    if (mode === 'add') return item.currentQuantity + qty;
-    return qty;
+    if (mode === 'add') return roundQuantityLocal(item.currentQuantity + qty);
+    return roundQuantityLocal(qty);
+  };
+
+  // Local rounding helper (screen-side preview only - the actual persisted
+  // rounding happens in database/index.ts regardless of what's shown here).
+  function roundQuantityLocal(value: number): number {
+    return Math.round((value + Number.EPSILON) * 1000) / 1000;
+  }
+
+  // The quantity actually being ADDED to stock in this restock action -
+  // this is the basis for the per-unit price calculation (NOT the final
+  // total quantity), since the price paid only applies to what's being
+  // newly purchased right now, not stock that was already on hand.
+  const getAddedAmount = (): number => {
+    if (!item) return 0;
+    return getFinalAmount() - item.currentQuantity;
+  };
+
+  // The final total price to actually record for this restock, computed
+  // live from whichever entry mode the user picked:
+  // - 'total': the amount typed IS the total (used as-is)
+  // - 'perUnit': total = pricePerUnit x quantity being added
+  const getCalculatedTotalPrice = (): number | null => {
+    if (priceEntryMode === 'total') {
+      if (!price.trim()) return null;
+      const parsed = parseFloat(price);
+      return isNaN(parsed) ? null : roundMoney(parsed);
+    }
+    // perUnit mode
+    if (!pricePerUnit.trim()) return null;
+    const rate = parseFloat(pricePerUnit);
+    if (isNaN(rate)) return null;
+    const addedAmount = getAddedAmount();
+    if (addedAmount <= 0) return null;
+    return roundMoney(rate * addedAmount);
   };
 
   const handleRestock = async () => {
     if (!item) return;
     if (!quantity || parseFloat(quantity) <= 0) {
       Alert.alert('Error', 'Please enter a valid quantity.');
+      return;
+    }
+    // Price is optional, but if the user typed something, it must be valid
+    if (priceEntryMode === 'total' && price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
+      return;
+    }
+    if (priceEntryMode === 'perUnit' && pricePerUnit.trim() && (isNaN(parseFloat(pricePerUnit)) || parseFloat(pricePerUnit) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price per unit, or leave it blank.');
       return;
     }
 
@@ -82,14 +139,34 @@ export default function RestockScreen() {
     setSubmitting(true);
     try {
       const finalAmount = getFinalAmount();
-      const addedAmount = finalAmount - item!.currentQuantity;
-      await restockItem(item!.id, finalAmount);
-      if (addedAmount > 0) {
-        await logConsumption(item!.id, addedAmount, 'restock');
+      const addedAmount = roundQuantityLocal(finalAmount - item!.currentQuantity);
+      const calculatedPrice = getCalculatedTotalPrice();
+
+      // restockItem() ADDS its argument to the current quantity, so we must pass
+      // the delta (addedAmount), not the final target amount, or stock gets
+      // corrupted (e.g. "set total to 10" would incorrectly add 10 on top of
+      // whatever was already there).
+      if (addedAmount !== 0) {
+        await restockItem(item!.id, addedAmount);
       }
+      if (addedAmount > 0) {
+        // Pass the calculated total price through so it's recorded on the
+        // log entry itself - this is what expenditure totals are actually
+        // computed from, so a priced restock is correctly counted every
+        // single time, not just when the item was first created. Whether
+        // the user typed a flat total or a per-unit rate, what's stored
+        // here is always the resolved TOTAL price for this purchase.
+        await logConsumption(item!.id, addedAmount, 'restock', undefined, calculatedPrice);
+      }
+      // Also update items.price as a "most recently paid" snapshot, purely
+      // for quick display on ItemDetailScreen's Purchase Details card.
+      if (calculatedPrice !== null && calculatedPrice > 0) {
+        await updateItemPrice(item!.id, calculatedPrice);
+      }
+
       Alert.alert(
         'Success',
-        `Restocked ${item!.name} to ${finalAmount} ${item!.unit}`,
+        `Restocked ${item!.name} to ${formatQuantity(finalAmount)} ${item!.unit}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
@@ -102,12 +179,14 @@ export default function RestockScreen() {
   if (loading || !item) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   const finalAmount = getFinalAmount();
+  const addedAmount = getAddedAmount();
+  const calculatedPrice = getCalculatedTotalPrice();
 
   return (
     <KeyboardAvoidingView
@@ -119,12 +198,12 @@ export default function RestockScreen() {
         <View style={styles.stockCard}>
           <Text style={styles.itemName}>{item.name}</Text>
           <View style={styles.stockRow}>
-            <Ionicons name="cube-outline" size={24} color={COLORS.primary} />
+            <Ionicons name="cube-outline" size={24} color={colors.primary} />
             <Text style={styles.stockValue}>
-              {item.currentQuantity} {item.unit}
+              {formatQuantity(item.currentQuantity)} {item.unit}
             </Text>
           </View>
-          <Text style={styles.stockLabel}>Current Stock</Text>
+          <Text style={styles.stockLabel}>{t.currentStock}</Text>
         </View>
 
         {/* Mode Toggle */}
@@ -138,7 +217,7 @@ export default function RestockScreen() {
               <Ionicons
                 name="add-outline"
                 size={18}
-                color={mode === 'add' ? COLORS.surface : COLORS.textSecondary}
+                color={mode === 'add' ? colors.surface : colors.textSecondary}
               />
               <Text style={[styles.toggleText, mode === 'add' && styles.toggleTextActive]}>
                 Add to Stock
@@ -151,7 +230,7 @@ export default function RestockScreen() {
               <Ionicons
                 name="swap-horizontal-outline"
                 size={18}
-                color={mode === 'set' ? COLORS.surface : COLORS.textSecondary}
+                color={mode === 'set' ? colors.surface : colors.textSecondary}
               />
               <Text style={[styles.toggleText, mode === 'set' && styles.toggleTextActive]}>
                 Set New Total
@@ -170,9 +249,74 @@ export default function RestockScreen() {
             value={quantity}
             onChangeText={setQuantity}
             placeholder={mode === 'add' ? 'Amount to add' : 'New total amount'}
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
+        </View>
+
+        {/* Price (optional) - amount paid for this restock */}
+        <View style={styles.field}>
+          <Text style={styles.label}>{t.priceOptional}</Text>
+
+          {/* Total vs Per-Unit entry mode toggle */}
+          <View style={styles.priceModeToggle}>
+            <TouchableOpacity
+              style={[styles.priceModeButton, priceEntryMode === 'total' && styles.priceModeButtonActive]}
+              onPress={() => setPriceEntryMode('total')}
+            >
+              <Text
+                style={[
+                  styles.priceModeText,
+                  priceEntryMode === 'total' && styles.priceModeTextActive,
+                ]}
+              >
+                Total Price
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.priceModeButton, priceEntryMode === 'perUnit' && styles.priceModeButtonActive]}
+              onPress={() => setPriceEntryMode('perUnit')}
+            >
+              <Text
+                style={[
+                  styles.priceModeText,
+                  priceEntryMode === 'perUnit' && styles.priceModeTextActive,
+                ]}
+              >
+                Price per {item.unit}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {priceEntryMode === 'total' ? (
+            <TextInput
+              style={styles.input}
+              value={price}
+              onChangeText={setPrice}
+              placeholder="e.g. 199"
+              placeholderTextColor={colors.textLight}
+              keyboardType="decimal-pad"
+            />
+          ) : (
+            <TextInput
+              style={styles.input}
+              value={pricePerUnit}
+              onChangeText={setPricePerUnit}
+              placeholder={`e.g. 50 per ${item.unit}`}
+              placeholderTextColor={colors.textLight}
+              keyboardType="decimal-pad"
+            />
+          )}
+
+          {priceEntryMode === 'perUnit' && addedAmount > 0 && pricePerUnit.trim() && calculatedPrice !== null && (
+            <Text style={styles.priceCalcText}>
+              ₹{pricePerUnit} × {formatQuantity(addedAmount)} {item.unit} = ₹{formatMoney(calculatedPrice)}
+            </Text>
+          )}
+
+          <Text style={styles.priceHint}>
+            This will be added to your expenditure insights.
+          </Text>
         </View>
 
         {/* Preview */}
@@ -182,23 +326,31 @@ export default function RestockScreen() {
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Current:</Text>
               <Text style={styles.previewValue}>
-                {item.currentQuantity} {item.unit}
+                {formatQuantity(item.currentQuantity)} {item.unit}
               </Text>
             </View>
             {mode === 'add' && (
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Adding:</Text>
-                <Text style={[styles.previewValue, { color: COLORS.success }]}>
-                  +{parseFloat(quantity)} {item.unit}
+                <Text style={[styles.previewValue, { color: colors.success }]}>
+                  +{formatQuantity(parseFloat(quantity) || 0)} {item.unit}
                 </Text>
               </View>
             )}
             <View style={[styles.previewRow, styles.previewTotal]}>
               <Text style={styles.previewLabel}>Final Amount:</Text>
               <Text style={[styles.previewValue, styles.previewFinal]}>
-                {finalAmount} {item.unit}
+                {formatQuantity(finalAmount)} {item.unit}
               </Text>
             </View>
+            {calculatedPrice !== null && (
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Total Price:</Text>
+                <Text style={[styles.previewValue, { color: colors.success }]}>
+                  ₹{formatMoney(calculatedPrice)}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -208,7 +360,7 @@ export default function RestockScreen() {
           onPress={handleRestock}
           disabled={submitting}
         >
-          <Ionicons name="checkmark-circle-outline" size={22} color={COLORS.surface} />
+          <Ionicons name="checkmark-circle-outline" size={22} color={colors.surface} />
           <Text style={styles.confirmButtonText}>
             {submitting ? 'Restocking...' : 'Confirm Restock'}
           </Text>
@@ -218,23 +370,24 @@ export default function RestockScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
   stockCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     alignItems: 'center',
@@ -244,7 +397,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   stockRow: {
@@ -255,11 +408,11 @@ const styles = StyleSheet.create({
   stockValue: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   stockLabel: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   field: {
@@ -268,24 +421,62 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
+  },
+  priceHint: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textLight,
+    marginTop: SPACING.xs,
+  },
+  priceModeToggle: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  priceModeButton: {
+    flex: 1,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  priceModeButtonActive: {
+    backgroundColor: colors.primaryLight + '25',
+    borderColor: colors.primary,
+  },
+  priceModeText: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  priceModeTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  priceCalcText: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.success,
+    fontWeight: '600',
+    marginTop: SPACING.xs,
   },
   toggleContainer: {
     flexDirection: 'row',
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   toggleButton: {
     flex: 1,
@@ -293,22 +484,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     gap: SPACING.xs,
   },
   toggleButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   toggleText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   toggleTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
   },
   previewCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -317,7 +508,7 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontSize: FONT_SIZES.md,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   previewRow: {
@@ -327,26 +518,26 @@ const styles = StyleSheet.create({
   },
   previewTotal: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     marginTop: SPACING.xs,
     paddingTop: SPACING.sm,
   },
   previewLabel: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   previewValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   previewFinal: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   confirmButton: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -360,7 +551,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   confirmButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },

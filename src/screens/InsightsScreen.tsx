@@ -9,20 +9,42 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../i18n';
+import { DashboardStackParamList } from '../navigation/types';
 import {
   getAllItems,
-  getRecentConsumptionLogs,
-  getWeeklyConsumption,
+  getAllRecentConsumptionLogs,
+  getWeeklyConsumptionBreakdown,
+  getExpenditureSummary,
+  getSpendByCategory,
+  getMonthlySpendTrend,
 } from '../database';
-import { GroceryItemWithStatus, ConsumptionLog } from '../database';
+import {
+  GroceryItemWithStatus,
+  ConsumptionLog,
+  ExpenditureSummary,
+  CategorySpend,
+  MonthlySpend,
+} from '../database';
+import { formatMoney, formatQuantity } from '../utils/numberFormat';
 
 export default function InsightsScreen() {
+  const { colors } = useTheme();
+  const { t, language } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<DashboardStackParamList>>();
+  const styles = createStyles(colors);
   const [items, setItems] = useState<GroceryItemWithStatus[]>([]);
   const [recentLogs, setRecentLogs] = useState<ConsumptionLog[]>([]);
   const [weeklyData, setWeeklyData] = useState<{ week: string; total: number }[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expenditure, setExpenditure] = useState<ExpenditureSummary | null>(null);
+  const [categorySpend, setCategorySpend] = useState<CategorySpend[]>([]);
+  const [monthlySpend, setMonthlySpend] = useState<MonthlySpend[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,12 +60,18 @@ export default function InsightsScreen() {
 
   const loadData = async () => {
     try {
-      const [allItems, logs] = await Promise.all([
+      const [allItems, logs, expSummary, catSpend, monthTrend] = await Promise.all([
         getAllItems(),
-        getRecentConsumptionLogs(30),
+        getAllRecentConsumptionLogs(30),
+        getExpenditureSummary(),
+        getSpendByCategory(),
+        getMonthlySpendTrend(6),
       ]);
       setItems(allItems);
       setRecentLogs(logs);
+      setExpenditure(expSummary);
+      setCategorySpend(catSpend);
+      setMonthlySpend(monthTrend);
       if (allItems.length > 0 && !selectedItemId) {
         setSelectedItemId(allItems[0].id);
       }
@@ -54,12 +82,13 @@ export default function InsightsScreen() {
     }
   };
 
-  const loadWeeklyData = async (itemId: string) => {
+  const loadWeeklyData = async (itemId: number) => {
     try {
-      const data = await getWeeklyConsumption(itemId, 4);
+      const data = await getWeeklyConsumptionBreakdown(itemId, 4);
       setWeeklyData(data);
     } catch (error) {
       console.error('Failed to load weekly data:', error);
+      setWeeklyData([]);
     }
   };
 
@@ -109,12 +138,13 @@ export default function InsightsScreen() {
   };
 
   const maxWeeklyValue = weeklyData.length > 0 ? Math.max(...weeklyData.map((d) => d.total)) : 1;
+  const maxMonthlySpend = monthlySpend.length > 0 ? Math.max(...monthlySpend.map((d) => d.total), 1) : 1;
   const selectedItem = items.find((i) => i.id === selectedItemId);
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -124,23 +154,144 @@ export default function InsightsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* Summary Cards */}
+      {/* Summary Cards - Pantry Health at a Glance */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Ionicons name="calendar-outline" size={24} color={COLORS.primary} />
-          <Text style={styles.summaryValue}>{getThisWeekConsumption()}</Text>
-          <Text style={styles.summaryLabel}>This Week</Text>
+          <Ionicons name="cube-outline" size={24} color={colors.primary} />
+          <Text style={styles.summaryValue}>{items.length}</Text>
+          <Text style={styles.summaryLabel}>{t.totalItems}</Text>
+          {items.filter((i) => i.status === 'low' || i.status === 'empty').length > 0 && (
+            <Text style={styles.summaryAlert}>
+              {items.filter((i) => i.status === 'low' || i.status === 'empty').length} {t.pantryLowStock.toLowerCase()}
+            </Text>
+          )}
         </View>
         <View style={styles.summaryCard}>
-          <Ionicons name="stats-chart-outline" size={24} color={COLORS.secondary} />
-          <Text style={styles.summaryValue}>{getThisMonthConsumption()}</Text>
-          <Text style={styles.summaryLabel}>This Month</Text>
+          <Ionicons name="alert-circle-outline" size={24} color={colors.warning} />
+          <Text style={styles.summaryValue}>
+            {items.filter((i) => i.daysUntilExpiry !== null && i.daysUntilExpiry >= 0 && i.daysUntilExpiry <= 7).length}
+          </Text>
+          <Text style={styles.summaryLabel}>{t.expiringSoon}</Text>
+          {items.filter((i) => i.isExpired).length > 0 && (
+            <Text style={[styles.summaryAlert, { color: colors.danger }]}>
+              {items.filter((i) => i.isExpired).length} {t.pantryExpired.toLowerCase()}
+            </Text>
+          )}
         </View>
       </View>
 
+      {/* Recipe Suggestions Card */}
+      <TouchableOpacity
+        style={styles.recipeCard}
+        onPress={() => navigation.navigate('RecipeSuggestions')}
+      >
+        <View style={styles.recipeCardContent}>
+          <Ionicons name="restaurant" size={28} color={colors.secondary} />
+          <View style={styles.recipeCardText}>
+            <Text style={styles.recipeCardTitle}>
+              {language === 'hi' ? 'आज क्या बनाएं?' : "What to Cook Today?"}
+            </Text>
+            <Text style={styles.recipeCardSubtitle}>
+              {language === 'hi'
+                ? 'AI से अपनी पैंट्री के आधार पर रेसिपी पाएं'
+                : 'Get AI recipe suggestions from your pantry'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+        </View>
+      </TouchableOpacity>
+
+      {/* Expenditure Summary */}
+      {expenditure && (
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="wallet-outline" size={20} color={colors.success} />
+            <Text style={styles.cardTitle}>{t.expenditure}</Text>
+          </View>
+
+          <View style={styles.spendSummaryRow}>
+            <View style={styles.spendSummaryItem}>
+              <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.thisMonthSpend)}</Text>
+              <Text style={styles.spendSummaryLabel}>{t.thisMonth}</Text>
+            </View>
+            <View style={styles.spendSummaryDivider} />
+            <View style={styles.spendSummaryItem}>
+              <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.lastMonthSpend)}</Text>
+              <Text style={styles.spendSummaryLabel}>{t.lastMonth}</Text>
+            </View>
+            <View style={styles.spendSummaryDivider} />
+            <View style={styles.spendSummaryItem}>
+              <Text style={styles.spendSummaryValue}>₹{formatMoney(expenditure.totalSpend)}</Text>
+              <Text style={styles.spendSummaryLabel}>{t.allTime}</Text>
+            </View>
+          </View>
+
+          {expenditure.purchaseCount > 0 && (
+            <Text style={styles.spendCaveat}>
+              Based on {expenditure.purchaseCount} priced purchase{expenditure.purchaseCount === 1 ? '' : 's'}{' '}
+              (initial purchases and restocks where a price was entered).
+            </Text>
+          )}
+
+          {/* Monthly spend trend bar chart */}
+          {monthlySpend.some((m) => m.total > 0) && (
+            <>
+              <Text style={styles.subChartTitle}>{t.lastSixMonths}</Text>
+              <View style={styles.chartContainer}>
+                {monthlySpend.map((data, index) => (
+                  <View key={index} style={styles.barColumn}>
+                    <Text style={styles.barValue}>₹{formatMoney(data.total)}</Text>
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFillSpend,
+                          { height: `${(data.total / maxMonthlySpend) * 100}%` },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barLabel}>{data.month}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Spend by category */}
+          {categorySpend.length > 0 && (
+            <>
+              <Text style={styles.subChartTitle}>{t.byCategory}</Text>
+              {categorySpend.slice(0, 6).map((cat, index) => (
+                <View key={index} style={styles.categorySpendRow}>
+                  <Text style={styles.categorySpendName} numberOfLines={1}>
+                    {cat.category}
+                  </Text>
+                  <View style={styles.categorySpendBarTrack}>
+                    <View
+                      style={[
+                        styles.categorySpendBarFill,
+                        {
+                          width: `${(cat.total / (categorySpend[0]?.total || 1)) * 100}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.categorySpendValue}>₹{formatMoney(cat.total)}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {expenditure.purchaseCount === 0 && (
+            <Text style={styles.emptyText}>
+              No spend data yet. Add a price when creating an item or restocking to see expenditure insights here.
+            </Text>
+          )}
+        </View>
+      )}
+
       {/* Weekly Chart */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Weekly Consumption</Text>
+        <Text style={styles.cardTitle}>{t.weeklyConsumption}</Text>
 
         {/* Item Selector */}
         {items.length > 0 && (
@@ -170,12 +321,12 @@ export default function InsightsScreen() {
 
         {/* Bar Chart */}
         {weeklyData.length === 0 ? (
-          <Text style={styles.emptyText}>No consumption data for this item yet</Text>
+          <Text style={styles.emptyText}>{t.noData}</Text>
         ) : (
           <View style={styles.chartContainer}>
             {weeklyData.map((data, index) => (
               <View key={index} style={styles.barColumn}>
-                <Text style={styles.barValue}>{data.total.toFixed(1)}</Text>
+                <Text style={styles.barValue}>{formatQuantity(data.total, 2)}</Text>
                 <View style={styles.barTrack}>
                   <View
                     style={[
@@ -199,9 +350,9 @@ export default function InsightsScreen() {
 
       {/* Top Consumed */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Top Consumed (30 days)</Text>
+        <Text style={styles.cardTitle}>{t.topConsumed}</Text>
         {topConsumed.length === 0 ? (
-          <Text style={styles.emptyText}>No consumption data yet</Text>
+          <Text style={styles.emptyText}>{t.noData}</Text>
         ) : (
           topConsumed.map((item, index) => (
             <View key={index} style={styles.rankingItem}>
@@ -209,7 +360,7 @@ export default function InsightsScreen() {
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
               <Text style={styles.rankName}>{item.name}</Text>
-              <Text style={styles.rankValue}>{item.total.toFixed(1)}</Text>
+              <Text style={styles.rankValue}>{formatQuantity(item.total, 2)}</Text>
             </View>
           ))
         )}
@@ -218,18 +369,18 @@ export default function InsightsScreen() {
       {/* Fast Moving Alerts */}
       <View style={styles.card}>
         <View style={styles.cardHeaderRow}>
-          <Ionicons name="warning-outline" size={20} color={COLORS.warning} />
-          <Text style={styles.cardTitle}>Fast-Moving Items</Text>
+          <Ionicons name="warning-outline" size={20} color={colors.warning} />
+          <Text style={styles.cardTitle}>{t.fastMoving}</Text>
         </View>
         {fastMoving.length === 0 ? (
-          <Text style={styles.emptyText}>No fast-moving items detected</Text>
+          <Text style={styles.emptyText}>{t.noData}</Text>
         ) : (
           fastMoving.map((item) => (
             <View key={item.id} style={styles.alertItem}>
               <View style={styles.alertInfo}>
                 <Text style={styles.alertName}>{item.name}</Text>
                 <Text style={styles.alertDetail}>
-                  {item.currentQuantity} {item.unit} remaining
+                  {formatQuantity(item.currentQuantity)} {item.unit} remaining
                 </Text>
               </View>
               <View style={styles.alertBadge}>
@@ -245,16 +396,17 @@ export default function InsightsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -267,7 +419,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     alignItems: 'center',
@@ -276,16 +428,49 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginTop: SPACING.xs,
   },
   summaryLabel: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
+  summaryAlert: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+    color: colors.warning,
+    marginTop: SPACING.xs,
+  },
+  recipeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.secondary + '40',
+    ...SHADOWS.sm,
+  },
+  recipeCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  recipeCardText: {
+    flex: 1,
+  },
+  recipeCardTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  recipeCardSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -294,7 +479,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   cardHeaderRow: {
@@ -311,19 +496,19 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginRight: SPACING.sm,
   },
   itemChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   itemChipText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   itemChipTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontWeight: '600',
   },
   chartContainer: {
@@ -340,52 +525,125 @@ const styles = StyleSheet.create({
   },
   barValue: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.xs,
   },
   barTrack: {
     flex: 1,
     width: '100%',
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     borderRadius: BORDER_RADIUS.sm,
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
   barFill: {
     width: '100%',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.sm,
     minHeight: 4,
   },
   barLabel: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   chartUnit: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingVertical: SPACING.lg,
+  },
+  spendSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+  },
+  spendSummaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  spendSummaryDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: colors.border,
+  },
+  spendSummaryValue: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '700',
+    color: colors.success,
+  },
+  spendSummaryLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  spendCaveat: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textLight,
+    marginTop: SPACING.sm,
+    lineHeight: 16,
+  },
+  subChartTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  barFillSpend: {
+    width: '100%',
+    backgroundColor: colors.success,
+    borderRadius: BORDER_RADIUS.sm,
+    minHeight: 4,
+  },
+  categorySpendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  categorySpendName: {
+    width: 90,
+    fontSize: FONT_SIZES.sm,
+    color: colors.text,
+  },
+  categorySpendBarTrack: {
+    flex: 1,
+    height: 10,
+    backgroundColor: colors.border,
+    borderRadius: BORDER_RADIUS.sm,
+    overflow: 'hidden',
+  },
+  categorySpendBarFill: {
+    height: '100%',
+    backgroundColor: colors.success,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  categorySpendValue: {
+    width: 60,
+    textAlign: 'right',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   rankingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   rankBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.primary + '20',
+    backgroundColor: colors.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.sm,
@@ -393,25 +651,25 @@ const styles = StyleSheet.create({
   rankText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   rankName: {
     flex: 1,
     fontSize: FONT_SIZES.md,
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '500',
   },
   rankValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   alertItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   alertInfo: {
     flex: 1,
@@ -419,15 +677,15 @@ const styles = StyleSheet.create({
   alertName: {
     fontSize: FONT_SIZES.md,
     fontWeight: '500',
-    color: COLORS.text,
+    color: colors.text,
   },
   alertDetail: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   alertBadge: {
-    backgroundColor: COLORS.warningBg,
+    backgroundColor: colors.warningBg,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.full,
@@ -435,6 +693,6 @@ const styles = StyleSheet.create({
   alertBadgeText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.warning,
+    color: colors.warning,
   },
 });

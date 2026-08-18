@@ -13,20 +13,28 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import {
   getShoppingList,
   markAsPurchased,
   restockItem,
   getItemById,
   logConsumption,
+  updateItemPrice,
 } from '../database';
 import { ShoppingListItem, GroceryItemWithStatus } from '../database';
 import { ShoppingStackParamList } from '../navigation/types';
+import { formatQuantity, formatMoney, roundMoney } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
 type PurchaseConfirmRouteProp = RouteProp<ShoppingStackParamList, 'PurchaseConfirm'>;
+type PriceEntryMode = 'total' | 'perUnit';
 
 export default function PurchaseConfirmScreen() {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<PurchaseConfirmRouteProp>();
   const { shoppingItemId } = route.params;
@@ -34,6 +42,12 @@ export default function PurchaseConfirmScreen() {
   const [shoppingItem, setShoppingItem] = useState<ShoppingListItem | null>(null);
   const [linkedItem, setLinkedItem] = useState<GroceryItemWithStatus | null>(null);
   const [newQuantity, setNewQuantity] = useState('');
+  // Price can be entered as a flat total or a per-unit rate (multiplied by
+  // the quantity being added), same as RestockScreen - the resolved total
+  // is always what's actually recorded on the purchase log.
+  const [priceEntryMode, setPriceEntryMode] = useState<PriceEntryMode>('total');
+  const [price, setPrice] = useState('');
+  const [pricePerUnit, setPricePerUnit] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,6 +89,14 @@ export default function PurchaseConfirmScreen() {
       Alert.alert('Error', 'Please enter a valid quantity.');
       return;
     }
+    if (priceEntryMode === 'total' && price.trim() && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price, or leave it blank.');
+      return;
+    }
+    if (priceEntryMode === 'perUnit' && pricePerUnit.trim() && (isNaN(parseFloat(pricePerUnit)) || parseFloat(pricePerUnit) < 0)) {
+      Alert.alert('Error', 'Please enter a valid price per unit, or leave it blank.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -82,10 +104,32 @@ export default function PurchaseConfirmScreen() {
 
       if (linkedItem && newQuantity) {
         const qty = parseFloat(newQuantity);
-        const addedAmount = qty - linkedItem.currentQuantity;
-        await restockItem(linkedItem.id, qty);
+        const addedAmount = Math.round((qty - linkedItem.currentQuantity + Number.EPSILON) * 1000) / 1000;
+
+        // Resolve the final total price from whichever entry mode was used.
+        let calculatedPrice: number | null = null;
+        if (priceEntryMode === 'total') {
+          calculatedPrice = price.trim() ? roundMoney(parseFloat(price)) : null;
+        } else if (pricePerUnit.trim() && addedAmount > 0) {
+          calculatedPrice = roundMoney(parseFloat(pricePerUnit) * addedAmount);
+        }
+
+        // restockItem() ADDS its argument to the current quantity, so pass the
+        // delta (addedAmount), not the final target quantity `qty`.
+        if (addedAmount !== 0) {
+          await restockItem(linkedItem.id, addedAmount);
+        }
         if (addedAmount > 0) {
-          await logConsumption(linkedItem.id, addedAmount, 'restock', 'Purchased from shopping list');
+          await logConsumption(
+            linkedItem.id,
+            addedAmount,
+            'restock',
+            'Purchased from shopping list',
+            calculatedPrice
+          );
+        }
+        if (calculatedPrice !== null && calculatedPrice > 0) {
+          await updateItemPrice(linkedItem.id, calculatedPrice);
         }
       }
 
@@ -110,7 +154,7 @@ export default function PurchaseConfirmScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -125,11 +169,11 @@ export default function PurchaseConfirmScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Item Info */}
         <View style={styles.headerCard}>
-          <Ionicons name="bag-check-outline" size={48} color={COLORS.success} />
-          <Text style={styles.headerTitle}>Confirm Purchase</Text>
+          <Ionicons name="bag-check-outline" size={48} color={colors.success} />
+          <Text style={styles.headerTitle}>{t.confirmPurchase}</Text>
           <Text style={styles.itemName}>{shoppingItem.name}</Text>
           <Text style={styles.itemDetail}>
-            {shoppingItem.quantityNeeded} {shoppingItem.unit} • {shoppingItem.category}
+            {formatQuantity(shoppingItem.quantityNeeded)} {shoppingItem.unit} • {shoppingItem.category}
           </Text>
         </View>
 
@@ -138,7 +182,7 @@ export default function PurchaseConfirmScreen() {
           <View style={styles.restockSection}>
             <Text style={styles.sectionTitle}>Update Stock</Text>
             <Text style={styles.currentStock}>
-              Current stock: {linkedItem.currentQuantity} {linkedItem.unit}
+              Current stock: {formatQuantity(linkedItem.currentQuantity)} {linkedItem.unit}
             </Text>
 
             <View style={styles.field}>
@@ -148,27 +192,107 @@ export default function PurchaseConfirmScreen() {
                 value={newQuantity}
                 onChangeText={setNewQuantity}
                 placeholder="Enter new total"
-                placeholderTextColor={COLORS.textLight}
+                placeholderTextColor={colors.textLight}
                 keyboardType="decimal-pad"
               />
             </View>
 
-            {newQuantity && parseFloat(newQuantity) > 0 && (
-              <View style={styles.previewCard}>
-                <View style={styles.previewRow}>
-                  <Text style={styles.previewLabel}>Current:</Text>
-                  <Text style={styles.previewValue}>
-                    {linkedItem.currentQuantity} {linkedItem.unit}
+            {/* Price (optional) - amount paid for this purchase */}
+            <View style={styles.field}>
+              <Text style={styles.label}>{t.priceOptional}</Text>
+
+              <View style={styles.priceModeToggle}>
+                <TouchableOpacity
+                  style={[styles.priceModeButton, priceEntryMode === 'total' && styles.priceModeButtonActive]}
+                  onPress={() => setPriceEntryMode('total')}
+                >
+                  <Text
+                    style={[
+                      styles.priceModeText,
+                      priceEntryMode === 'total' && styles.priceModeTextActive,
+                    ]}
+                  >
+                    Total Price
                   </Text>
-                </View>
-                <View style={styles.previewRow}>
-                  <Text style={styles.previewLabel}>After purchase:</Text>
-                  <Text style={[styles.previewValue, { color: COLORS.success }]}>
-                    {parseFloat(newQuantity)} {linkedItem.unit}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.priceModeButton, priceEntryMode === 'perUnit' && styles.priceModeButtonActive]}
+                  onPress={() => setPriceEntryMode('perUnit')}
+                >
+                  <Text
+                    style={[
+                      styles.priceModeText,
+                      priceEntryMode === 'perUnit' && styles.priceModeTextActive,
+                    ]}
+                  >
+                    Price per {linkedItem.unit}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
-            )}
+
+              {priceEntryMode === 'total' ? (
+                <TextInput
+                  style={styles.input}
+                  value={price}
+                  onChangeText={setPrice}
+                  placeholder="e.g. 199"
+                  placeholderTextColor={colors.textLight}
+                  keyboardType="decimal-pad"
+                />
+              ) : (
+                <TextInput
+                  style={styles.input}
+                  value={pricePerUnit}
+                  onChangeText={setPricePerUnit}
+                  placeholder={`e.g. 50 per ${linkedItem.unit}`}
+                  placeholderTextColor={colors.textLight}
+                  keyboardType="decimal-pad"
+                />
+              )}
+
+              <Text style={styles.priceHint}>
+                This will be added to your expenditure insights.
+              </Text>
+            </View>
+
+            {newQuantity && parseFloat(newQuantity) > 0 && (() => {
+              const addedAmount = Math.round((parseFloat(newQuantity) - linkedItem.currentQuantity + Number.EPSILON) * 1000) / 1000;
+              const calculatedPrice =
+                priceEntryMode === 'total'
+                  ? (price.trim() && !isNaN(parseFloat(price)) ? roundMoney(parseFloat(price)) : null)
+                  : (pricePerUnit.trim() && !isNaN(parseFloat(pricePerUnit)) && addedAmount > 0
+                      ? roundMoney(parseFloat(pricePerUnit) * addedAmount)
+                      : null);
+              return (
+                <View style={styles.previewCard}>
+                  <View style={styles.previewRow}>
+                    <Text style={styles.previewLabel}>Current:</Text>
+                    <Text style={styles.previewValue}>
+                      {formatQuantity(linkedItem.currentQuantity)} {linkedItem.unit}
+                    </Text>
+                  </View>
+                  <View style={styles.previewRow}>
+                    <Text style={styles.previewLabel}>After purchase:</Text>
+                    <Text style={[styles.previewValue, { color: colors.success }]}>
+                      {formatQuantity(parseFloat(newQuantity))} {linkedItem.unit}
+                    </Text>
+                  </View>
+                  {priceEntryMode === 'perUnit' && addedAmount > 0 && pricePerUnit.trim() && calculatedPrice !== null && (
+                    <Text style={styles.priceCalcText}>
+                      ₹{pricePerUnit} × {formatQuantity(addedAmount)} {linkedItem.unit} = ₹{formatMoney(calculatedPrice)}
+                    </Text>
+                  )}
+                  {calculatedPrice !== null && (
+                    <View style={styles.previewRow}>
+                      <Text style={styles.previewLabel}>Total Price:</Text>
+                      <Text style={[styles.previewValue, { color: colors.success }]}>
+                        ₹{formatMoney(calculatedPrice)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
           </View>
         )}
 
@@ -178,9 +302,9 @@ export default function PurchaseConfirmScreen() {
           onPress={handleConfirm}
           disabled={submitting}
         >
-          <Ionicons name="checkmark-circle-outline" size={22} color={COLORS.surface} />
+          <Ionicons name="checkmark-circle-outline" size={22} color={colors.surface} />
           <Text style={styles.confirmButtonText}>
-            {submitting ? 'Confirming...' : 'Confirm Purchase'}
+            {submitting ? 'Confirming...' : t.confirmPurchase}
           </Text>
         </TouchableOpacity>
 
@@ -192,23 +316,24 @@ export default function PurchaseConfirmScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
   headerCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.xl,
     alignItems: 'center',
@@ -218,22 +343,22 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginTop: SPACING.sm,
   },
   itemName: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     marginTop: SPACING.sm,
   },
   itemDetail: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   restockSection: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
@@ -242,12 +367,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   currentStock: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.md,
   },
   field: {
@@ -256,20 +381,58 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
+  },
+  priceHint: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textLight,
+    marginTop: SPACING.xs,
+  },
+  priceModeToggle: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  priceModeButton: {
+    flex: 1,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  priceModeButtonActive: {
+    backgroundColor: colors.primaryLight + '25',
+    borderColor: colors.primary,
+  },
+  priceModeText: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  priceModeTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  priceCalcText: {
+    fontSize: FONT_SIZES.sm,
+    color: colors.success,
+    fontWeight: '600',
+    marginTop: SPACING.xs,
   },
   previewCard: {
-    backgroundColor: COLORS.successBg,
+    backgroundColor: colors.successBg,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
   },
@@ -280,15 +443,15 @@ const styles = StyleSheet.create({
   },
   previewLabel: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   previewValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   confirmButton: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -301,7 +464,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   confirmButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },
@@ -312,7 +475,7 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
 });

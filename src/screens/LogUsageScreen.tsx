@@ -13,16 +13,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
-import { getAllItems, getItemById, deductQuantity, logConsumption } from '../database';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { getAllItems, getItemById, logConsumption } from '../database';
 import { GroceryItemWithStatus } from '../database';
-import { DashboardStackParamList } from '../navigation/types';
+import { InventoryStackParamList } from '../navigation/types';
+import { formatQuantity } from '../utils/numberFormat';
+import { useTranslation } from '../i18n';
 
-type LogUsageRouteProp = RouteProp<DashboardStackParamList, 'LogUsage'>;
+// FIX: LogUsage is registered under InventoryStack (see InventoryStack.tsx),
+// not DashboardStack - it never actually had a 'LogUsage' key, so this typed
+// route.params as `unknown` and made `route.params?.itemId` a type error.
+type LogUsageRouteProp = RouteProp<InventoryStackParamList, 'LogUsage'>;
 
 const QUICK_AMOUNTS = [0.25, 0.5, 1, 2];
 
 export default function LogUsageScreen() {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const styles = createStyles(colors);
   const navigation = useNavigation();
   const route = useRoute<LogUsageRouteProp>();
   const preselectedItemId = route.params?.itemId;
@@ -63,7 +72,7 @@ export default function LogUsageScreen() {
   );
 
   const remainingStock = selectedItem
-    ? Math.max(0, selectedItem.currentQuantity - (parseFloat(amount) || 0))
+    ? Math.max(0, Math.round((selectedItem.currentQuantity - (parseFloat(amount) || 0) + Number.EPSILON) * 1000) / 1000)
     : null;
 
   const handleLogUsage = async () => {
@@ -89,7 +98,11 @@ export default function LogUsageScreen() {
     setSubmitting(true);
     try {
       const qty = parseFloat(amount);
-      await deductQuantity(selectedItem!.id, qty);
+      // BUG FIX: logConsumption() already calls deductQuantity() internally
+      // for any non-'restock' type (see database/index.ts). Calling
+      // deductQuantity() explicitly here AND inside logConsumption() deducted
+      // the amount TWICE - e.g. logging 0.2L used against 1L stock produced
+      // 1 - 0.2 - 0.2 = 0.6L instead of the correct 1 - 0.2 = 0.8L.
       await logConsumption(selectedItem!.id, qty, 'manual', note || undefined);
       Alert.alert('Success', `Logged ${qty} ${selectedItem!.unit} of ${selectedItem!.name}`, [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -104,7 +117,7 @@ export default function LogUsageScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -119,7 +132,7 @@ export default function LogUsageScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Select Item</Text>
           <View style={styles.searchContainer}>
-            <Ionicons name="search-outline" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
             <TextInput
               style={styles.searchInput}
               value={searchQuery}
@@ -129,7 +142,7 @@ export default function LogUsageScreen() {
                 if (!text) setSelectedItem(null);
               }}
               placeholder="Search items..."
-              placeholderTextColor={COLORS.textLight}
+              placeholderTextColor={colors.textLight}
               onFocus={() => setShowDropdown(true)}
             />
             {searchQuery.length > 0 && (
@@ -139,7 +152,7 @@ export default function LogUsageScreen() {
                   setSelectedItem(null);
                 }}
               >
-                <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -160,7 +173,7 @@ export default function LogUsageScreen() {
                   >
                     <Text style={styles.dropdownItemName}>{item.name}</Text>
                     <Text style={styles.dropdownItemDetail}>
-                      {item.currentQuantity} {item.unit}
+                      {formatQuantity(item.currentQuantity)} {item.unit}
                     </Text>
                   </TouchableOpacity>
                 ))
@@ -174,7 +187,7 @@ export default function LogUsageScreen() {
           <View style={styles.selectedInfo}>
             <Text style={styles.selectedName}>{selectedItem.name}</Text>
             <Text style={styles.selectedStock}>
-              Current Stock: {selectedItem.currentQuantity} {selectedItem.unit}
+              Current Stock: {formatQuantity(selectedItem.currentQuantity)} {selectedItem.unit}
             </Text>
           </View>
         )}
@@ -187,7 +200,7 @@ export default function LogUsageScreen() {
             value={amount}
             onChangeText={setAmount}
             placeholder="Enter amount"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             keyboardType="decimal-pad"
           />
           <View style={styles.quickAmounts}>
@@ -218,7 +231,7 @@ export default function LogUsageScreen() {
             value={note}
             onChangeText={setNote}
             placeholder="Add a note..."
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             multiline
           />
         </View>
@@ -230,13 +243,13 @@ export default function LogUsageScreen() {
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Current Stock:</Text>
               <Text style={styles.previewValue}>
-                {selectedItem.currentQuantity} {selectedItem.unit}
+                {formatQuantity(selectedItem.currentQuantity)} {selectedItem.unit}
               </Text>
             </View>
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Usage:</Text>
-              <Text style={[styles.previewValue, { color: COLORS.danger }]}>
-                -{parseFloat(amount)} {selectedItem.unit}
+              <Text style={[styles.previewValue, { color: colors.danger }]}>
+                -{formatQuantity(parseFloat(amount) || 0)} {selectedItem.unit}
               </Text>
             </View>
             <View style={[styles.previewRow, styles.previewTotal]}>
@@ -244,10 +257,10 @@ export default function LogUsageScreen() {
               <Text
                 style={[
                   styles.previewValue,
-                  { color: remainingStock! <= selectedItem.threshold ? COLORS.danger : COLORS.success },
+                  { color: remainingStock! <= selectedItem.threshold ? colors.danger : colors.success },
                 ]}
               >
-                {remainingStock} {selectedItem.unit}
+                {formatQuantity(remainingStock!)} {selectedItem.unit}
               </Text>
             </View>
           </View>
@@ -259,9 +272,9 @@ export default function LogUsageScreen() {
           onPress={handleLogUsage}
           disabled={submitting}
         >
-          <Ionicons name="remove-circle-outline" size={22} color={COLORS.surface} />
+          <Ionicons name="remove-circle-outline" size={22} color={colors.surface} />
           <Text style={styles.logButtonText}>
-            {submitting ? 'Logging...' : 'Log Usage'}
+            {submitting ? 'Logging...' : t.logUsage}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -269,16 +282,17 @@ export default function LogUsageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -290,26 +304,26 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   noteInput: {
     minHeight: 80,
     textAlignVertical: 'top',
   },
   searchContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -319,12 +333,12 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: FONT_SIZES.lg,
-    color: COLORS.text,
+    color: colors.text,
   },
   dropdown: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: BORDER_RADIUS.md,
     marginTop: SPACING.xs,
     maxHeight: 200,
@@ -333,28 +347,28 @@ const styles = StyleSheet.create({
   dropdownItem: {
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   dropdownItemName: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '500',
   },
   dropdownItemDetail: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   dropdownEmpty: {
     padding: SPACING.md,
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   selectedInfo: {
-    backgroundColor: COLORS.successBg,
+    backgroundColor: colors.successBg,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -362,11 +376,11 @@ const styles = StyleSheet.create({
   selectedName: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   selectedStock: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   quickAmounts: {
@@ -379,24 +393,24 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
   },
   quickAmountChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   quickAmountText: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   quickAmountTextActive: {
-    color: COLORS.surface,
+    color: colors.surface,
   },
   previewCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -405,7 +419,7 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontSize: FONT_SIZES.md,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   previewRow: {
@@ -415,21 +429,21 @@ const styles = StyleSheet.create({
   },
   previewTotal: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     marginTop: SPACING.xs,
     paddingTop: SPACING.sm,
   },
   previewLabel: {
     fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   previewValue: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   logButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -443,7 +457,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   logButtonText: {
-    color: COLORS.surface,
+    color: colors.surface,
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
   },

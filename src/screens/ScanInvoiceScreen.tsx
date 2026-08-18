@@ -1,0 +1,1198 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+  FlatList,
+  Switch,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
+import { SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ThemeColors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { DEFAULT_CATEGORIES, UNITS_OF_MEASUREMENT } from '../constants/categories';
+import { createItemsBatch, CreateItemInput } from '../database';
+import {
+  parseInvoiceImage,
+  parseInvoiceText,
+  convertToCreateItemInputs,
+  ParsedInvoiceItem,
+  InvoiceParseResult,
+} from '../services/invoiceParser';
+import { hasApiKey, setApiKey } from '../services/config';
+import DateField from '../components/DateField';
+import { formatMoney } from '../utils/numberFormat';
+
+type ParseMode = 'image' | 'text';
+type ScreenState = 'input' | 'parsing' | 'review' | 'saving' | 'done';
+
+// Picker target identifies which item + which field (category/unit) is being edited
+interface PickerTarget {
+  index: number;
+  field: 'category' | 'unit';
+}
+
+export default function ScanInvoiceScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  const navigation = useNavigation();
+
+  const [screenState, setScreenState] = useState<ScreenState>('input');
+  const [parseMode, setParseMode] = useState<ParseMode>('image');
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [invoiceText, setInvoiceText] = useState('');
+  const [parseResult, setParseResult] = useState<InvoiceParseResult | null>(null);
+  // Editable copy of the parsed items — lets the user correct category/unit/quantity
+  // right in the review screen before anything is saved to the pantry.
+  const [editableItems, setEditableItems] = useState<ParsedInvoiceItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [apiKeyConfigured, setApiKeyConfigured] = useState<boolean>(true);
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+  // Free-typed text for quantity/price fields, keyed as `q-${index}` / `p-${index}`.
+  // Kept separate from editableItems so users can freely type (e.g. clear the field,
+  // type "12.5") without every keystroke needing to already be a valid number.
+  const [textDrafts, setTextDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    checkApiKey();
+  }, []);
+
+  const checkApiKey = async () => {
+    const configured = await hasApiKey();
+    setApiKeyConfigured(configured);
+    if (!configured) {
+      setShowApiKeyInput(true);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!apiKeyInput.trim() || apiKeyInput.trim().length < 10) {
+      Alert.alert('Invalid Key', 'Please enter a valid Gemini API key from Google AI Studio.');
+      return;
+    }
+    await setApiKey(apiKeyInput.trim());
+    setApiKeyConfigured(true);
+    setShowApiKeyInput(false);
+    Alert.alert('Success', 'API key saved successfully!');
+  };
+
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Required', 'Please allow access to your photo library to scan invoices.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      // Expo SDK 54: MediaTypeOptions is deprecated in favor of a MediaType array
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Required', 'Please allow camera access to capture invoice photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const handleParse = async () => {
+    if (!apiKeyConfigured) {
+      setShowApiKeyInput(true);
+      return;
+    }
+
+    if (parseMode === 'image' && !imageUri) {
+      Alert.alert('No Image', 'Please select or capture an invoice image first.');
+      return;
+    }
+
+    if (parseMode === 'text' && !invoiceText.trim()) {
+      Alert.alert('No Text', 'Please paste your invoice text first.');
+      return;
+    }
+
+    setScreenState('parsing');
+
+    let result: InvoiceParseResult;
+    if (parseMode === 'image') {
+      result = await parseInvoiceImage(imageUri!);
+    } else {
+      result = await parseInvoiceText(invoiceText);
+    }
+
+    setParseResult(result);
+
+    if (result.success && result.items.length > 0) {
+      // Select all items by default, and make an editable copy for the review screen
+      setSelectedItems(new Set(result.items.map((_, index) => index)));
+      setEditableItems(result.items.map((item) => ({ ...item })));
+      setScreenState('review');
+    } else {
+      setScreenState('input');
+      Alert.alert(
+        'Parsing Failed',
+        result.error || 'Could not extract items from the invoice. Try a clearer image or paste the text instead.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const toggleItemSelection = (index: number) => {
+    setSelectedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedItems(new Set(editableItems.map((_, i) => i)));
+  };
+
+  const deselectAll = () => {
+    setSelectedItems(new Set());
+  };
+
+  // Update a single field on one item in the editable list
+  const updateItemField = (
+    index: number,
+    field: 'category' | 'unit' | 'quantity' | 'name' | 'brand' | 'price' | 'expiryDate',
+    value: string | number | undefined | null
+  ) => {
+    setEditableItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value } as ParsedInvoiceItem;
+      return next;
+    });
+  };
+
+  // --- Quantity editing (stepper buttons + free text typing) ---
+  const getQuantityText = (index: number): string =>
+    textDrafts[`q-${index}`] ?? String(editableItems[index]?.quantity ?? '');
+
+  const stepQuantity = (index: number, delta: number) => {
+    const current = editableItems[index]?.quantity ?? 1;
+    const next = Math.max(1, current + delta);
+    updateItemField(index, 'quantity', next);
+    setTextDrafts((prev) => ({ ...prev, [`q-${index}`]: String(next) }));
+  };
+
+  const handleQuantityChange = (index: number, text: string) => {
+    setTextDrafts((prev) => ({ ...prev, [`q-${index}`]: text }));
+    const parsed = parseFloat(text);
+    if (!isNaN(parsed) && parsed > 0) {
+      updateItemField(index, 'quantity', parsed);
+    }
+  };
+
+  const handleQuantityBlur = (index: number) => {
+    const text = textDrafts[`q-${index}`];
+    const parsed = text !== undefined ? parseFloat(text) : NaN;
+    // If what's typed doesn't resolve to a valid positive number, snap the
+    // visible text back to the last valid quantity rather than leaving it blank/invalid.
+    if (text === undefined || text.trim() === '' || isNaN(parsed) || parsed <= 0) {
+      setTextDrafts((prev) => ({ ...prev, [`q-${index}`]: String(editableItems[index]?.quantity ?? 1) }));
+    }
+  };
+
+  // --- Price editing (free text typing, optional field) ---
+  const getPriceText = (index: number): string => {
+    if (textDrafts[`p-${index}`] !== undefined) return textDrafts[`p-${index}`];
+    const price = editableItems[index]?.price;
+    return price !== undefined ? String(price) : '';
+  };
+
+  const handlePriceChange = (index: number, text: string) => {
+    setTextDrafts((prev) => ({ ...prev, [`p-${index}`]: text }));
+    if (text.trim() === '') {
+      updateItemField(index, 'price', undefined);
+      return;
+    }
+    const parsed = parseFloat(text);
+    if (!isNaN(parsed) && parsed >= 0) {
+      updateItemField(index, 'price', parsed);
+    }
+  };
+
+  const handlePriceBlur = (index: number) => {
+    const text = textDrafts[`p-${index}`];
+    if (text === undefined) return;
+    const parsed = parseFloat(text);
+    // Price is optional - empty is fine. Only revert if it's a non-empty, invalid value.
+    if (text.trim() !== '' && (isNaN(parsed) || parsed < 0)) {
+      const price = editableItems[index]?.price;
+      setTextDrafts((prev) => ({ ...prev, [`p-${index}`]: price !== undefined ? String(price) : '' }));
+    }
+  };
+
+  const handleAddToPantry = async () => {
+    if (editableItems.length === 0 || selectedItems.size === 0) {
+      Alert.alert('No Items Selected', 'Please select at least one item to add.');
+      return;
+    }
+
+    // Validate: names can be freely edited now, so make sure none were left blank.
+    const selectedIndexes = Array.from(selectedItems);
+    const blankNameIndex = selectedIndexes.find((i) => !editableItems[i]?.name?.trim());
+    if (blankNameIndex !== undefined) {
+      Alert.alert('Missing Item Name', 'Please enter a name for every selected item before adding.');
+      return;
+    }
+
+    setScreenState('saving');
+
+    try {
+      const itemsToAdd = editableItems
+        .filter((_, index) => selectedItems.has(index))
+        .map((item) => ({ ...item, name: item.name.trim() }));
+      const createInputs: CreateItemInput[] = convertToCreateItemInputs(itemsToAdd);
+      await createItemsBatch(createInputs);
+
+      setScreenState('done');
+      Alert.alert(
+        'Success!',
+        `Added ${createInputs.length} item${createInputs.length > 1 ? 's' : ''} to your pantry.`,
+        [{ text: 'Great!', onPress: () => navigation.goBack() }]
+      );
+    } catch (error) {
+      setScreenState('review');
+      Alert.alert('Error', 'Failed to save items. Please try again.');
+    }
+  };
+
+  const handleRetry = () => {
+    setScreenState('input');
+    setParseResult(null);
+    setEditableItems([]);
+    setSelectedItems(new Set());
+    setTextDrafts({});
+  };
+
+  // Render API key input
+  if (showApiKeyInput) {
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.apiKeySection}>
+            <Ionicons name="key-outline" size={48} color={colors.primary} />
+            <Text style={styles.apiKeyTitle}>Gemini API Key Required</Text>
+            <Text style={styles.apiKeyDescription}>
+              To parse grocery invoices, PantryPal uses Google's Gemini AI.
+              Gemini offers a free tier with no credit card required.
+            </Text>
+            <Text style={styles.apiKeyHint}>
+              Get your free key from: aistudio.google.com/apikey
+            </Text>
+            <TextInput
+              style={styles.apiKeyInput}
+              value={apiKeyInput}
+              onChangeText={setApiKeyInput}
+              placeholder="AIzaSy..."
+              placeholderTextColor={colors.textLight}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+            <TouchableOpacity style={styles.primaryButton} onPress={handleSaveApiKey}>
+              <Text style={styles.primaryButtonText}>Save API Key</Text>
+            </TouchableOpacity>
+            {apiKeyConfigured && (
+              <TouchableOpacity
+                style={styles.textButton}
+                onPress={() => setShowApiKeyInput(false)}
+              >
+                <Text style={styles.textButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Render parsing state
+  if (screenState === 'parsing' || screenState === 'saving') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>
+            {screenState === 'parsing'
+              ? 'Analyzing invoice with AI...\nThis may take a few seconds.'
+              : 'Adding items to your pantry...'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Render review state
+  if (screenState === 'review' && parseResult) {
+    const selectedUnitLabel = (unit: string) =>
+      UNITS_OF_MEASUREMENT.find((u) => u.value === unit)?.label || unit;
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.reviewHeader}>
+          {parseResult.storeName && (
+            <Text style={styles.storeName}>{parseResult.storeName}</Text>
+          )}
+          <Text style={styles.itemCount}>
+            {editableItems.length} items found
+            {parseResult.totalAmount ? ` | Total: ₹${formatMoney(parseResult.totalAmount)}` : ''}
+          </Text>
+          <Text style={styles.editHint}>
+            Edit name, quantity, amount, unit, or category on any item below.
+          </Text>
+          <View style={styles.selectionRow}>
+            <TouchableOpacity onPress={selectAll}>
+              <Text style={styles.selectionLink}>Select All</Text>
+            </TouchableOpacity>
+            <Text style={styles.selectionDivider}>|</Text>
+            <TouchableOpacity onPress={deselectAll}>
+              <Text style={styles.selectionLink}>Deselect All</Text>
+            </TouchableOpacity>
+            <Text style={styles.selectedCount}>
+              {selectedItems.size} selected
+            </Text>
+          </View>
+        </View>
+
+        <FlatList
+          data={editableItems}
+          keyExtractor={(_, index) => index.toString()}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item, index }) => (
+            <View
+              style={[
+                styles.reviewItem,
+                selectedItems.has(index) && styles.reviewItemSelected,
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => toggleItemSelection(index)}
+              >
+                {selectedItems.has(index) ? (
+                  <Ionicons name="checkbox" size={24} color={colors.primary} />
+                ) : (
+                  <Ionicons name="square-outline" size={24} color={colors.textLight} />
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.reviewItemInfo}>
+                {/* Editable item name */}
+                <TextInput
+                  style={styles.nameInput}
+                  value={item.name}
+                  onChangeText={(text) => updateItemField(index, 'name', text)}
+                  placeholder="Item name"
+                  placeholderTextColor={colors.textLight}
+                />
+
+                {/* Editable brand (optional, shown as a smaller sub-field) */}
+                <TextInput
+                  style={styles.brandInput}
+                  value={item.brand || ''}
+                  onChangeText={(text) => updateItemField(index, 'brand', text || undefined)}
+                  placeholder="Brand (optional)"
+                  placeholderTextColor={colors.textLight}
+                />
+
+                <View style={styles.editableRow}>
+                  {/* Quantity: stepper buttons + directly editable number field */}
+                  <View style={styles.qtyStepper}>
+                    <TouchableOpacity
+                      style={styles.qtyButton}
+                      onPress={() => stepQuantity(index, -1)}
+                    >
+                      <Ionicons name="remove" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.qtyInput}
+                      value={getQuantityText(index)}
+                      onChangeText={(text) => handleQuantityChange(index, text)}
+                      onBlur={() => handleQuantityBlur(index)}
+                      keyboardType="decimal-pad"
+                      selectTextOnFocus
+                    />
+                    <TouchableOpacity
+                      style={styles.qtyButton}
+                      onPress={() => stepQuantity(index, 1)}
+                    >
+                      <Ionicons name="add" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Unit chip - tap to change */}
+                  <TouchableOpacity
+                    style={styles.editChip}
+                    onPress={() => setPickerTarget({ index, field: 'unit' })}
+                  >
+                    <Text style={styles.editChipText}>{selectedUnitLabel(item.unit)}</Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.primary} />
+                  </TouchableOpacity>
+
+                  {/* Category chip - tap to change */}
+                  <TouchableOpacity
+                    style={styles.editChip}
+                    onPress={() => setPickerTarget({ index, field: 'category' })}
+                  >
+                    <Text style={styles.editChipText}>{item.category}</Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Editable price/amount */}
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>₹</Text>
+                  <TextInput
+                    style={styles.priceInput}
+                    value={getPriceText(index)}
+                    onChangeText={(text) => handlePriceChange(index, text)}
+                    onBlur={() => handlePriceBlur(index)}
+                    placeholder="Amount paid"
+                    placeholderTextColor={colors.textLight}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+
+                {/* Editable expiry date (optional) - same DateField used in Add/Edit Item */}
+                <View style={styles.expiryFieldWrapper}>
+                  <DateField
+                    label="Expiry Date"
+                    value={item.expiryDate ?? null}
+                    onChange={(iso) => updateItemField(index, 'expiryDate', iso)}
+                    placeholder="Not set (optional)"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+        />
+
+        <View style={styles.reviewFooter}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Ionicons name="refresh" size={20} color={colors.textSecondary} />
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, selectedItems.size === 0 && styles.addButtonDisabled]}
+            onPress={handleAddToPantry}
+            disabled={selectedItems.size === 0}
+          >
+            <Ionicons name="add-circle" size={20} color={colors.surface} />
+            <Text style={styles.addButtonText}>
+              Add {selectedItems.size} to Pantry
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Category/Unit picker modal (bottom sheet style overlay) */}
+        {pickerTarget && (
+          <View style={styles.pickerOverlay}>
+            <TouchableOpacity
+              style={styles.pickerOverlayBackdrop}
+              onPress={() => setPickerTarget(null)}
+            />
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerSheetHeader}>
+                <Text style={styles.pickerSheetTitle}>
+                  Select {pickerTarget.field === 'unit' ? 'Unit' : 'Category'}
+                </Text>
+                <TouchableOpacity onPress={() => setPickerTarget(null)}>
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={pickerTarget.field === 'unit' ? UNITS_OF_MEASUREMENT : DEFAULT_CATEGORIES.map((c) => ({ label: c, value: c }))}
+                keyExtractor={(opt) => opt.value}
+                style={styles.pickerSheetList}
+                renderItem={({ item: option }) => {
+                  const currentValue =
+                    pickerTarget.field === 'unit'
+                      ? editableItems[pickerTarget.index]?.unit
+                      : editableItems[pickerTarget.index]?.category;
+                  const isSelected = currentValue === option.value;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.pickerSheetOption, isSelected && styles.pickerSheetOptionSelected]}
+                      onPress={() => {
+                        updateItemField(pickerTarget.index, pickerTarget.field, option.value);
+                        setPickerTarget(null);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerSheetOptionText,
+                          isSelected && styles.pickerSheetOptionTextSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={20} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  // Render input state (default)
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Mode Toggle */}
+        <View style={styles.modeToggle}>
+          <TouchableOpacity
+            style={[styles.modeButton, parseMode === 'image' && styles.modeButtonActive]}
+            onPress={() => setParseMode('image')}
+          >
+            <Ionicons
+              name="camera-outline"
+              size={20}
+              color={parseMode === 'image' ? colors.surface : colors.textSecondary}
+            />
+            <Text style={[styles.modeButtonText, parseMode === 'image' && styles.modeButtonTextActive]}>
+              Scan Image
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeButton, parseMode === 'text' && styles.modeButtonActive]}
+            onPress={() => setParseMode('text')}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={20}
+              color={parseMode === 'text' ? colors.surface : colors.textSecondary}
+            />
+            <Text style={[styles.modeButtonText, parseMode === 'text' && styles.modeButtonTextActive]}>
+              Paste Text
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {parseMode === 'image' ? (
+          <View style={styles.imageSection}>
+            {/* Info Box */}
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={20} color={colors.accent} />
+              <Text style={styles.infoText}>
+                Take a photo or select a screenshot of your Blinkit, Instamart, BigBasket, or other grocery invoice. AI will extract all items automatically.
+              </Text>
+            </View>
+
+            {/* Image Preview */}
+            {imageUri ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="contain" />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => setImageUri(null)}
+                >
+                  <Ionicons name="close-circle" size={28} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="receipt-outline" size={64} color={colors.textLight} />
+                <Text style={styles.placeholderText}>No invoice selected</Text>
+              </View>
+            )}
+
+            {/* Image Buttons */}
+            <View style={styles.imageButtons}>
+              <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
+                <Ionicons name="camera" size={24} color={colors.primary} />
+                <Text style={styles.imageButtonText}>Take Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+                <Ionicons name="images" size={24} color={colors.primary} />
+                <Text style={styles.imageButtonText}>Pick from Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.textSection}>
+            {/* Info Box */}
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={20} color={colors.accent} />
+              <Text style={styles.infoText}>
+                Copy your order details from the delivery app and paste them here. Works with Blinkit, Swiggy Instamart, BigBasket, Zepto, etc.
+              </Text>
+            </View>
+
+            <TextInput
+              style={styles.textInput}
+              value={invoiceText}
+              onChangeText={setInvoiceText}
+              placeholder={`Paste your invoice/order text here...\n\nExample:\nAmul Toned Milk 500ml x2 - ₹56\nAashirvaad Atta 5kg - ₹299\nOnion 1kg - ₹35\nTomato 500g - ₹20`}
+              placeholderTextColor={colors.textLight}
+              multiline
+              numberOfLines={12}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
+
+        {/* Parse Button */}
+        <TouchableOpacity
+          style={[
+            styles.parseButton,
+            (parseMode === 'image' && !imageUri) && styles.parseButtonDisabled,
+            (parseMode === 'text' && !invoiceText.trim()) && styles.parseButtonDisabled,
+          ]}
+          onPress={handleParse}
+          disabled={
+            (parseMode === 'image' && !imageUri) ||
+            (parseMode === 'text' && !invoiceText.trim())
+          }
+        >
+          <Ionicons name="sparkles" size={22} color={colors.surface} />
+          <Text style={styles.parseButtonText}>Parse Invoice with AI</Text>
+        </TouchableOpacity>
+
+        {/* Settings Link */}
+        <TouchableOpacity
+          style={styles.settingsLink}
+          onPress={() => setShowApiKeyInput(true)}
+        >
+          <Ionicons name="key-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.settingsLinkText}>Change API Key</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      padding: SPACING.md,
+      paddingBottom: SPACING.xxl,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.xl,
+    },
+    loadingText: {
+      marginTop: SPACING.md,
+      fontSize: FONT_SIZES.lg,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+
+    // Mode Toggle
+    modeToggle: {
+      flexDirection: 'row',
+      borderRadius: BORDER_RADIUS.md,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: SPACING.lg,
+    },
+    modeButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      gap: SPACING.xs,
+    },
+    modeButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    modeButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    modeButtonTextActive: {
+      color: colors.surface,
+    },
+
+    // Info Box
+    infoBox: {
+      flexDirection: 'row',
+      backgroundColor: colors.accent + '10',
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      marginBottom: SPACING.md,
+      gap: SPACING.sm,
+      alignItems: 'flex-start',
+    },
+    infoText: {
+      flex: 1,
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+
+    // Image Section
+    imageSection: {},
+    imagePreviewContainer: {
+      position: 'relative',
+      borderRadius: BORDER_RADIUS.md,
+      overflow: 'hidden',
+      marginBottom: SPACING.md,
+      backgroundColor: colors.surface,
+      ...SHADOWS.sm,
+    },
+    imagePreview: {
+      width: '100%',
+      height: 300,
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: SPACING.sm,
+      right: SPACING.sm,
+    },
+    imagePlaceholder: {
+      height: 200,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: SPACING.md,
+    },
+    placeholderText: {
+      marginTop: SPACING.sm,
+      fontSize: FONT_SIZES.md,
+      color: colors.textLight,
+    },
+    imageButtons: {
+      flexDirection: 'row',
+      gap: SPACING.sm,
+    },
+    imageButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      gap: SPACING.xs,
+    },
+    imageButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+
+    // Text Section
+    textSection: {},
+    textInput: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+      minHeight: 200,
+      lineHeight: 22,
+    },
+
+    // Parse Button
+    parseButton: {
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.sm,
+      marginTop: SPACING.lg,
+      ...SHADOWS.md,
+    },
+    parseButtonDisabled: {
+      opacity: 0.5,
+    },
+    parseButtonText: {
+      color: colors.surface,
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+    },
+
+    // Settings Link
+    settingsLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      marginTop: SPACING.sm,
+      gap: SPACING.xs,
+    },
+    settingsLinkText: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+    },
+
+    // API Key Section
+    apiKeySection: {
+      alignItems: 'center',
+      padding: SPACING.lg,
+    },
+    apiKeyTitle: {
+      fontSize: FONT_SIZES.xl,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: SPACING.md,
+    },
+    apiKeyDescription: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: SPACING.sm,
+      lineHeight: 22,
+    },
+    apiKeyHint: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.accent,
+      marginTop: SPACING.sm,
+      marginBottom: SPACING.lg,
+    },
+    apiKeyInput: {
+      width: '100%',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+      marginBottom: SPACING.md,
+    },
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      width: '100%',
+      alignItems: 'center',
+      ...SHADOWS.md,
+    },
+    primaryButtonText: {
+      color: colors.surface,
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+    },
+    textButton: {
+      padding: SPACING.md,
+      marginTop: SPACING.sm,
+    },
+    textButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+    },
+
+    // Review State
+    reviewHeader: {
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    storeName: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    itemCount: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      marginTop: SPACING.xs,
+    },
+    selectionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      gap: SPACING.sm,
+    },
+    selectionLink: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.accent,
+      fontWeight: '600',
+    },
+    selectionDivider: {
+      color: colors.textLight,
+    },
+    selectedCount: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      marginLeft: 'auto',
+    },
+    listContent: {
+      padding: SPACING.md,
+      paddingBottom: 100,
+    },
+    reviewItem: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderRadius: BORDER_RADIUS.md,
+      padding: SPACING.md,
+      marginBottom: SPACING.sm,
+      alignItems: 'center',
+      ...SHADOWS.sm,
+    },
+    reviewItemSelected: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight + '10',
+    },
+    checkbox: {
+      marginRight: SPACING.sm,
+    },
+    reviewItemInfo: {
+      flex: 1,
+    },
+    nameInput: {
+      fontSize: FONT_SIZES.md,
+      fontWeight: '600',
+      color: colors.text,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      marginBottom: 4,
+    },
+    brandInput: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      marginBottom: 4,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      gap: 4,
+    },
+    priceLabel: {
+      fontSize: FONT_SIZES.sm,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    priceInput: {
+      flex: 1,
+      fontSize: FONT_SIZES.sm,
+      color: colors.text,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      maxWidth: 100,
+    },
+    expiryFieldWrapper: {
+      marginTop: SPACING.sm,
+    },
+    editHint: {
+      fontSize: FONT_SIZES.xs,
+      color: colors.textLight,
+      marginTop: SPACING.xs,
+    },
+    editableRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      gap: SPACING.xs,
+      flexWrap: 'wrap',
+    },
+    qtyStepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: BORDER_RADIUS.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    qtyButton: {
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 6,
+    },
+    qtyInput: {
+      minWidth: 36,
+      textAlign: 'center',
+      fontSize: FONT_SIZES.sm,
+      fontWeight: '600',
+      color: colors.text,
+      paddingVertical: 4,
+    },
+    editChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryLight + '20',
+      borderRadius: BORDER_RADIUS.sm,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 6,
+      gap: 4,
+    },
+    editChipText: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+
+    // Category/Unit picker sheet
+    pickerOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'flex-end',
+    },
+    pickerOverlayBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.overlay,
+    },
+    pickerSheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: BORDER_RADIUS.xl,
+      borderTopRightRadius: BORDER_RADIUS.xl,
+      maxHeight: '70%',
+      ...SHADOWS.lg,
+    },
+    pickerSheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    pickerSheetTitle: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    pickerSheetList: {
+      paddingBottom: SPACING.lg,
+    },
+    pickerSheetOption: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    pickerSheetOptionSelected: {
+      backgroundColor: colors.primaryLight + '15',
+    },
+    pickerSheetOptionText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.text,
+    },
+    pickerSheetOptionTextSelected: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    reviewFooter: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      padding: SPACING.md,
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: SPACING.sm,
+      ...SHADOWS.lg,
+    },
+    retryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: SPACING.xs,
+    },
+    retryButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    addButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: SPACING.md,
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      gap: SPACING.xs,
+      ...SHADOWS.md,
+    },
+    addButtonDisabled: {
+      opacity: 0.5,
+    },
+    addButtonText: {
+      fontSize: FONT_SIZES.md,
+      color: colors.surface,
+      fontWeight: '700',
+    },
+  });

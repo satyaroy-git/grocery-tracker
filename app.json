@@ -1,0 +1,77 @@
+{
+  "expo": {
+    "name": "PantryPal: Smart Grocery Tracker",
+    "slug": "pantry-pal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4CAF50"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pantrypal.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "PantryPal needs camera access to scan grocery invoices and product barcodes",
+        "NSPhotoLibraryUsageDescription": "PantryPal needs photo library access to pick invoice images"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4CAF50"
+      },
+      "package": "com.satyaroy.pantrypal",
+      "versionCode": 7,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PantryPal needs access to your photos to scan grocery invoices.",
+          "cameraPermission": "PantryPal needs access to your camera to capture invoice photos."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PantryPal needs access to your camera to scan product barcodes.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#4CAF50"
+        }
+      ],
+      "expo-font",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "394bc214-5bf9-48b2-ae2a-ab356dfc4f8b"
+      }
+    }
+  }
+}
